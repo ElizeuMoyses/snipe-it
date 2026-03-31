@@ -5,19 +5,18 @@ namespace App\Mail;
 use App\Models\CheckoutAcceptance;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
-use Illuminate\Mail\Mailables\Attachment;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class CheckoutAcceptanceResponseMail extends BaseMailable
+class CheckoutAcceptanceResponseMail extends Mailable
 {
     use Queueable, SerializesModels;
 
     public CheckoutAcceptance $acceptance;
-
     public User $recipient;
-
     public bool $wasAccepted;
 
     /**
@@ -64,7 +63,7 @@ class CheckoutAcceptanceResponseMail extends BaseMailable
     /**
      * Get the attachments for the message.
      *
-     * @return array<int, Attachment>
+     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
      */
     public function attachments(): array
     {

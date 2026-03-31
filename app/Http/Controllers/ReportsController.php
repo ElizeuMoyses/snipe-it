@@ -3,41 +3,38 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\Helper;
-use App\Http\Requests\CustomAssetReportRequest;
-use App\Mail\CheckoutAccessoryMail;
 use App\Mail\CheckoutAssetMail;
-use App\Mail\CheckoutComponentMail;
-use App\Mail\CheckoutConsumableMail;
-use App\Mail\CheckoutLicenseMail;
 use App\Models\Accessory;
 use App\Models\Actionlog;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Category;
-use App\Models\Checkoutable;
+use App\Models\Maintenance;
 use App\Models\CheckoutAcceptance;
-use App\Models\Component;
-use App\Models\Consumable;
+use App\Models\Company;
 use App\Models\CustomField;
 use App\Models\Depreciation;
 use App\Models\License;
-use App\Models\LicenseSeat;
-use App\Models\Maintenance;
 use App\Models\ReportTemplate;
 use App\Models\Setting;
 use Carbon\Carbon;
-use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Mail\Mailable;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Mail;
-use League\Csv\EscapeFormula;
+use Illuminate\Contracts\View\View;
 use League\Csv\Reader;
-use League\Csv\Writer;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use League\Csv\EscapeFormula;
+use App\Http\Requests\CustomAssetReportRequest;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Http\RedirectResponse;
+use TCPDF;
+use ZipArchive;
+use Exception;
+use Illuminate\Validation\ValidationException;
 
 /**
  * This controller handles all actions related to Reports for
@@ -56,13 +53,13 @@ class ReportsController extends Controller
     }
 
     /**
-     * Returns a view that displays the accessories report.
-     *
-     * @author [A. Gianotto] [<snipe@snipe.net>]
-     *
-     * @since [v1.0]
-     */
-    public function getAccessoryReport(): View
+    * Returns a view that displays the accessories report.
+    *
+    * @author [A. Gianotto] [<snipe@snipe.net>]
+    * @since [v1.0]
+    * @return \Illuminate\Contracts\View\View
+    */
+    public function getAccessoryReport() : View
     {
         $this->authorize('reports.view');
 
@@ -70,16 +67,15 @@ class ReportsController extends Controller
     }
 
     /**
-     * Exports the accessories to CSV
-     *
-     * @deprecated Server-side exports have been replaced by datatables export since v2.
-     *
-     * @author [A. Gianotto] [<snipe@snipe.net>]
-     *
-     * @see ManufacturersController::getDatatable() method that generates the JSON response
-     * @since [v1.0]
-     */
-    public function exportAccessoryReport(): Response
+    * Exports the accessories to CSV
+    *
+    * @deprecated Server-side exports have been replaced by datatables export since v2.
+    * @author [A. Gianotto] [<snipe@snipe.net>]
+    * @see ManufacturersController::getDatatable() method that generates the JSON response
+    * @since [v1.0]
+    * @return \Illuminate\Http\Response
+    */
+    public function exportAccessoryReport() : Response
     {
         $this->authorize('reports.view');
         $accessories = Accessory::orderBy('created_at', 'DESC')->get();
@@ -114,37 +110,33 @@ class ReportsController extends Controller
     }
 
     /**
-     * Show depreciation report for assets.
-     *
-     * @author [A. Gianotto] [<snipe@snipe.net>]
-     *
-     * @since [v1.0]
-     */
-    public function getDeprecationReport(): View
+    * Show depreciation report for assets.
+    *
+    * @author [A. Gianotto] [<snipe@snipe.net>]
+    * @since [v1.0]
+    */
+    public function getDeprecationReport() : View
     {
         $this->authorize('reports.view');
         $depreciations = Depreciation::get();
-
-        return view('reports/depreciation')->with('depreciations', $depreciations);
+        return view('reports/depreciation')->with('depreciations',$depreciations);
     }
 
     /**
-     * Exports the depreciations to CSV
-     *
-     * @deprecated Server-side exports have been replaced by datatables export since v2.
-     *
-     * @author [A. Gianotto] [<snipe@snipe.net>]
-     *
-     * @since [v1.0]
-     */
-    public function exportDeprecationReport(): Response
+    * Exports the depreciations to CSV
+    *
+    * @deprecated Server-side exports have been replaced by datatables export since v2.
+    * @author [A. Gianotto] [<snipe@snipe.net>]
+    * @since [v1.0]
+    */
+    public function exportDeprecationReport() : Response
     {
         $this->authorize('reports.view');
         // Grab all the assets
         $assets = Asset::with('model', 'assignedTo', 'assetstatus', 'defaultLoc', 'assetlog')
-            ->orderBy('created_at', 'DESC')->get();
+                       ->orderBy('created_at', 'DESC')->get();
 
-        $csv = Writer::createFromFileObject(new \SplTempFileObject);
+        $csv = \League\Csv\Writer::createFromFileObject(new \SplTempFileObject());
         $csv->setOutputBOM(Reader::BOM_UTF16_BE);
 
         $rows = [];
@@ -162,7 +154,7 @@ class ReportsController extends Controller
             trans('admin/hardware/table.diff'),
         ];
 
-        // we insert the CSV header
+        //we insert the CSV header
         $csv->insertOne($header);
 
         // Create a row per asset
@@ -173,7 +165,7 @@ class ReportsController extends Controller
             $row[] = e($asset->serial);
 
             if ($target = $asset->assignedTo) {
-                $row[] = e($target->display_name);
+                $row[] = e($target->present()->name());
             } else {
                 $row[] = ''; // Empty string if unassigned
             }
@@ -204,31 +196,30 @@ class ReportsController extends Controller
         }
 
         $csv->output('depreciation-report-'.date('Y-m-d').'.csv');
-        exit;
+        die;
     }
+
 
     /**
      * Displays audit report.
      *
      * @author [A. Gianotto] [<snipe@snipe.net>]
-     *
      * @since [v4.0]
      */
-    public function audit(): View
+    public function audit() : View
     {
         $this->authorize('reports.view');
-
         return view('reports/audit');
     }
 
+
     /**
-     * Displays activity report.
-     *
-     * @author [A. Gianotto] [<snipe@snipe.net>]
-     *
-     * @since [v1.0]
-     */
-    public function getActivityReport(): View
+    * Displays activity report.
+    *
+    * @author [A. Gianotto] [<snipe@snipe.net>]
+    * @since [v1.0]
+    */
+    public function getActivityReport() : View
     {
         $this->authorize('reports.view');
 
@@ -239,16 +230,14 @@ class ReportsController extends Controller
      * Exports the activity report to CSV
      *
      * @author [A. Gianotto] [<snipe@snipe.net>]
-     *
      * @since [v5.0.7]
      */
-    public function postActivityReport(Request $request): StreamedResponse
+    public function postActivityReport(Request $request) : StreamedResponse
     {
         ini_set('max_execution_time', 12000);
         $this->authorize('reports.view');
 
-        $this->disableDebugbar();
-
+        \Debugbar::disable();
         $response = new StreamedResponse(function () {
             Log::debug('Starting streamed response');
 
@@ -283,42 +272,46 @@ class ReportsController extends Controller
                 ->orderBy('created_at', 'DESC')
                 ->chunk(500, function ($actionlogs) use ($handle) {
                     $executionTime = microtime(true) - $_SERVER['REQUEST_TIME_FLOAT'];
-                    Log::debug('Walking results: '.$executionTime);
-                    $count = 0;
+                Log::debug('Walking results: '.$executionTime);
+                $count = 0;
 
-                    foreach ($actionlogs as $actionlog) {
-                        $count++;
-                        $target_name = '';
+                foreach ($actionlogs as $actionlog) {
+                    $count++;
+                    $target_name = '';
 
-                        if ($actionlog->target) {
-                            $target_name = $actionlog->target->display_name;
-                        }
-
-                        if ($actionlog->item) {
-                            $item_name = e($actionlog->item->display_name);
+                    if ($actionlog->target) {
+                            if ($actionlog->targetType() == 'user') {
+                                $target_name = $actionlog->target->display_name;
                         } else {
-                            $item_name = '';
+                            $target_name = $actionlog->target->getDisplayNameAttribute();
                         }
-
-                        $row = [
-                            $actionlog->created_at,
-                            ($actionlog->adminuser) ? $actionlog->adminuser->display_name : '',
-                            $actionlog->present()->actionType(),
-                            e($actionlog->itemType()),
-                            ($actionlog->itemType() == 'user') ? $actionlog->filename : $item_name,
-                            ($actionlog->item) ? $actionlog->item->serial : null,
-                            (($actionlog->item) && ($actionlog->item->model)) ? htmlspecialchars($actionlog->item->model->name, ENT_NOQUOTES) : null,
-                            (($actionlog->item) && ($actionlog->item->model)) ? $actionlog->item->model->model_number : null,
-                            $target_name,
-                            ($actionlog->note) ? e($actionlog->note) : '',
-                            $actionlog->remote_ip,
-                            $actionlog->user_agent,
-                            $actionlog->action_source,
-                            $actionlog->log_meta,
-                        ];
-                        fputcsv($handle, $row);
                     }
-                });
+
+                    if($actionlog->item){
+                        $item_name = e($actionlog->item->getDisplayNameAttribute());
+                    } else {
+                        $item_name = '';
+                    }
+
+                    $row = [
+                        $actionlog->created_at,
+                        ($actionlog->adminuser) ? e($actionlog->adminuser->display_name) : '',
+                        $actionlog->present()->actionType(),
+                        e($actionlog->itemType()),
+                        ($actionlog->itemType() == 'user') ? $actionlog->filename : $item_name,
+                        ($actionlog->item) ? $actionlog->item->serial : null,
+                        (($actionlog->item) && ($actionlog->item->model)) ? htmlspecialchars($actionlog->item->model->name, ENT_NOQUOTES) : null,
+                        (($actionlog->item) && ($actionlog->item->model))  ? $actionlog->item->model->model_number : null,
+                        $target_name,
+                        ($actionlog->note) ? e($actionlog->note) : '',
+                        $actionlog->log_meta,
+                        $actionlog->remote_ip,
+                        $actionlog->user_agent,
+                        $actionlog->action_source,
+                    ];
+                    fputcsv($handle, $row);
+                }
+            });
 
             // Close the output stream
             fclose($handle);
@@ -329,36 +322,35 @@ class ReportsController extends Controller
             'Content-Disposition' => 'attachment; filename="activity-report-'.date('Y-m-d-his').'.csv"',
         ]);
 
+
         return $response;
     }
+
 
     /**
      * Displays license report
      *
      * @author [A. Gianotto] [<snipe@snipe.net>]
-     *
      * @since [v1.0]
      */
-    public function getLicenseReport(): View
+    public function getLicenseReport() : View
     {
         $this->authorize('reports.view');
         $licenses = License::with('depreciation')->orderBy('created_at', 'DESC')
-            ->with('company')
-            ->get();
+                           ->with('company')
+                           ->get();
 
         return view('reports/licenses', compact('licenses'));
     }
 
     /**
-     * Exports the licenses to CSV
-     *
-     * @deprecated Server-side exports have been replaced by datatables export since v2.
-     *
-     * @author [A. Gianotto] [<snipe@snipe.net>]
-     *
-     * @since [v1.0]
-     */
-    public function exportLicenseReport(): Response
+    * Exports the licenses to CSV
+    *
+    * @deprecated Server-side exports have been replaced by datatables export since v2.
+    * @author [A. Gianotto] [<snipe@snipe.net>]
+    * @since [v1.0]
+    */
+    public function exportLicenseReport() : Response
     {
         $this->authorize('reports.view');
         $licenses = License::orderBy('created_at', 'DESC')->get();
@@ -393,7 +385,8 @@ class ReportsController extends Controller
             $rows[] = implode(',', $row);
         }
 
-        $csv = implode("\n", $rows);
+
+        $csv      = implode("\n", $rows);
         $response = response()->make($csv, 200);
         $response->header('Content-Type', 'text/csv');
         $response->header('Content-disposition', 'attachment;filename=report.csv');
@@ -402,14 +395,13 @@ class ReportsController extends Controller
     }
 
     /**
-     * Returns a form that allows the user to generate a custom CSV report.
-     *
-     * @author [A. Gianotto] [<snipe@snipe.net>]
-     *
-     * @see ReportsController::postCustomReport() method that generates the CSV
-     * @since [v1.0]
-     */
-    public function getCustomReport(Request $request): View
+    * Returns a form that allows the user to generate a custom CSV report.
+    *
+    * @author [A. Gianotto] [<snipe@snipe.net>]
+    * @see ReportsController::postCustomReport() method that generates the CSV
+    * @since [v1.0]
+    */
+    public function getCustomReport(Request $request) : View
     {
         $this->authorize('reports.view');
         $customfields = CustomField::get();
@@ -436,17 +428,16 @@ class ReportsController extends Controller
      * Exports the custom report to CSV
      *
      * @author [A. Gianotto] [<snipe@snipe.net>]
-     *
      * @see ReportsController::getCustomReport() method that generates form view
      * @since [v1.0]
      */
-    public function postCustom(CustomAssetReportRequest $request): StreamedResponse
+    public function postCustom(CustomAssetReportRequest $request) : StreamedResponse
     {
-        ini_set('max_execution_time', env('REPORT_TIME_LIMIT', 12000)); // 12000 seconds = 200 minutes
+        ini_set('max_execution_time', env('REPORT_TIME_LIMIT', 12000)); //12000 seconds = 200 minutes
         $this->authorize('reports.view');
 
-        $this->disableDebugbar();
 
+        \Debugbar::disable();
         $customfields = CustomField::get();
         $response = new StreamedResponse(function () use ($customfields, $request) {
             Log::debug('Starting streamed response');
@@ -455,14 +446,12 @@ class ReportsController extends Controller
             // Open output stream
             $handle = fopen('php://output', 'w');
             stream_set_timeout($handle, 2000);
-
-            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            if ($request->filled('use_bom')) {
+                fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+            }
 
             $header = [];
-
-            if ($request->filled('is_shared')) {
-                $header[] = trans('admin/reports/general.share_template');
-            }
 
             if ($request->filled('id')) {
                 $header[] = trans('general.id');
@@ -542,7 +531,7 @@ class ReportsController extends Controller
             if ($request->filled('rtd_location')) {
                 $header[] = trans('admin/hardware/form.default_location');
             }
-
+            
             if ($request->filled('rtd_location_address')) {
                 $header[] = trans('general.address');
                 $header[] = trans('general.address');
@@ -559,14 +548,6 @@ class ReportsController extends Controller
 
             if ($request->filled('username')) {
                 $header[] = 'Username';
-            }
-
-            if ($request->filled('user_company')) {
-                $header[] = trans('admin/reports/general.custom_export.user_company');
-            }
-
-            if ($request->filled('email')) {
-                $header[] = 'Email';
             }
 
             if ($request->filled('employee_num')) {
@@ -607,10 +588,6 @@ class ReportsController extends Controller
 
             if ($request->filled('user_zip')) {
                 $header[] = trans('admin/reports/general.custom_export.user_zip');
-            }
-
-            if ($request->filled('target_notes')) {
-                $header[] = trans('admin/reports/general.custom_export.target_notes');
             }
 
             if ($request->filled('status')) {
@@ -657,6 +634,7 @@ class ReportsController extends Controller
                 $header[] = trans('general.url');
             }
 
+
             foreach ($customfields as $customfield) {
                 if ($request->input($customfield->db_column_name()) == '1') {
                     $header[] = $customfield->name;
@@ -669,15 +647,10 @@ class ReportsController extends Controller
             $executionTime = microtime(true) - $_SERVER['REQUEST_TIME_FLOAT'];
             Log::debug('Added headers: '.$executionTime);
 
-            if ($request->filled('is_shared')) {
-                // to fill with logic for the report template and NOT the assets retrieved by the query
-                // do we scope here or??
-            }
-
             $assets = Asset::select('assets.*')->with(
                 'location', 'assetstatus', 'company', 'defaultLoc', 'assignedTo',
                 'model.category', 'model.manufacturer', 'supplier');
-
+            
             if ($request->filled('by_location_id')) {
                 $assets->whereIn('assets.location_id', $request->input('by_location_id'));
             }
@@ -722,14 +695,6 @@ class ReportsController extends Controller
                 $assets->whereBetween('assets.purchase_date', [$request->input('purchase_start'), $request->input('purchase_end')]);
             }
 
-            if ($request->filled('purchase_cost_start')) {
-                if ($request->filled('purchase_cost_end')) {
-                    $assets->whereBetween('assets.purchase_cost', [$request->input('purchase_cost_start'), $request->input('purchase_cost_end')]);
-                } else {
-                    $assets->where('assets.purchase_cost', '>', $request->input('purchase_cost_start'));
-                }
-            }
-
             if (($request->filled('created_start')) && ($request->filled('created_end'))) {
                 $created_start = Carbon::parse($request->input('created_start'))->startOfDay();
                 $created_end = Carbon::parse($request->input('created_end'))->endOfDay();
@@ -739,27 +704,27 @@ class ReportsController extends Controller
 
             if (($request->filled('checkout_date_start')) && ($request->filled('checkout_date_end'))) {
                 $checkout_start = Carbon::parse($request->input('checkout_date_start'))->startOfDay();
-                $checkout_end = Carbon::parse($request->input('checkout_date_end', now()))->endOfDay();
+                $checkout_end = Carbon::parse($request->input('checkout_date_end',now()))->endOfDay();
 
-                $actionlogassets = Actionlog::where('action_type', '=', 'checkout')
-                    ->where('item_type', 'LIKE', '%Asset%')
-                    ->whereBetween('action_date', [$checkout_start, $checkout_end])
-                    ->pluck('item_id');
+                $actionlogassets = Actionlog::where('action_type','=', 'checkout')
+                                              ->where('item_type', 'LIKE', '%Asset%',)
+                                              ->whereBetween('action_date',[$checkout_start, $checkout_end])
+                                                  ->pluck('item_id');
 
-                $assets->whereIn('assets.id', $actionlogassets);
+                $assets->whereIn('assets.id',$actionlogassets);
             }
 
             if (($request->filled('checkin_date_start'))) {
                 $checkin_start = Carbon::parse($request->input('checkin_date_start'))->startOfDay();
-                // use today's date is `checkin_date_end` is not provided
+                        // use today's date is `checkin_date_end` is not provided
                 $checkin_end = Carbon::parse($request->input('checkin_date_end', now()))->endOfDay();
 
-                $assets->whereBetween('assets.last_checkin', [$checkin_start, $checkin_end]);
+                $assets->whereBetween('assets.last_checkin', [$checkin_start, $checkin_end ]);
             }
-            // last checkin is exporting, but currently is a date and not a datetime in the custom report ONLY.
+            //last checkin is exporting, but currently is a date and not a datetime in the custom report ONLY.
 
             if (($request->filled('expected_checkin_start')) && ($request->filled('expected_checkin_end'))) {
-                $assets->whereBetween('assets.expected_checkin', [$request->input('expected_checkin_start'), $request->input('expected_checkin_end')]);
+                    $assets->whereBetween('assets.expected_checkin', [$request->input('expected_checkin_start'), $request->input('expected_checkin_end')]);
             }
 
             if (($request->filled('asset_eol_date_start')) && ($request->filled('asset_eol_date_end'))) {
@@ -767,10 +732,10 @@ class ReportsController extends Controller
             }
 
             if (($request->filled('last_audit_start')) && ($request->filled('last_audit_end'))) {
-                $last_audit_start = Carbon::parse($request->input('last_audit_start'))->startOfDay();
-                $last_audit_end = Carbon::parse($request->input('last_audit_end'))->endOfDay();
+                    $last_audit_start = Carbon::parse($request->input('last_audit_start'))->startOfDay();
+                    $last_audit_end = Carbon::parse($request->input('last_audit_end'))->endOfDay();
 
-                $assets->whereBetween('assets.last_audit_date', [$last_audit_start, $last_audit_end]);
+                    $assets->whereBetween('assets.last_audit_date', [$last_audit_start, $last_audit_end]);
             }
 
             if (($request->filled('next_audit_start')) && ($request->filled('next_audit_end'))) {
@@ -781,15 +746,9 @@ class ReportsController extends Controller
                 $assets->whereBetween('assets.updated_at', [$request->input('last_updated_start'), $request->input('last_updated_end')]);
             }
 
-            if (($request->filled('last_updated_before'))) {
-                $last_updated_window = Carbon::parse(today()->subDays($request->input('last_updated_before')));
-                $assets->where('assets.updated_at', '<', $last_updated_window);
-            }
-
             if ($request->filled('exclude_archived')) {
                 $assets->notArchived();
             }
-
             if ($request->input('deleted_assets') == 'include_deleted') {
                 $assets->withTrashed();
             }
@@ -797,13 +756,14 @@ class ReportsController extends Controller
                 $assets->onlyTrashed();
             }
 
+            Log::debug($assets->toSql());
             $assets->orderBy('assets.id', 'ASC')->chunk(500, function ($assets) use ($handle, $customfields, $request) {
-
+            
                 $executionTime = microtime(true) - $_SERVER['REQUEST_TIME_FLOAT'];
                 Log::debug('Walking results: '.$executionTime);
                 $count = 0;
 
-                $formatter = new EscapeFormula('`');
+                $formatter = new EscapeFormula("`");
 
                 foreach ($assets as $asset) {
                     $count++;
@@ -851,7 +811,7 @@ class ReportsController extends Controller
                     }
 
                     if ($request->filled('eol')) {
-                        $row[] = ($asset->asset_eol_date != '') ? $asset->asset_eol_date : '';
+                        $row[] = ($asset->purchase_date != '') ? $asset->asset_eol_date : '';
                     }
 
                     if ($request->filled('warranty')) {
@@ -874,7 +834,7 @@ class ReportsController extends Controller
                     if ($request->filled('supplier')) {
                         $row[] = ($asset->supplier) ? $asset->supplier->name : '';
                     }
-
+                    
                     if ($request->filled('location')) {
                         $row[] = ($asset->location) ? $asset->location->display_name : '';
                     }
@@ -902,31 +862,14 @@ class ReportsController extends Controller
                     }
 
                     if ($request->filled('assigned_to')) {
-                        $row[] = ($asset->assigned) ? $asset->assigned->display_name : '';
-                        $row[] = ($asset->assigned) ? $asset->assignedType() : '';
+                        $row[] = ($asset->checkedOutToUser() && $asset->assigned) ? $asset->assigned->display_name : '';
+                        $row[] = ($asset->checkedOutToUser() && $asset->assigned) ? 'user' : $asset->assignedType();
                     }
 
                     if ($request->filled('username')) {
                         // Only works if we're checked out to a user, not anything else.
                         if ($asset->checkedOutToUser()) {
                             $row[] = ($asset->assignedto) ? $asset->assignedto->username : '';
-                        } else {
-                            $row[] = ''; // Empty string if unassigned
-                        }
-                    }
-
-                    if ($request->filled('user_company')) {
-                        if ($asset->checkedOutToUser()) {
-                            $row[] = ($asset->assignedto->company) ? $asset->assignedto->company->display_name : '';
-                        } else {
-                            $row[] = ''; // Empty string if unassigned
-                        }
-                    }
-
-                    if ($request->filled('email')) {
-                        // Only works if we're checked out to a user, not anything else.
-                        if ($asset->checkedOutToUser()) {
-                            $row[] = ($asset->assignedto) ? $asset->assignedto->email : '';
                         } else {
                             $row[] = ''; // Empty string if unassigned
                         }
@@ -943,7 +886,7 @@ class ReportsController extends Controller
 
                     if ($request->filled('manager')) {
                         if ($asset->checkedOutToUser()) {
-                            $row[] = (($asset->assignedto) && ($asset->assignedto->manager)) ? $asset->assignedto->manager->present()->fullName : '';
+                            $row[] = (($asset->assignedto) && ($asset->assignedto->manager)) ? $asset->assignedto->manager->present()->fullName() : '';
                         } else {
                             $row[] = ''; // Empty string if unassigned
                         }
@@ -1013,14 +956,6 @@ class ReportsController extends Controller
                         }
                     }
 
-                    if ($request->filled('target_notes')) {
-                        if ($asset->checkedOutToUser()) {
-                            $row[] = ($asset->assignedto) ? $asset->assignedto->notes : '';
-                        } else {
-                            $row[] = ''; // Empty string if unassigned
-                        }
-                    }
-
                     if ($request->filled('status')) {
                         $row[] = ($asset->assetstatus) ? $asset->assetstatus->name.' ('.$asset->present()->statusMeta.')' : '';
                     }
@@ -1074,11 +1009,12 @@ class ReportsController extends Controller
                         }
                     }
 
+                    
                     // CSV_ESCAPE_FORMULAS is set to false in the .env
                     if (config('app.escape_formulas') === false) {
                         fputcsv($handle, $row);
 
-                        // CSV_ESCAPE_FORMULAS is set to true or is not set in the .env
+                   // CSV_ESCAPE_FORMULAS is set to true or is not set in the .env
                     } else {
                         fputcsv($handle, $formatter->escapeRecord($row));
                     }
@@ -1104,10 +1040,9 @@ class ReportsController extends Controller
      * getImprovementsReport
      *
      * @author  Vincent Sposato <vincent.sposato@gmail.com>
-     *
      * @version v1.0
      */
-    public function getMaintenancesReport(): View
+    public function getMaintenancesReport() : View
     {
         $this->authorize('reports.view');
 
@@ -1118,16 +1053,15 @@ class ReportsController extends Controller
      * exportImprovementsReport
      *
      * @author  Vincent Sposato <vincent.sposato@gmail.com>
-     *
      * @version v1.0
      */
-    public function exportMaintenancesReport(): Response
+    public function exportMaintenancesReport() : Response
     {
         $this->authorize('reports.view');
         // Grab all the improvements
         $Maintenances = Maintenance::with('asset', 'supplier')
-            ->orderBy('created_at', 'DESC')
-            ->get();
+                                             ->orderBy('created_at', 'DESC')
+                                             ->get();
 
         $rows = [];
 
@@ -1148,9 +1082,9 @@ class ReportsController extends Controller
 
         foreach ($Maintenances as $maintenance) {
             $row = [];
-            $row[] = str_replace(',', '', e($maintenance->asset->asset_tag));
-            $row[] = str_replace(',', '', e($maintenance->asset->name));
-            $row[] = str_replace(',', '', e($maintenance->supplier->name));
+            $row[] = str_replace(',', '&#44;', e($maintenance->asset->asset_tag));
+            $row[] = str_replace(',', '&#44;', e($maintenance->asset->name));
+            $row[] = str_replace(',', '&#44;', e($maintenance->supplier->name));
             $row[] = e($maintenance->improvement_type);
             $row[] = e($maintenance->name);
             $row[] = e($maintenance->start_date);
@@ -1161,13 +1095,13 @@ class ReportsController extends Controller
             } else {
                 $improvementTime = (int) $maintenance->asset_maintenance_time;
             }
-            $row[] = $improvementTime;
-            $row[] = trans('general.currency').Helper::formatCurrencyOutput($maintenance->cost);
+            $row[]  = $improvementTime;
+            $row[]  = trans('general.currency') . Helper::formatCurrencyOutput($maintenance->cost);
             $rows[] = implode(',', $row);
         }
 
         // spit out a csv
-        $csv = implode("\n", $rows);
+        $csv      = implode("\n", $rows);
         $response = response()->make($csv, 200);
         $response->header('Content-Type', 'text/csv');
         $response->header('Content-disposition', 'attachment;filename=report.csv');
@@ -1179,145 +1113,115 @@ class ReportsController extends Controller
      * getAssetAcceptanceReport
      *
      * @author  Vincent Sposato <vincent.sposato@gmail.com>
-     *
      * @version v1.0
      */
-    public function getAssetAcceptanceReport($deleted = false): View
+    public function getAssetAcceptanceReport($deleted = false) : View
     {
         $this->authorize('reports.view');
         $showDeleted = $deleted == 'deleted';
 
-        $query = CheckoutAcceptance::Pending()
+        $query = CheckoutAcceptance::pending()
+            ->where('checkoutable_type', 'App\Models\Asset')
             ->with([
                 'checkoutable' => function (MorphTo $query) {
-                    $query->withTrashed()->morphWith([
-                        Asset::class => ['model.category', 'assignedTo', 'company'],
-                        Accessory::class => ['category', 'checkouts', 'company'],
-                        LicenseSeat::class => ['user', 'license'],
-                        Component::class => ['assignedTo', 'company'],
-                        Consumable::class => ['company'],
-                    ]);
+                    $query->morphWith([
+                        AssetModel::class => ['model'],
+                        Company::class => ['company'],
+                        Asset::class => ['assignedTo'],
+                    ])->with('model.category');
                 },
-                'assignedTo' => function ($query) {
-                    $query->withTrashed();
-                },
-            ])->orderByDesc('checkout_acceptances.created_at');
+                'assignedTo' => function($query){
+                         $query->withTrashed();
+                    }
+            ]);
 
         if ($showDeleted) {
             $query->withTrashed();
         }
 
-        $itemsForReport = $query->get()
-            ->filter(fn ($unaccepted) => $unaccepted->checkoutable)
-            ->map(fn ($unaccepted) => Checkoutable::fromAcceptance($unaccepted));
+        // Get all acceptances without pagination for token generation
+        $acceptances = $query->get();
 
-        return view('reports/unaccepted_assets', compact('itemsForReport', 'showDeleted'));
+        // Generate tokens for acceptances that don't have them
+        foreach ($acceptances as $acceptance) {
+            if (!$acceptance->token) {
+                $acceptance->generateToken();
+            }
+        }
+
+        $assetsForReport = $acceptances->map(function ($acceptance) {
+                    return [
+                        'assetItem' => $acceptance->checkoutable,
+                        'acceptance' => $acceptance,
+                        'days_pending' => $acceptance->getDaysPending(),
+                        'priority_class' => $acceptance->getPriorityClass(),
+                        'token' => $acceptance->token,
+                    ];
+            });
+
+        return view('reports/unaccepted_assets', compact('assetsForReport','showDeleted' ));
     }
 
     /**
      * sentAssetAcceptanceReminder
      *
-     * @param  int|null  $acceptanceId
-     *
+     * @param integer|null $acceptanceId
      * @version v1.0
      */
-    public function sentAssetAcceptanceReminder(Request $request): RedirectResponse
+    public function sentAssetAcceptanceReminder(Request $request) : RedirectResponse
     {
         $this->authorize('reports.view');
-        $id = $request->input('acceptance_id');
-        $query = CheckoutAcceptance::query()
-            ->with([
-                'checkoutable' => function (MorphTo $query) {
-                    $query->withTrashed()->morphWith([
-                        Asset::class => ['model.category', 'assignedTo', 'company', 'checkouts'],
-                        Accessory::class => ['category', 'company', 'checkouts'],
-                        LicenseSeat::class => ['user', 'license', 'checkouts'],
-                        Component::class => ['assignedTo', 'company', 'checkouts'],
-                        Consumable::class => ['company', 'checkouts'],
-                    ]);
-                },
-                'assignedTo' => fn ($q) => $q->withTrashed(),
-            ])
-            ->pending();
-        $acceptance = $query->find($id);
-        if (! $acceptance) {
+
+        if (!$acceptance = CheckoutAcceptance::pending()->find($request->input('acceptance_id'))) {
             Log::debug('No pending acceptances');
-
-            // Redirect to the unaccepted items report page with error
-            return redirect()->route('reports/unaccepted_assets')->with('error', trans('general.bad_data'));
-        }
-        $item = $acceptance->checkoutable;
-        $assignee = $acceptance->assignedTo ?? $item->assignedTo ?? null;
-        $email = $assignee?->email;
-        $locale = $assignee?->locale;
-
-        Log::debug(print_r($acceptance, true));
-
-        if (is_null($acceptance->created_at)) {
-            Log::debug('No acceptance created_at');
-
-            return redirect()->route('reports/unaccepted_assets')->with('error', trans('general.bad_data'));
-        } else {
-            if ($item instanceof LicenseSeat) {
-                $logItem_res = $item->license->checkouts()->with('adminuser')->where('created_at', '=', $acceptance->created_at)->get();
-            } else {
-                $logItem_res = $item->checkouts()->with('adminuser')->where('created_at', '=', $acceptance->created_at)->get();
-            }
-            if ($logItem_res->isEmpty()) {
-                Log::debug('Acceptance date mismatch');
-
-                return redirect()->route('reports/unaccepted_assets')->with('error', trans('general.bad_data'));
-            }
-            $logItem = $logItem_res[0];
-        }
-
-        if (is_null($email) || $email === '') {
-            return redirect()->route('reports/unaccepted_assets')->with('error', trans('general.no_email'));
-        }
-        $mailable = $this->getCheckoutMailType($acceptance, $logItem);
-        Mail::to($email)->send($mailable->locale($locale));
-
-        return redirect()->route('reports/unaccepted_assets')->with('success', trans('admin/reports/general.reminder_sent'));
-    }
-
-    private function getCheckoutMailType(CheckoutAcceptance $acceptance, $logItem): Mailable
-    {
-        $lookup = [
-            Accessory::class => CheckoutAccessoryMail::class,
-            Asset::class => CheckoutAssetMail::class,
-            LicenseSeat::class => CheckoutLicenseMail::class,
-            Consumable::class => CheckoutConsumableMail::class,
-            Component::class => CheckoutComponentMail::class,
-        ];
-        $mailable = $lookup[get_class($acceptance->checkoutable)];
-
-        return new $mailable(
-            $acceptance->checkoutable,
-            $acceptance->checkedOutTo ?? $acceptance->assignedTo,
-            $logItem->adminuser,
-            $acceptance,
-            $acceptance->note,
-            firstTimeSending: false,
-        );
-    }
-
-    /**
-     * sentAssetAcceptanceReminder
-     *
-     * @param  int|null  $acceptanceId
-     *
-     * @version v1.0
-     */
-    public function deleteAssetAcceptance($acceptanceId = null): RedirectResponse
-    {
-        $this->authorize('reports.view');
-
-        if (! $acceptance = CheckoutAcceptance::pending()->find($acceptanceId)) {
             // Redirect to the unaccepted assets report page with error
             return redirect()->route('reports/unaccepted_assets')->with('error', trans('general.bad_data'));
         }
 
-        if ($acceptance->delete()) {
+        $assetItem = $acceptance->checkoutable;
+
+        Log::debug(print_r($assetItem, true));
+
+        if (is_null($acceptance->created_at)){
+            Log::debug('No acceptance created_at');
+            return redirect()->route('reports/unaccepted_assets')->with('error', trans('general.bad_data'));
+        } else {
+            $logItem_res = $assetItem->checkouts()->where('created_at', '=', $acceptance->created_at)->get();
+
+            if ($logItem_res->isEmpty()){
+                Log::debug('Acceptance date mismatch');
+                return redirect()->route('reports/unaccepted_assets')->with('error', trans('general.bad_data'));
+            }
+            $logItem = $logItem_res[0];
+        }
+        $email = $assetItem->assignedTo?->email;
+        $locale = $assetItem->assignedTo?->locale;
+
+        if (is_null($email) || $email === '') {
+            return redirect()->route('reports/unaccepted_assets')->with('error', trans('general.no_email'));
+        }
+
+        Mail::to($email)->send((new CheckoutAssetMail($assetItem, $assetItem->assignedTo, $logItem->user, $acceptance, $logItem->note, firstTimeSending: false))->locale($locale));
+
+        return redirect()->route('reports/unaccepted_assets')->with('success', trans('admin/reports/general.reminder_sent'));
+    }
+
+    /**
+     * sentAssetAcceptanceReminder
+     *
+     * @param integer|null $acceptanceId
+     * @version v1.0
+     */
+    public function deleteAssetAcceptance($acceptanceId = null) : RedirectResponse
+    {
+        $this->authorize('reports.view');
+
+        if (!$acceptance = CheckoutAcceptance::pending()->find($acceptanceId)) {
+            // Redirect to the unaccepted assets report page with error
+            return redirect()->route('reports/unaccepted_assets')->with('error', trans('general.bad_data'));
+        }
+
+        if($acceptance->delete()) {
             return redirect()->route('reports/unaccepted_assets')->with('success', trans('admin/reports/general.acceptance_deleted'));
         } else {
             return redirect()->route('reports/unaccepted_assets')->with('error', trans('general.deletion_failed'));
@@ -1328,74 +1232,76 @@ class ReportsController extends Controller
      * Exports the AssetAcceptance report to CSV
      *
      * @author  Vincent Sposato <vincent.sposato@gmail.com>
-     *
      * @version v1.0
      */
-    public function postAssetAcceptanceReport($deleted = false): Response
+    public function postAssetAcceptanceReport($deleted = false) : Response
     {
         $this->authorize('reports.view');
-        $showDeleted = request('deleted') === 'deleted';
+        $showDeleted = $deleted == 'deleted';
 
         /**
          * Get all assets with pending checkout acceptances
          */
-        $acceptances = CheckoutAcceptance::pending()
-            ->with([
-                'checkoutable' => function (MorphTo $acceptance) {
-                    $acceptance->withTrashed()->morphWith([
-                        Asset::class => ['model.category', 'assignedTo', 'company'],
-                        Accessory::class => ['category', 'checkouts', 'company'],
-                        LicenseSeat::class => ['user', 'license'],
-                        Component::class => ['assignedTo', 'company'],
-                        Consumable::class => ['company'],
-                    ]);
-                },
-                'assignedTo',
-            ])->orderByDesc('checkout_acceptances.created_at');
-
-        if ($showDeleted) {
-            $acceptances->withTrashed();
+        if($showDeleted) {
+            $acceptances = CheckoutAcceptance::pending()->where('checkoutable_type', 'App\Models\Asset')->withTrashed()->with(['assignedTo', 'checkoutable.assignedTo', 'checkoutable.model.category'])->get();
+        } else {
+            $acceptances = CheckoutAcceptance::pending()->where('checkoutable_type', 'App\Models\Asset')->with(['assignedTo', 'checkoutable.assignedTo', 'checkoutable.model.category'])->get();
         }
 
-        $itemsForReport = $acceptances->get()
-            ->filter(fn ($unaccepted) => $unaccepted->checkoutable)
-            ->map(fn ($unaccepted) => Checkoutable::fromAcceptance($unaccepted));
+        // Generate tokens for acceptances that don't have them
+        foreach ($acceptances as $acceptance) {
+            if (!$acceptance->token) {
+                $acceptance->generateToken();
+            }
+        }
+
+        $assetsForReport = $acceptances
+            ->filter(function($acceptance) {
+                return $acceptance->checkoutable_type == 'App\Models\Asset';
+            })
+            ->map(function($acceptance) {
+                return [
+                    'assetItem' => $acceptance->checkoutable, 
+                    'acceptance' => $acceptance,
+                    'days_pending' => $acceptance->getDaysPending(),
+                    'priority_class' => $acceptance->getPriorityClass(),
+                    'token' => $acceptance->token,
+                ];
+            });
 
         $rows = [];
 
         $header = [
-            trans('general.date'),
-            trans('general.type'),
-            trans('admin/companies/table.title'),
             trans('general.category'),
             trans('admin/hardware/form.model'),
-            trans('general.name'),
+            trans('admin/hardware/form.name'),
             trans('admin/hardware/table.asset_tag'),
             trans('admin/hardware/table.checkoutto'),
+            'Data de Cria��o',
+            'Dias Pendentes',
         ];
 
         $header = array_map('trim', $header);
         $rows[] = implode(',', $header);
 
-        foreach ($itemsForReport as $item) {
+        foreach ($assetsForReport as $item) {
 
-            if ($item != null) {
-
-                $row = [];
-                $row[] = str_replace(',', '', $item->acceptance->created_at);
-                $row[] = str_replace(',', '', $item->type);
-                $row[] = str_replace(',', '', $item->plain_text_company);
-                $row[] = str_replace(',', '', $item->plain_text_category);
-                $row[] = str_replace(',', '', $item->plain_text_model);
-                $row[] = str_replace(',', '', $item->plain_text_name);
-                $row[] = str_replace(',', '', $item->asset_tag);
-                $row[] = str_replace(',', '', ($item->acceptance->assignedto) ? $item->acceptance->assignedto->display_name : trans('admin/reports/general.deleted_user'));
+            if ($item['assetItem'] != null){
+            
+                $row    = [ ];
+                $row[]  = str_replace(',', '&#44;', e($item['assetItem']->model->category->name));
+                $row[]  = str_replace(',', '&#44;', e($item['assetItem']->model->name));
+                $row[]  = str_replace(',', '&#44;', e($item['assetItem']->name));
+                $row[]  = str_replace(',', '&#44;', e($item['assetItem']->asset_tag));
+                $row[]  = str_replace(',', '&#44;', e(($item['acceptance']->assignedTo) ? $item['acceptance']->assignedTo->present()->name() : trans('admin/reports/general.deleted_user')));
+                $row[]  = str_replace(',', '&#44;', e($item['acceptance']->created_at ? $item['acceptance']->created_at->format('d/m/Y H:i') : 'N/A'));
+                $row[]  = str_replace(',', '&#44;', e($item['acceptance']->getDaysPending() . ' dias'));
                 $rows[] = implode(',', $row);
             }
         }
 
         // spit out a csv
-        $csv = implode("\n", $rows);
+        $csv      = implode("\n", $rows);
         $response = response()->make($csv, 200);
         $response->header('Content-Type', 'text/csv');
         $response->header('Content-disposition', 'attachment;filename=report.csv');
@@ -1406,21 +1312,20 @@ class ReportsController extends Controller
     /**
      * getCheckedOutAssetsRequiringAcceptance
      *
+     * @param $modelsInCategoriesThatRequireAcceptance
      *
      * @return array
-     *
      * @author  Vincent Sposato <vincent.sposato@gmail.com>
-     *
      * @version v1.0
      */
-    protected function getCheckedOutAssetsRequiringAcceptance($modelsInCategoriesThatRequireAcceptance): View
+    protected function getCheckedOutAssetsRequiringAcceptance($modelsInCategoriesThatRequireAcceptance) : View
     {
         $this->authorize('reports.view');
         $assets = Asset::deployed()
-            ->inModelList($modelsInCategoriesThatRequireAcceptance)
-            ->select('id')
-            ->get()
-            ->toArray();
+                        ->inModelList($modelsInCategoriesThatRequireAcceptance)
+                        ->select('id')
+                        ->get()
+                        ->toArray();
 
         return array_pluck($assets, 'id');
     }
@@ -1428,45 +1333,45 @@ class ReportsController extends Controller
     /**
      * getModelsInCategoriesThatRequireAcceptance
      *
+     * @param $assetCategoriesRequiringAcceptance
+     * @return array
      * @author  Vincent Sposato <vincent.sposato@gmail.com>
-     *
      * @version v1.0
      */
-    protected function getModelsInCategoriesThatRequireAcceptance($assetCategoriesRequiringAcceptance): array
+    protected function getModelsInCategoriesThatRequireAcceptance($assetCategoriesRequiringAcceptance) : array
     {
         $this->authorize('reports.view');
 
         return array_pluck(AssetModel::inCategory($assetCategoriesRequiringAcceptance)
-            ->select('id')
-            ->get()
-            ->toArray(), 'id');
+                                 ->select('id')
+                                 ->get()
+                                 ->toArray(), 'id');
     }
 
     /**
      * getCategoriesThatRequireAcceptance
      *
+     * @return array
      * @author  Vincent Sposato <vincent.sposato@gmail.com>
-     *
      * @version v1.0
      */
-    protected function getCategoriesThatRequireAcceptance(): array
+    protected function getCategoriesThatRequireAcceptance() : array
     {
         $this->authorize('reports.view');
 
         return array_pluck(Category::requiresAcceptance()
-            ->select('id')
-            ->get()
-            ->toArray(), 'id');
+                                    ->select('id')
+                                    ->get()
+                                    ->toArray(), 'id');
     }
 
     /**
      * getAssetsCheckedOutRequiringAcceptance
      *
      * @author  Vincent Sposato <vincent.sposato@gmail.com>
-     *
      * @version v1.0
      */
-    protected function getAssetsCheckedOutRequiringAcceptance(): array
+    protected function getAssetsCheckedOutRequiringAcceptance() : array
     {
         $this->authorize('reports.view');
 
@@ -1474,4 +1379,700 @@ class ReportsController extends Controller
             $this->getModelsInCategoriesThatRequireAcceptance($this->getCategoriesThatRequireAcceptance())
         );
     }
+
+    /**
+     * Display EULA signatures report
+     *
+     * @author [Kiro AI]
+     * @since [v1.0]
+     * @param Request $request
+     * @return View
+     */
+    public function getEulaSignaturesReport(Request $request) : View
+    {
+        // Validar permiss�es do usu�rio
+        $this->authorize('reports.view');
+
+        // Validar e sanitizar inputs recebidos
+        $validated = $request->validate([
+            'search' => 'nullable|string|max:255',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+            'device_type' => 'nullable|in:desktop,mobile',
+            'item_type' => 'nullable|string|max:100',
+        ]);
+
+        // Capturar par�metros de filtro
+        $filters = [
+            'search' => $request->input('search'),
+            'date_from' => $request->input('date_from'),
+            'date_to' => $request->input('date_to'),
+            'device_type' => $request->input('device_type'),
+            'item_type' => $request->input('item_type'),
+        ];
+
+        // Aplicar sanitiza��o adicional nos dados
+        if (!empty($filters['search'])) {
+            $filters['search'] = trim(strip_tags($filters['search']));
+        }
+
+        if (!empty($filters['item_type'])) {
+            $filters['item_type'] = trim(strip_tags($filters['item_type']));
+        }
+
+        // Buscar assinaturas com pagina��o
+        // Query com eager loading (assignedTo, checkoutable)
+        $signatures = CheckoutAcceptance::with([
+            'assignedTo:id,first_name,last_name,email,employee_num',
+            'checkoutable'
+        ])
+        ->completed();
+
+        // Aplicar filtros din�micos
+        
+        // Filtro por busca de nome de usu�rio
+        if (!empty($filters['search'])) {
+            $signatures->whereHas('assignedTo', function ($query) use ($filters) {
+                $query->where(function ($q) use ($filters) {
+                    $q->where('first_name', 'LIKE', '%' . $filters['search'] . '%')
+                      ->orWhere('last_name', 'LIKE', '%' . $filters['search'] . '%')
+                      ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ['%' . $filters['search'] . '%']);
+                });
+            });
+        }
+
+        // Filtro por per�odo (data in�cio e data fim)
+        if (!empty($filters['date_from']) && !empty($filters['date_to'])) {
+            $signatures->byDateRange($filters['date_from'], $filters['date_to']);
+        } elseif (!empty($filters['date_from'])) {
+            $signatures->byDateRange($filters['date_from'], null);
+        } elseif (!empty($filters['date_to'])) {
+            $signatures->byDateRange(null, $filters['date_to']);
+        }
+
+        // Filtro por tipo de dispositivo
+        if (!empty($filters['device_type'])) {
+            $signatures->byDeviceType($filters['device_type']);
+        }
+
+        // Filtro por tipo de item (Asset, License, Accessory, etc)
+        if (!empty($filters['item_type'])) {
+            $signatures->where('checkoutable_type', 'LIKE', '%' . $filters['item_type'] . '%');
+        }
+
+        // Ordena��o por accepted_at DESC
+        $signatures->orderBy('accepted_at', 'DESC');
+
+        // Pagina��o de 25 itens por p�gina
+        $signatures = $signatures->paginate(25)->appends($request->except('page'));
+
+        // Calcular estat�sticas com cache de 5 minutos
+        $cacheKey = 'eula_signatures_stats_' . md5(json_encode($filters));
+        $stats = Cache::remember($cacheKey, 300, function () use ($filters) {
+            // Query base para estat�sticas (respeitando filtros ativos)
+            $baseQuery = CheckoutAcceptance::completed();
+
+            // Aplicar os mesmos filtros da listagem
+            if (!empty($filters['search'])) {
+                $baseQuery->whereHas('assignedTo', function ($query) use ($filters) {
+                    $query->where(function ($q) use ($filters) {
+                        $q->where('first_name', 'LIKE', '%' . $filters['search'] . '%')
+                          ->orWhere('last_name', 'LIKE', '%' . $filters['search'] . '%')
+                          ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ['%' . $filters['search'] . '%']);
+                    });
+                });
+            }
+
+            if (!empty($filters['date_from']) && !empty($filters['date_to'])) {
+                $baseQuery->byDateRange($filters['date_from'], $filters['date_to']);
+            } elseif (!empty($filters['date_from'])) {
+                $baseQuery->byDateRange($filters['date_from'], null);
+            } elseif (!empty($filters['date_to'])) {
+                $baseQuery->byDateRange(null, $filters['date_to']);
+            }
+
+            if (!empty($filters['device_type'])) {
+                $baseQuery->byDeviceType($filters['device_type']);
+            }
+
+            if (!empty($filters['item_type'])) {
+                $baseQuery->where('checkoutable_type', 'LIKE', '%' . $filters['item_type'] . '%');
+            }
+
+            // Total de assinaturas completas (com filtros aplicados)
+            $total = $baseQuery->count();
+
+            // Assinaturas nos �ltimos 7 dias (com filtros aplicados)
+            $last7Days = (clone $baseQuery)
+                ->where('accepted_at', '>=', Carbon::now()->subDays(7))
+                ->count();
+
+            // Contagem por tipo de dispositivo (desktop/mobile)
+            $desktopCount = (clone $baseQuery)
+                ->where('signature_device_type', 'desktop')
+                ->count();
+
+            $mobileCount = (clone $baseQuery)
+                ->where('signature_device_type', 'mobile')
+                ->count();
+
+            // Assinaturas com/sem geolocaliza��o
+            $withGeolocation = (clone $baseQuery)
+                ->whereNotNull('signature_latitude')
+                ->whereNotNull('signature_longitude')
+                ->count();
+
+            $withoutGeolocation = $total - $withGeolocation;
+
+            return [
+                'total' => $total,
+                'last_7_days' => $last7Days,
+                'desktop_count' => $desktopCount,
+                'mobile_count' => $mobileCount,
+                'with_geolocation' => $withGeolocation,
+                'without_geolocation' => $withoutGeolocation,
+            ];
+        });
+
+        return view('reports.eula-signatures', compact('signatures', 'filters', 'stats'));
+    }
+
+    /**
+     * Show EULA signature detail
+     *
+     * @param int $id
+     * @return View
+     */
+    public function showEulaSignatureDetail($id): View
+    {
+        $this->authorize('reports.view');
+
+        $signature = CheckoutAcceptance::with(['assignedTo', 'checkoutable'])
+            ->whereNotNull('signature_filename')
+            ->findOrFail($id);
+
+        return view('reports.eula-signature-detail', compact('signature'));
+    }
+
+    /**
+     * Export EULA signature as PDF
+     *
+     * @param int $id
+     * @return Response
+     */
+    public function exportEulaSignaturePdf($id): Response
+    {
+        // 7.1 Validar permiss�es e buscar assinatura
+        $this->authorize('reports.view');
+
+        // Buscar assinatura com relacionamentos
+        $signature = CheckoutAcceptance::with(['assignedTo', 'checkoutable.model'])
+            ->whereNotNull('signature_filename')
+            ->whereNotNull('accepted_at')
+            ->findOrFail($id);
+
+        // Buscar configurações de marca e timezone
+        $settings = Setting::getSettings();
+        
+        // Configurar timezone padrão brasileiro
+        config(['app.timezone' => 'America/Sao_Paulo']);
+        date_default_timezone_set('America/Sao_Paulo');
+        
+        // Buscar o EULA que foi aceito (da coluna stored_eula)
+        $eulaText = null;
+        
+        // Debug: verificar o que temos na assinatura
+        \Log::info('Debug EULA PDF - Signature ID: ' . $signature->id);
+        \Log::info('Debug EULA PDF - stored_eula exists: ' . ($signature->stored_eula ? 'YES' : 'NO'));
+        \Log::info('Debug EULA PDF - stored_eula length: ' . strlen($signature->stored_eula ?? ''));
+        
+        if ($signature->stored_eula) {
+            // Usar o EULA armazenado na assinatura (markdown)
+            $eulaText = \App\Helpers\Helper::parseEscapedMarkedown($signature->stored_eula);
+            \Log::info('Debug EULA PDF - Parsed EULA length: ' . strlen($eulaText ?? ''));
+        } elseif ($signature->checkoutable) {
+            // Fallback: usar EULA padrão se não houver stored_eula
+            $eulaText = Setting::getDefaultEula();
+            \Log::info('Debug EULA PDF - Using default EULA');
+        }
+
+        try {
+            // 7.3 Configurar TCPDF
+            $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+            
+            // Definir metadados do PDF
+            $pdf->SetCreator('Snipe-IT');
+            $pdf->SetAuthor('Sistema Snipe-IT');
+            $pdf->SetTitle('Comprovante de Assinatura Digital - EULA');
+            $pdf->SetSubject('Comprovante de Assinatura EULA');
+            $pdf->SetKeywords('EULA, Assinatura, Digital, Comprovante');
+
+            // Configurar margens e orienta��o
+            $pdf->SetMargins(15, 27, 15);
+            $pdf->SetHeaderMargin(5);
+            $pdf->SetFooterMargin(10);
+            $pdf->SetAutoPageBreak(TRUE, 25);
+
+            // Adicionar p�gina
+            $pdf->AddPage();
+
+            // 7.4 Gerar conte�do do PDF
+            // Renderizar view HTML com configurações de marca e EULA
+            $html = view('reports.pdf.eula-signature', compact('signature', 'settings', 'eulaText'))->render();
+            
+            // Converter HTML para PDF com writeHTML()
+            $pdf->writeHTML($html, true, false, true, false, '');
+
+            // Imagem da assinatura agora é renderizada diretamente no HTML
+
+            // 7.5 Retornar PDF para download
+            // Nome do arquivo: eula_signature_{user_id}_{timestamp}.pdf
+            $filename = 'eula_signature_' . $signature->assigned_to_id . '_' . time() . '.pdf';
+            
+            // Log de gera��o bem-sucedida
+            Log::info('PDF de assinatura EULA gerado com sucesso', [
+                'signature_id' => $id,
+                'user_id' => $signature->assigned_to_id,
+                'filename' => $filename,
+                'generated_by' => auth()->id()
+            ]);
+
+            // Output com modo 'D' (download)
+            return response($pdf->Output($filename, 'S'), 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Content-Length' => strlen($pdf->Output($filename, 'S'))
+            ]);
+
+        } catch (Exception $e) {
+            // Tratamento de erros com mensagem amig�vel
+            Log::error('Erro ao gerar PDF de assinatura EULA', [
+                'signature_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()
+                ->with('error', 'Erro ao gerar PDF da assinatura. Por favor, tente novamente.');
+        }
+    }
+
+    /**
+     * Export multiple EULA signatures as ZIP file
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function exportEulaSignaturesBatch(Request $request): Response
+    {
+        $this->authorize('reports.view');
+
+        try {
+            // 8.1 Validar requisi��o
+            $request->validate([
+                'ids' => 'required|array|max:100',
+                'ids.*' => 'integer|exists:checkout_acceptances,id'
+            ]);
+
+            $signatureIds = $request->input('ids', []);
+            
+            if (empty($signatureIds)) {
+                return redirect()->back()
+                    ->with('error', 'Nenhuma assinatura selecionada para exporta��o.');
+            }
+
+            if (count($signatureIds) > 100) {
+                return redirect()->back()
+                    ->with('error', 'M�ximo de 100 assinaturas podem ser exportadas por vez.');
+            }
+
+            // Verificar se IDs existem no banco
+            $existingSignatures = CheckoutAcceptance::whereIn('id', $signatureIds)
+                ->completed()
+                ->count();
+
+            if ($existingSignatures !== count($signatureIds)) {
+                return redirect()->back()
+                    ->with('error', 'Algumas assinaturas selecionadas n�o foram encontradas ou n�o est�o completas.');
+            }
+
+            // 8.2 Decidir estrat�gia de processamento
+            $signatureCount = count($signatureIds);
+            
+            if ($signatureCount <= 10) {
+                // Processar sincronamente
+                return $this->processBatchExportSync($signatureIds);
+            } else {
+                // Para mais de 10 assinaturas, ainda processar sincronamente
+                // mas com timeout maior e mais mem�ria
+                ini_set('max_execution_time', 300); // 5 minutos
+                ini_set('memory_limit', '512M');
+                
+                return $this->processBatchExportSync($signatureIds);
+            }
+
+        } catch (ValidationException $e) {
+            return redirect()->back()
+                ->withErrors($e->validator)
+                ->with('error', 'Dados inv�lidos fornecidos.');
+        } catch (Exception $e) {
+            Log::error('Error in batch EULA signature export', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()
+                ->with('error', 'Erro interno do servidor. Por favor, tente novamente.');
+        }
+    }
+
+    /**
+     * Process batch export synchronously
+     *
+     * @param array $signatureIds
+     * @return Response
+     */
+    private function processBatchExportSync(array $signatureIds): Response
+    {
+        try {
+            // 8.3 Gerar PDFs individuais
+            $tempDir = storage_path('app/temp/eula_batch_' . time());
+            
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            $pdfFiles = [];
+            $errors = [];
+
+            foreach ($signatureIds as $signatureId) {
+                try {
+                    $signature = CheckoutAcceptance::with(['assignedTo', 'checkoutable'])
+                        ->completed()
+                        ->findOrFail($signatureId);
+
+                    // Gerar PDF individual
+                    $pdfContent = $this->generateSignaturePdfContent($signature);
+                    
+                    // Salvar PDF temporariamente
+                    $filename = 'eula_signature_' . $signature->assignedTo->id . '_' . $signature->id . '.pdf';
+                    $filepath = $tempDir . '/' . $filename;
+                    
+                    file_put_contents($filepath, $pdfContent);
+                    $pdfFiles[] = [
+                        'path' => $filepath,
+                        'name' => $filename
+                    ];
+
+                } catch (Exception $e) {
+                    $errors[] = "Erro ao gerar PDF para assinatura ID {$signatureId}: " . $e->getMessage();
+                    Log::error('Error generating individual PDF in batch export', [
+                        'signature_id' => $signatureId,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            if (empty($pdfFiles)) {
+                // Limpar diret�rio tempor�rio
+                $this->cleanupTempDirectory($tempDir);
+                
+                return redirect()->back()
+                    ->with('error', 'N�o foi poss�vel gerar nenhum PDF. Erros: ' . implode('; ', $errors));
+            }
+
+            // 8.4 Criar arquivo ZIP
+            $zipFilename = 'eula_signatures_' . time() . '.zip';
+            $zipPath = $tempDir . '/' . $zipFilename;
+
+            $zip = new ZipArchive();
+            $zipResult = $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+
+            if ($zipResult !== TRUE) {
+                $this->cleanupTempDirectory($tempDir);
+                
+                return redirect()->back()
+                    ->with('error', 'Erro ao criar arquivo ZIP: ' . $zipResult);
+            }
+
+            // Adicionar cada PDF ao ZIP
+            foreach ($pdfFiles as $pdfFile) {
+                $zip->addFile($pdfFile['path'], $pdfFile['name']);
+            }
+
+            $zip->close();
+
+            // Verificar se ZIP foi criado com sucesso
+            if (!file_exists($zipPath)) {
+                $this->cleanupTempDirectory($tempDir);
+                
+                return redirect()->back()
+                    ->with('error', 'Erro ao finalizar arquivo ZIP.');
+            }
+
+            // 8.5 Retornar ZIP para download
+            $zipSize = filesize($zipPath);
+            
+            // Log de exporta��o em lote
+            Log::info('EULA signatures batch export completed', [
+                'user_id' => auth()->id(),
+                'signature_count' => count($pdfFiles),
+                'errors_count' => count($errors),
+                'zip_size' => $zipSize,
+                'signature_ids' => $signatureIds
+            ]);
+
+            // Retornar arquivo para download e limpar ap�s envio
+            return response()->download($zipPath, $zipFilename)->deleteFileAfterSend(true);
+
+        } catch (Exception $e) {
+            // Limpar diret�rio tempor�rio em caso de erro
+            if (isset($tempDir)) {
+                $this->cleanupTempDirectory($tempDir);
+            }
+
+            Log::error('Error in processBatchExportSync', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()
+                ->with('error', 'Erro ao processar exporta��o em lote: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Generate PDF content for a signature
+     *
+     * @param CheckoutAcceptance $signature
+     * @return string
+     */
+    private function generateSignaturePdfContent(CheckoutAcceptance $signature): string
+    {
+        // Usar o mesmo m�todo do PDF individual, mas retornar conte�do ao inv�s de download
+        $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+        
+        // Configura��es do PDF
+        $pdf->SetCreator('Snipe-IT');
+        $pdf->SetAuthor('Sistema Snipe-IT');
+        $pdf->SetTitle('Comprovante de Assinatura Digital - EULA');
+        $pdf->SetSubject('Assinatura EULA');
+        $pdf->SetKeywords('EULA, Assinatura, Digital, Snipe-IT');
+        
+        // Configurar margens
+        $pdf->SetMargins(15, 20, 15);
+        $pdf->SetHeaderMargin(10);
+        $pdf->SetFooterMargin(10);
+        
+        // Remover header e footer padr�o
+        $pdf->setPrintHeader(false);
+        $pdf->setPrintFooter(false);
+        
+        // Adicionar p�gina
+        $pdf->AddPage();
+        
+        // Gerar conte�do HTML
+        $html = view('reports.pdf.eula-signature', compact('signature'))->render();
+        
+        // Escrever HTML no PDF
+        $pdf->writeHTML($html, true, false, true, false, '');
+        
+        // Adicionar imagem da assinatura se existir
+        if ($signature->signature_filename) {
+            $signaturePath = storage_path('app/private_uploads/signatures/' . $signature->signature_filename);
+            
+            if (file_exists($signaturePath)) {
+                try {
+                    // Posicionar imagem da assinatura
+                    $pdf->Image($signaturePath, 50, 150, 100, 50, '', '', '', false, 300, '', false, false, 0);
+                } catch (Exception $e) {
+                    Log::warning('Could not add signature image to PDF', [
+                        'signature_id' => $signature->id,
+                        'image_path' => $signaturePath,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+        }
+        
+        // Retornar conte�do do PDF
+        return $pdf->Output('', 'S');
+    }
+
+    /**
+     * Clean up temporary directory
+     *
+     * @param string $tempDir
+     * @return void
+     */
+    private function cleanupTempDirectory(string $tempDir): void
+    {
+        try {
+            if (is_dir($tempDir)) {
+                $files = glob($tempDir . '/*');
+                foreach ($files as $file) {
+                    if (is_file($file)) {
+                        unlink($file);
+                    }
+                }
+                rmdir($tempDir);
+            }
+        } catch (Exception $e) {
+            Log::warning('Could not cleanup temporary directory', [
+                'temp_dir' => $tempDir,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Export all EULA signatures (alias for batch export)
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function exportEulaSignatures(Request $request): Response
+    {
+        $this->authorize('reports.view');
+
+        // Get all completed signature IDs
+        $signatureIds = CheckoutAcceptance::completed()
+            ->pluck('id')
+            ->toArray();
+
+        if (empty($signatureIds)) {
+            return redirect()->back()
+                ->with('error', 'Nenhuma assinatura EULA encontrada para exportação.');
+        }
+
+        // Use the existing batch export method
+        $request->merge(['ids' => $signatureIds]);
+        return $this->exportEulaSignaturesBatch($request);
+    }
+
+    /**
+     * Serve signature image files
+     *
+     * @param string $filename
+     * @return Response
+     */
+    public function getSignatureImage($filename): Response
+    {
+        $this->authorize('reports.view');
+
+        // Validate filename to prevent directory traversal
+        if (!preg_match('/^[a-zA-Z0-9_\-\.]+$/', $filename)) {
+            abort(404, 'Invalid filename');
+        }
+
+        $path = storage_path('app/private_uploads/signatures/' . $filename);
+
+        if (!file_exists($path)) {
+            abort(404, 'Signature image not found');
+        }
+
+        // Get file info
+        $mimeType = mime_content_type($path);
+        $fileSize = filesize($path);
+
+        // Validate it's an image
+        if (!str_starts_with($mimeType, 'image/')) {
+            abort(404, 'Invalid file type');
+        }
+
+        return response()->file($path, [
+            'Content-Type' => $mimeType,
+            'Content-Length' => $fileSize,
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
+    }
+
+    /**
+     * Get EULA signature details as JSON for modal
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function getEulaSignatureJson($id): JsonResponse
+    {
+        $this->authorize('reports.view');
+
+        try {
+            // Primeiro, vamos verificar se o registro existe
+            $signature = CheckoutAcceptance::find($id);
+            
+            if (!$signature) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Assinatura não encontrada'
+                ], 404);
+            }
+
+            // Carregar relacionamentos de forma segura
+            $signature->load(['assignedTo', 'checkoutable']);
+
+            // Format data for modal de forma mais segura
+            $data = [
+                'id' => $signature->id,
+                'user_name' => 'N/A',
+                'user_cpf' => null,
+                'user_email' => 'N/A',
+                'user_id' => $signature->assigned_to_id,
+                'item_type' => 'N/A',
+                'item_name' => 'N/A',
+                'item_asset_tag' => null,
+                'item_id' => $signature->checkoutable_id,
+                'accepted_at' => $signature->accepted_at ? $signature->accepted_at->format('Y-m-d H:i:s') : null,
+                'device_type' => $signature->signature_device_type ?? 'N/A',
+                'signature_ip' => $signature->signature_ip ?? 'N/A',
+                'signature_latitude' => $signature->signature_latitude,
+                'signature_longitude' => $signature->signature_longitude,
+                'signature_filename' => $signature->signature_filename,
+                'created_at' => $signature->created_at ? $signature->created_at->format('Y-m-d H:i:s') : null,
+            ];
+
+            // Tentar obter dados do usuário de forma segura
+            if ($signature->assignedTo) {
+                try {
+                    $user = $signature->assignedTo;
+                    $data['user_name'] = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: 'N/A';
+                    $data['user_email'] = $user->email ?? 'N/A';
+                    $data['user_cpf'] = $user->employee_num ?? null;
+                } catch (\Exception $userError) {
+                    // Silently handle user data errors
+                }
+            }
+
+            // Tentar obter dados do item de forma segura
+            if ($signature->checkoutable) {
+                try {
+                    $item = $signature->checkoutable;
+                    $data['item_type'] = class_basename(get_class($item));
+                    $data['item_name'] = $item->name ?? 'N/A';
+                    
+                    if (property_exists($item, 'asset_tag')) {
+                        $data['item_asset_tag'] = $item->asset_tag;
+                    }
+                } catch (\Exception $itemError) {
+                    // Silently handle item data errors
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $data
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Erro em getEulaSignatureJson: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro interno do servidor'
+            ], 500);
+        }
+    }
 }
+
+
+
