@@ -59,6 +59,7 @@
                 <th class="col-sm-1" data-sortable="true" >{{ trans('general.name') }}</th>
                 <th class="col-sm-1" data-sortable="true" >{{ trans('admin/hardware/table.asset_tag') }}</th>
                 <th class="col-sm-1" data-sortable="true" >{{ trans('admin/hardware/table.checkoutto') }}</th>
+                <th class="col-sm-1" data-sortable="false">Link EULA</th>
                 <th class="col-md-1"><span class="line"></span>{{ trans('table.actions') }}</th>
               </tr>
             </thead>
@@ -92,6 +93,24 @@
                               {!! $item->assignee
                                   ? optional($item->assignee->present())->nameUrl() ?? e($item->assignee->name)
                                   : trans('admin/reports/general.deleted_user') !!}
+                          </td>
+
+                          {{-- Copy EULA signing link --}}
+                          <td class="text-nowrap">
+                              @if($item->sign_url && $item->acceptance->token && !is_null($item->acceptance->token_expires_at) && $item->acceptance->token_expires_at->isFuture())
+                                  <div class="input-group input-group-sm" style="max-width: 280px;">
+                                      <input type="text" class="form-control" value="{{ $item->sign_url }}" readonly id="link-{{ $item->acceptance_id }}" style="font-size: 11px;">
+                                      <span class="input-group-btn">
+                                          <button class="btn btn-sm btn-info copy-link-btn" type="button" data-clipboard-target="#link-{{ $item->acceptance_id }}" data-tooltip="true" title="Copiar link do termo">
+                                              <i class="fa fa-clipboard"></i>
+                                          </button>
+                                      </span>
+                                  </div>
+                              @elseif($item->acceptance->token && !is_null($item->acceptance->token_expires_at) && $item->acceptance->token_expires_at->isPast())
+                                  <span class="label label-danger" data-tooltip="true" title="Token expirado em {{ $item->acceptance->token_expires_at->format('d/m/Y') }}"><i class="fa fa-exclamation-triangle"></i> Expirado</span>
+                              @else
+                                  <span class="label label-default"><i class="fa fa-clock-o"></i> Sem link</span>
+                              @endif
                           </td>
 
                           {{-- Actions: send reminder / delete --}}
@@ -142,4 +161,30 @@
 
 @section('moar_scripts')
     @include ('partials.bootstrap-table')
+
+<script>
+$(document).ready(function() {
+    // Copy link functionality
+    $('.copy-link-btn').on('click', function() {
+        var targetId = $(this).data('clipboard-target');
+        var input = $(targetId);
+        input.select();
+        input[0].setSelectionRange(0, 99999);
+        
+        try {
+            document.execCommand('copy');
+            var btn = $(this);
+            var originalHtml = btn.html();
+            btn.html('<i class="fa fa-check"></i>');
+            btn.removeClass('btn-info').addClass('btn-success');
+            setTimeout(function() {
+                btn.html(originalHtml);
+                btn.removeClass('btn-success').addClass('btn-info');
+            }, 2000);
+        } catch (err) {
+            console.error('Copy failed:', err);
+        }
+    });
+});
+</script>
 @stop

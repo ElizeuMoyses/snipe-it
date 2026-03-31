@@ -250,6 +250,9 @@ class CheckoutableListener
         
         $acceptance->save();
 
+        // Generate signing token immediately at checkout
+        $acceptance->generateToken();
+
         return $acceptance;
     }
 

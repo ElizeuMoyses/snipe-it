@@ -783,7 +783,7 @@ Route::group(['middleware' => 'web'], function () {
 |
 */
 
-Route::prefix('eula')->name('eula.')->middleware('geolocation.permission')->group(function () {
+Route::prefix('eula')->name('eula.')->group(function () {
     Route::get('sign/{token}', [PublicEulaController::class, 'showStep1'])->name('sign.step1');
     Route::get('sign/{token}/eula', [PublicEulaController::class, 'showStep2'])->name('sign.step2');
     Route::get('sign/{token}/signature', [PublicEulaController::class, 'showStep3'])->name('sign.step3');

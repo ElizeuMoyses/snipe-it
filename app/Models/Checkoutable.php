@@ -18,6 +18,7 @@ class Checkoutable
         public readonly string $plain_text_model,
         public readonly string $plain_text_name,
         public readonly string $plain_text_company,
+        public readonly string $sign_url,
     ) {}
 
     public static function fromAcceptance(CheckoutAcceptance $unaccepted): self
@@ -73,6 +74,7 @@ class Checkoutable
             plain_text_model: $unaccepted_row?->model?->name ?? $unaccepted_row?->model_number ?? '',
             plain_text_name: $unaccepted_row?->name ?? $unaccepted_row?->license?->name ?? '',
             plain_text_company: $unaccepted_row?->company->name ?? $unaccepted_row?->license?->company?->name ?? '',
+            sign_url: $acceptance->token ? url('/eula/sign/' . $acceptance->token) : '',
         );
     }
 }

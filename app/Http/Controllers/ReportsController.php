@@ -1147,7 +1147,7 @@ class ReportsController extends Controller
         // Get acceptances and generate tokens for those missing them
         $acceptances = $query->get();
         foreach ($acceptances as $acceptance) {
-            if (!$acceptance->token) {
+            if (!$acceptance->token || !$acceptance->isTokenValid()) {
                 $acceptance->generateToken();
             }
         }
@@ -1247,7 +1247,7 @@ class ReportsController extends Controller
 
         // Generate tokens for acceptances that don't have them
         foreach ($acceptances as $acceptance) {
-            if (!$acceptance->token) {
+            if (!$acceptance->token || !$acceptance->isTokenValid()) {
                 $acceptance->generateToken();
             }
         }
