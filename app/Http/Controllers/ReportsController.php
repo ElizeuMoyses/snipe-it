@@ -2069,7 +2069,147 @@ class ReportsController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * API endpoint for EULA signatures bootstrap-table (server-side pagination)
+     * Returns JSON: {total: N, rows: [...]}
+     */
+    public function getEulaSignaturesApiIndex(Request $request): JsonResponse
+    {
+        $this->authorize('reports.view');
+
+        $offset = (int) $request->input('offset', 0);
+        $limit = (int) $request->input('limit', 25);
+        $sort = $request->input('sort', 'accepted_at');
+        $order = $request->input('order', 'desc');
+        $search = $request->input('search', '');
+
+        // Sanitize sort column to prevent SQL injection
+        $allowedSorts = ['id', 'accepted_at', 'created_at', 'signature_device_type', 'signature_ip', 'checkoutable_type'];
+        if (!in_array($sort, $allowedSorts)) {
+            $sort = 'accepted_at';
+        }
+        $order = strtolower($order) === 'asc' ? 'asc' : 'desc';
+
+        $query = CheckoutAcceptance::with([
+            'assignedTo:id,first_name,last_name,email,employee_num',
+            'checkoutable'
+        ])->completed();
+
+        // Search filter
+        if (!empty($search)) {
+            $search = trim(strip_tags($search));
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('assignedTo', function ($uq) use ($search) {
+                    $uq->where('first_name', 'LIKE', '%' . $search . '%')
+                        ->orWhere('last_name', 'LIKE', '%' . $search . '%')
+                        ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ['%' . $search . '%']);
+                })
+                ->orWhere('signature_device_type', 'LIKE', '%' . $search . '%')
+                ->orWhere('signature_ip', 'LIKE', '%' . $search . '%')
+                ->orWhere('checkoutable_type', 'LIKE', '%' . $search . '%');
+            });
+        }
+
+        $total = $query->count();
+        $results = $query->orderBy($sort, $order)->skip($offset)->take($limit)->get();
+
+        $rows = [];
+        foreach ($results as $sig) {
+            $userName = 'N/A';
+            $itemName = 'N/A';
+            $itemType = 'N/A';
+            $locationDisplay = '';
+
+            if ($sig->assignedTo) {
+                $userName = trim(($sig->assignedTo->first_name ?? '') . ' ' . ($sig->assignedTo->last_name ?? ''));
+                if (empty($userName)) $userName = 'N/A';
+            }
+
+            if ($sig->checkoutable) {
+                $itemName = $sig->checkoutable->name ?? ($sig->checkoutable->asset_tag ?? 'N/A');
+                $itemType = class_basename(get_class($sig->checkoutable));
+            }
+
+            if ($sig->signature_latitude && $sig->signature_longitude) {
+                $locationDisplay = '<a href="https://www.google.com/maps?q=' . $sig->signature_latitude . ',' . $sig->signature_longitude . '" target="_blank" title="Ver no mapa"><i class="fas fa-map-marker-alt text-green"></i> ' . round($sig->signature_latitude, 4) . ', ' . round($sig->signature_longitude, 4) . '</a>';
+            }
+
+            $actions = '<a href="' . route('reports.eula-signatures.detail', $sig->id) . '" class="btn btn-sm btn-default" title="Detalhes"><i class="fas fa-eye"></i></a>';
+            $actions .= ' <a href="' . route('reports.eula-signatures.pdf', $sig->id) . '" class="btn btn-sm btn-default" title="PDF"><i class="fas fa-file-pdf"></i></a>';
+
+            $rows[] = [
+                'id' => $sig->id,
+                'assigned_to' => $userName,
+                'checkoutable' => $itemName,
+                'checkoutable_type' => $itemType,
+                'accepted_at' => $sig->accepted_at ? $sig->accepted_at->format('Y-m-d H:i:s') : null,
+                'signature_device_type' => $sig->signature_device_type ?? 'N/A',
+                'location_display' => $locationDisplay,
+                'signature_ip' => $sig->signature_ip ?? '',
+                'created_at' => $sig->created_at ? $sig->created_at->format('Y-m-d H:i:s') : null,
+                'actions' => $actions,
+            ];
+        }
+
+        return response()->json([
+            'total' => $total,
+            'rows' => $rows,
+        ]);
+    }
+
+    /**
+     * API endpoint for EULA signatures statistics
+     * Returns JSON stats object for dashboard cards
+     */
+    public function getEulaSignaturesApiStats(Request $request): JsonResponse
+    {
+        $this->authorize('reports.view');
+
+        $search = $request->input('search', '');
+
+        $baseQuery = CheckoutAcceptance::completed();
+
+        if (!empty($search)) {
+            $search = trim(strip_tags($search));
+            $baseQuery->whereHas('assignedTo', function ($query) use ($search) {
+                $query->where('first_name', 'LIKE', '%' . $search . '%')
+                    ->orWhere('last_name', 'LIKE', '%' . $search . '%')
+                    ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ['%' . $search . '%']);
+            });
+        }
+
+        $cacheKey = 'eula_api_stats_' . md5($search);
+        $stats = Cache::remember($cacheKey, 300, function () use ($baseQuery) {
+            $total = $baseQuery->count();
+
+            $last7Days = (clone $baseQuery)
+                ->where('accepted_at', '>=', Carbon::now()->subDays(7))
+                ->count();
+
+            $desktopCount = (clone $baseQuery)
+                ->where('signature_device_type', 'desktop')
+                ->count();
+
+            $mobileCount = (clone $baseQuery)
+                ->where('signature_device_type', 'mobile')
+                ->count();
+
+            $withGeolocation = (clone $baseQuery)
+                ->whereNotNull('signature_latitude')
+                ->whereNotNull('signature_longitude')
+                ->count();
+
+            return [
+                'total' => $total,
+                'last_7_days' => $last7Days,
+                'desktop_count' => $desktopCount,
+                'mobile_count' => $mobileCount,
+                'with_geolocation' => $withGeolocation,
+                'without_geolocation' => $total - $withGeolocation,
+            ];
+        });
+
+        return response()->json($stats);
+    }
 }
-
-
-

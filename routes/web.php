@@ -608,6 +608,14 @@ Route::group(['prefix' => 'reports', 'middleware' => ['auth']], function () {
 
 });
 
+// API endpoints for EULA signatures (bootstrap-table and stats)
+Route::group(['prefix' => 'reports', 'middleware' => ['auth']], function () {
+    Route::get('api/eula-signatures', [ReportsController::class, 'getEulaSignaturesApiIndex'])
+        ->name('api.eula-signatures.index');
+    Route::get('api/eula-signatures/stats', [ReportsController::class, 'getEulaSignaturesApiStats'])
+        ->name('api.eula-signatures.stats');
+});
+
 
 Route::get(
     'auth/signin',
