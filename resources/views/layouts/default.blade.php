@@ -1858,6 +1858,11 @@
                                             {{ trans('general.accessory_report') }}
                                         </a>
                                     </li>
+                                    <li {{!! (request()->is('reports/eula-signatures') ? ' class="active"' : '') !!}}>
+                                        <a href="{{ route('reports.eula-signatures') }}">
+                                            {{ trans('general.eula_report') }}
+                                        </a>
+                                    </li>
                                 </ul>
                             </li>
                         @endcan

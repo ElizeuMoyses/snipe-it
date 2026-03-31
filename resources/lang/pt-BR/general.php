@@ -755,4 +755,13 @@ Resultados da Sincronização',
 
     'months_plural' => '1 mês | :count meses',
 
+    'eula_report'            => 'Relatório Termos Assinados',
+    'eula_signatures_report' => 'Relatório de Assinaturas EULA',
+    'signature'              => 'Assinatura',
+    'accept_eula'            => 'Acordo de Aceitação',
+    'eula'                   => 'EULAs',
+    'eula_long'              => 'Acordo de licença para o usuário final',
+    'show_or_hide_eulas'     => 'Mostrar/Ocultar EULAs',
+    'sign_tos'               => 'Assine abaixo para indicar que você concorda com os termos do serviço:',
+    'clear_signature'        => 'Limpar assinatura',
 ];
