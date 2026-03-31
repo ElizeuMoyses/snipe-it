@@ -262,7 +262,7 @@ class CheckoutAcceptance extends Model
      */
     public function getDaysPending(): int
     {
-        return $this->created_at ? $this->created_at->diffInDays(now()) : 0;
+        return $this->created_at ? (int) $this->created_at->diffInDays(now()) : 0;
     }
 
     /**

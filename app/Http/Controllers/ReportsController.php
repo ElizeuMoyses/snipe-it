@@ -17,6 +17,10 @@ use App\Models\Depreciation;
 use App\Models\License;
 use App\Models\ReportTemplate;
 use App\Models\Setting;
+use App\Models\Consumable;
+use App\Models\Component;
+use App\Models\LicenseSeat;
+use App\Models\Checkoutable;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Http\Request;
@@ -1115,51 +1119,44 @@ class ReportsController extends Controller
      * @author  Vincent Sposato <vincent.sposato@gmail.com>
      * @version v1.0
      */
-    public function getAssetAcceptanceReport($deleted = false) : View
+    public function getAssetAcceptanceReport($deleted = false): View
     {
         $this->authorize('reports.view');
         $showDeleted = $deleted == 'deleted';
 
-        $query = CheckoutAcceptance::pending()
-            ->where('checkoutable_type', 'App\Models\Asset')
+        $query = CheckoutAcceptance::Pending()
             ->with([
                 'checkoutable' => function (MorphTo $query) {
-                    $query->morphWith([
-                        AssetModel::class => ['model'],
-                        Company::class => ['company'],
-                        Asset::class => ['assignedTo'],
-                    ])->with('model.category');
+                    $query->withTrashed()->morphWith([
+                        Asset::class => ['model.category', 'assignedTo', 'company'],
+                        Accessory::class => ['category', 'checkouts', 'company'],
+                        LicenseSeat::class => ['user', 'license'],
+                        Component::class => ['assignedTo', 'company'],
+                        Consumable::class => ['company'],
+                    ]);
                 },
-                'assignedTo' => function($query){
-                         $query->withTrashed();
-                    }
-            ]);
+                'assignedTo' => function ($query) {
+                    $query->withTrashed();
+                },
+            ])->orderByDesc('checkout_acceptances.created_at');
 
         if ($showDeleted) {
             $query->withTrashed();
         }
 
-        // Get all acceptances without pagination for token generation
+        // Get acceptances and generate tokens for those missing them
         $acceptances = $query->get();
-
-        // Generate tokens for acceptances that don't have them
         foreach ($acceptances as $acceptance) {
             if (!$acceptance->token) {
                 $acceptance->generateToken();
             }
         }
 
-        $assetsForReport = $acceptances->map(function ($acceptance) {
-                    return [
-                        'assetItem' => $acceptance->checkoutable,
-                        'acceptance' => $acceptance,
-                        'days_pending' => $acceptance->getDaysPending(),
-                        'priority_class' => $acceptance->getPriorityClass(),
-                        'token' => $acceptance->token,
-                    ];
-            });
+        $itemsForReport = $acceptances
+            ->filter(fn ($unaccepted) => $unaccepted->checkoutable)
+            ->map(fn ($unaccepted) => Checkoutable::fromAcceptance($unaccepted));
 
-        return view('reports/unaccepted_assets', compact('assetsForReport','showDeleted' ));
+        return view('reports/unaccepted_assets', compact('itemsForReport', 'showDeleted'));
     }
 
     /**
