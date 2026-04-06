@@ -600,7 +600,7 @@ class PublicEulaController extends Controller
             }
             
             // Gerar nome único para arquivo
-            $filename = 'signature_' . $token . '_' . time() . '.png';
+            $filename = 'signature_' . $acceptance->id . '_' . time() . '.png';
             $signaturePath = 'signatures/' . $filename;
 
             // Salvar arquivo de assinatura
@@ -623,7 +623,6 @@ class PublicEulaController extends Controller
                     'checkout_acceptance_id' => $acceptance->id,
                     'filename' => $filename,
                     'file_size' => strlen($imageData),
-                    'full_path' => $filePath,
                     'metadata_saved_to_db' => !empty($metadata),
                     'ip' => request()->ip()
                 ]);
