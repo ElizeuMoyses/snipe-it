@@ -40,16 +40,14 @@ class PublicEulaController extends Controller
     public function showStep1($token)
     {
         try {
-            // Log de acesso ao token com mais detalhes
-            Log::info('EULA Step 1 access attempt - DETAILED', [
+            // Log de acesso ao token
+            Log::info('EULA Step 1 access attempt', [
                 'token' => substr($token, 0, 8) . '...',
-                'token_full' => $token,
                 'token_length' => strlen($token),
                 'ip' => request()->ip(),
                 'user_agent' => request()->userAgent(),
                 'url' => request()->fullUrl(),
-                'method' => request()->method(),
-                'headers' => request()->headers->all()
+                'method' => request()->method()
             ]);
 
             // Verificar se o token existe no banco ANTES da validação
@@ -818,7 +816,6 @@ class PublicEulaController extends Controller
         if (!$acceptance) {
             Log::warning('Token not found in database', [
                 'token' => substr($token, 0, 8) . '...',
-                'token_full' => $token, // Log completo para debug
                 'ip' => request()->ip(),
                 'total_tokens_in_db' => CheckoutAcceptance::whereNotNull('token')->count()
             ]);
