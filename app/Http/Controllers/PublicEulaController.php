@@ -988,13 +988,33 @@ class PublicEulaController extends Controller
      */
     private function normalizeName($name)
     {
-        // Convert to lowercase and trim
-        $name = strtolower(trim($name));
+        // Convert to lowercase (mb_strtolower handles UTF-8 accented chars)
+        $name = mb_strtolower(trim($name), 'UTF-8');
         
-        // Remove accents using iconv
-        $name = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $name);
+        // Remove accents using transliterator (works on Alpine/musl and glibc)
+        if (class_exists('Transliterator')) {
+            $transliterator = \Transliterator::create('Any-Latin; Latin-ASCII');
+            if ($transliterator) {
+                $name = $transliterator->transliterate($name);
+            }
+        } elseif (function_exists('iconv')) {
+            $converted = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $name);
+            if ($converted !== false) {
+                $name = $converted;
+            }
+        }
+
+        // Fallback: manual accent removal for Portuguese characters
+        $name = strtr($name, [
+            'á'=>'a','à'=>'a','ã'=>'a','â'=>'a','ä'=>'a',
+            'é'=>'e','è'=>'e','ê'=>'e','ë'=>'e',
+            'í'=>'i','ì'=>'i','î'=>'i','ï'=>'i',
+            'ó'=>'o','ò'=>'o','õ'=>'o','ô'=>'o','ö'=>'o',
+            'ú'=>'u','ù'=>'u','û'=>'u','ü'=>'u',
+            'ç'=>'c','ñ'=>'n',
+        ]);
         
-        // Remove any remaining special characters that might have been transliterated
+        // Remove any remaining special characters
         $name = preg_replace('/[^a-z0-9\s]/', '', $name);
         
         // Remove extra spaces and normalize to single spaces

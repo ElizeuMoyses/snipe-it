@@ -1951,9 +1951,9 @@ class ReportsController extends Controller
      * Serve signature image files
      *
      * @param string $filename
-     * @return Response
+     * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
      */
-    public function getSignatureImage($filename): Response
+    public function getSignatureImage($filename): \Symfony\Component\HttpFoundation\BinaryFileResponse
     {
         $this->authorize('reports.view');
 
