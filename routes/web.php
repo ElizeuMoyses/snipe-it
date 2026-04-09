@@ -22,6 +22,7 @@ use App\Http\Controllers\PublicEulaController;
 use App\Http\Controllers\ReportTemplatesController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StatuslabelsController;
 use App\Http\Controllers\SuppliersController;
 use App\Http\Controllers\ViewAssetsController;
@@ -634,23 +635,23 @@ Route::get(
 Route::group(['prefix' => 'setup', 'middleware' => 'web'], function () {
     Route::get(
         'user',
-        [SettingsController::class, 'getSetupUser']
+        [SetupController::class, 'getSetupUser']
     )->name('setup.user');
 
     Route::post(
         'user',
-        [SettingsController::class, 'postSaveFirstAdmin']
+        [SetupController::class, 'postSaveFirstAdmin']
     )->name('setup.user.save');
 
 
-    Route::get(
+    Route::match(['get', 'post'],
         'migrate',
-        [SettingsController::class, 'getSetupMigrate']
+        [SetupController::class, 'setupMigrate']
     )->name('setup.migrate');
 
     Route::get(
         'done',
-        [SettingsController::class, 'getSetupDone']
+        [SetupController::class, 'getSetupDone']
     )->name('setup.done');
 
     Route::get(
@@ -660,7 +661,7 @@ Route::group(['prefix' => 'setup', 'middleware' => 'web'], function () {
 
     Route::get(
         '/',
-        [SettingsController::class, 'getSetupIndex']
+        [SetupController::class, 'getSetupIndex']
     )->name('setup');
 });
 
