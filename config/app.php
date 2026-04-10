@@ -218,7 +218,7 @@ return [
     |
     */
 
-    'private_uploads' => storage_path().'/private_uploads',
+    'private_uploads' => storage_path('private_uploads'),
 
     /*
    |--------------------------------------------------------------------------

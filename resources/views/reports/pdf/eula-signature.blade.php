@@ -142,23 +142,3 @@
 </div>
 @endif
 
-{{-- Imagem da Assinatura (inline para exportEulaSignaturePdf) --}}
-@if($signature->signature_filename)
-    @php
-        $sigPath = config('app.private_uploads') . '/signatures/' . $signature->signature_filename;
-        $sigExists = file_exists($sigPath);
-    @endphp
-    @if($sigExists)
-    <div class="signature-section">
-        <h2>Assinatura Digital</h2>
-        <img src="{{ $sigPath }}" width="300" height="120" alt="Assinatura Digital" />
-    </div>
-    @endif
-@endif
-
-<div class="footer-note">
-    Este documento foi gerado automaticamente pelo sistema Snipe-IT.
-    A assinatura digital acima possui validade como comprovante de aceite do Termo de Uso.
-    <br/>
-    Registro #{{ $signature->id }} &mdash; Gerado em {{ now()->timezone('America/Sao_Paulo')->format('d/m/Y \à\s H:i:s') }}
-</div>

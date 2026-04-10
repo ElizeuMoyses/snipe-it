@@ -1620,7 +1620,8 @@ class ReportsController extends Controller
             // Converter HTML para PDF com writeHTML()
             $pdf->writeHTML($html, true, false, true, false, '');
 
-            // Imagem da assinatura agora é renderizada diretamente no HTML
+            $this->appendSignatureImageToPdf($pdf, $signature);
+            $this->appendPdfFooterNote($pdf, $signature);
 
             // 7.5 Retornar PDF para download
             // Nome do arquivo: eula_signature_{user_id}_{timestamp}.pdf
@@ -1634,11 +1635,13 @@ class ReportsController extends Controller
                 'generated_by' => auth()->id()
             ]);
 
+            $pdfContent = $pdf->Output($filename, 'S');
+
             // Output com modo 'D' (download)
-            return response($pdf->Output($filename, 'S'), 200, [
+            return response($pdfContent, 200, [
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-                'Content-Length' => strlen($pdf->Output($filename, 'S'))
+                'Content-Length' => strlen($pdfContent)
             ]);
 
         } catch (Exception $e) {
@@ -1873,27 +1876,129 @@ class ReportsController extends Controller
         
         // Escrever HTML no PDF
         $pdf->writeHTML($html, true, false, true, false, '');
-        
-        // Adicionar imagem da assinatura se existir
-        if ($signature->signature_filename) {
-            $signaturePath = storage_path('app/private_uploads/signatures/' . $signature->signature_filename);
-            
-            if (file_exists($signaturePath)) {
-                try {
-                    // Posicionar imagem da assinatura
-                    $pdf->Image($signaturePath, 50, 150, 100, 50, '', '', '', false, 300, '', false, false, 0);
-                } catch (Exception $e) {
-                    Log::warning('Could not add signature image to PDF', [
-                        'signature_id' => $signature->id,
-                        'image_path' => $signaturePath,
-                        'error' => $e->getMessage()
-                    ]);
-                }
-            }
-        }
+
+        $this->appendSignatureImageToPdf($pdf, $signature);
+        $this->appendPdfFooterNote($pdf, $signature);
         
         // Retornar conte�do do PDF
         return $pdf->Output('', 'S');
+    }
+
+    /**
+     * Add the signature image directly to the PDF.
+     */
+    private function appendSignatureImageToPdf(TCPDF $pdf, CheckoutAcceptance $signature): void
+    {
+        if (!$signature->signature_filename) {
+            Log::info('Skipping PDF signature image because signature_filename is empty', [
+                'signature_id' => $signature->id,
+            ]);
+
+            return;
+        }
+
+        $signaturePath = $this->resolveSignatureImagePath($signature->signature_filename);
+
+        Log::info('Resolved signature image path for PDF export', [
+            'signature_id' => $signature->id,
+            'filename' => $signature->signature_filename,
+            'resolved_path' => $signaturePath,
+        ]);
+
+        if ($signaturePath === null) {
+            Log::warning('Signature image file not found for PDF export', [
+                'signature_id' => $signature->id,
+                'filename' => $signature->signature_filename,
+            ]);
+
+            return;
+        }
+
+        $imageWidth = 90.0;
+        $imageHeight = 28.0;
+        $imageSize = @getimagesize($signaturePath);
+
+        if (is_array($imageSize) && !empty($imageSize[0]) && !empty($imageSize[1])) {
+            $ratio = $imageSize[1] / max((float) $imageSize[0], 1.0);
+            $imageHeight = min(35.0, max(18.0, $imageWidth * $ratio));
+        }
+
+        $requiredHeight = 18.0 + $imageHeight;
+
+        if (($pdf->GetY() + $requiredHeight) > ($pdf->getPageHeight() - $pdf->getBreakMargin())) {
+            $pdf->AddPage();
+        }
+
+        $pdf->Ln(4);
+        $pdf->SetFont('dejavusans', 'B', 12);
+        $pdf->Cell(0, 0, 'Assinatura Digital', 0, 1, 'C');
+        $pdf->Ln(3);
+
+        $x = ($pdf->getPageWidth() - $imageWidth) / 2;
+        $y = $pdf->GetY();
+
+        try {
+            $pdf->Image($signaturePath, $x, $y, $imageWidth, $imageHeight, '', '', '', false, 300, '', false, false, 0);
+            $pdf->SetY($y + $imageHeight + 4);
+
+            Log::info('Signature image added to PDF successfully', [
+                'signature_id' => $signature->id,
+                'image_path' => $signaturePath,
+                'x' => $x,
+                'y' => $y,
+                'width' => $imageWidth,
+                'height' => $imageHeight,
+                'page' => $pdf->getPage(),
+            ]);
+        } catch (Exception $e) {
+            Log::warning('Could not add signature image to PDF', [
+                'signature_id' => $signature->id,
+                'image_path' => $signaturePath,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        $pdf->SetFont('dejavusans', '', 10);
+    }
+
+    /**
+     * Add the footer note after the signature block.
+     */
+    private function appendPdfFooterNote(TCPDF $pdf, CheckoutAcceptance $signature): void
+    {
+        if (($pdf->GetY() + 16) > ($pdf->getPageHeight() - $pdf->getBreakMargin())) {
+            $pdf->AddPage();
+        }
+
+        $generatedAt = now()->timezone('America/Sao_Paulo')->format('d/m/Y \à\s H:i:s');
+        $footerHtml = '
+            <div style="font-size:7pt;color:#95a5a6;text-align:center;margin-top:10px;border-top:1px solid #ecf0f1;padding-top:5px;">
+                Este documento foi gerado automaticamente pelo sistema Snipe-IT.
+                A assinatura digital deste registro possui validade como comprovante de aceite do Termo de Uso.
+                <br/>
+                Registro #' . e($signature->id) . ' &mdash; Gerado em ' . e($generatedAt) . '
+            </div>';
+
+        $pdf->writeHTML($footerHtml, true, false, true, false, '');
+    }
+
+    /**
+     * Resolve the local path for a signature image.
+     */
+    private function resolveSignatureImagePath(string $filename): ?string
+    {
+        $candidates = [
+            storage_path('private_uploads/signatures/' . $filename),
+            config('app.private_uploads') . '/signatures/' . $filename,
+        ];
+
+        foreach (array_unique($candidates) as $candidate) {
+            if (is_string($candidate) && file_exists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -1962,7 +2067,11 @@ class ReportsController extends Controller
             abort(404, 'Invalid filename');
         }
 
-        $path = storage_path('app/private_uploads/signatures/' . $filename);
+        // Tentar path principal (volume Docker via symlink) e fallback via config
+        $path = storage_path('private_uploads/signatures/' . $filename);
+        if (!file_exists($path)) {
+            $path = config('app.private_uploads') . '/signatures/' . $filename;
+        }
 
         if (!file_exists($path)) {
             abort(404, 'Signature image not found');

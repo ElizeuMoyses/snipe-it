@@ -605,19 +605,17 @@ class PublicEulaController extends Controller
 
             // Salvar arquivo de assinatura
             try {
-                // Usar storage padrão em vez de 'private'
-                $storagePath = 'app/private_uploads/signatures/';
-                $fullPath = storage_path($storagePath);
+                // Usar Storage facade com path relativo ao disk root (storage_path())
+                // Isso garante gravação no volume Docker via symlink storage/private_uploads
+                $storageRelPath = 'private_uploads/signatures';
                 
-                // Criar diretório se não existir
-                if (!file_exists($fullPath)) {
-                    mkdir($fullPath, 0755, true);
-                    Log::info('Created signatures directory', ['path' => $fullPath]);
+                if (!\Storage::exists($storageRelPath)) {
+                    \Storage::makeDirectory($storageRelPath, 0775);
+                    Log::info('Created signatures directory via Storage facade', ['path' => $storageRelPath]);
                 }
                 
-                // Salvar arquivo diretamente
-                $filePath = $fullPath . $filename;
-                file_put_contents($filePath, $imageData);
+                // Salvar arquivo via Storage facade
+                \Storage::put($storageRelPath . '/' . $filename, $imageData);
                 
                 Log::info('Signature file saved successfully', [
                     'checkout_acceptance_id' => $acceptance->id,
