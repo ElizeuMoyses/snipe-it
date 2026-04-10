@@ -94,6 +94,15 @@ class EulaSignaturePresenter extends Presenter
                 'formatter' => 'dateDisplayFormatter',
             ],
             [
+                'field' => 'signature_image',
+                'searchable' => false,
+                'sortable' => false,
+                'switchable' => true,
+                'title' => 'Assinatura',
+                'visible' => true,
+                'formatter' => 'signatureImageFormatter',
+            ],
+            [
                 'field' => 'actions',
                 'searchable' => false,
                 'sortable' => false,

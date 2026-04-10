@@ -2257,6 +2257,9 @@ class ReportsController extends Controller
                 'location_display' => $locationDisplay,
                 'signature_ip' => $sig->signature_ip ?? '',
                 'created_at' => $sig->created_at ? $sig->created_at->format('Y-m-d H:i:s') : null,
+                'signature_image' => $sig->signature_filename
+                    ? route('reports.eula-signatures.signature-image', $sig->signature_filename)
+                    : null,
                 'actions' => $actions,
             ];
         }

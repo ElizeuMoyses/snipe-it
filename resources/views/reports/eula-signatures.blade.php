@@ -59,6 +59,13 @@
 ])
 
 <script>
+function signatureImageFormatter(value, row) {
+    if (value) {
+        return '<img src="' + value + '" alt="Assinatura" style="max-width: 150px; max-height: 60px; border: 1px solid #ddd; border-radius: 3px; padding: 2px; background: #fff;">';
+    }
+    return '<span class="text-muted"><i class="fa fa-times-circle"></i> Sem assinatura</span>';
+}
+
 $(document).ready(function() {
     // Monitor bootstrap table events
     $('#eulaSignaturesReport').on('load-success.bs.table', function (e, data) {
