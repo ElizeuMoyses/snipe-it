@@ -382,6 +382,15 @@
             color: #3d4144 !important;
         }
 
+        [data-theme="dark"] .breadcrumb-item a {
+            color: var(--header-color) !important;
+        }
+
+        [data-theme="dark"] .breadcrumb-item a:hover,
+        [data-theme="dark"] .breadcrumb-item a:focus {
+            color: #8fc7ea !important;
+        }
+
         body
         {
             background-color: var(--color-bg);

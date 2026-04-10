@@ -13,6 +13,74 @@
 </a>
 @stop
 
+@push('css')
+<style>
+[data-theme="dark"] #statsCards .info-box {
+    background: var(--box-bg) !important;
+    border: 1px solid var(--box-header-bottom-border-color) !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25) !important;
+}
+
+[data-theme="dark"] #statsCards .info-box-content,
+[data-theme="dark"] #statsCards .info-box-number,
+[data-theme="dark"] #statsCards .info-box-text,
+[data-theme="dark"] #statsCards .progress-description {
+    color: var(--header-color) !important;
+}
+
+[data-theme="dark"] #statsCards .progress {
+    background: #2d3236 !important;
+}
+
+[data-theme="dark"] #signatureDetailModal .modal-content,
+[data-theme="dark"] #signatureZoomModal .modal-content {
+    background: var(--box-bg);
+    color: var(--header-color);
+    border: 1px solid var(--box-header-bottom-border-color);
+}
+
+[data-theme="dark"] #signatureDetailModal .modal-header,
+[data-theme="dark"] #signatureDetailModal .modal-footer,
+[data-theme="dark"] #signatureZoomModal .modal-header,
+[data-theme="dark"] #signatureZoomModal .modal-footer {
+    border-color: var(--box-header-bottom-border-color);
+}
+
+[data-theme="dark"] #signatureDetailModal .modal-title,
+[data-theme="dark"] #signatureDetailModal h5,
+[data-theme="dark"] #signatureDetailModal dt,
+[data-theme="dark"] #signatureDetailModal dd,
+[data-theme="dark"] #signatureZoomModal .modal-title {
+    color: var(--header-color);
+}
+
+[data-theme="dark"] #signatureDetailModal .text-muted,
+[data-theme="dark"] #signatureZoomModal .text-muted {
+    color: #c7c7c7 !important;
+}
+
+[data-theme="dark"] #signatureDetailModal .signature-placeholder {
+    background-color: #2d3236;
+    border-color: var(--box-header-bottom-border-color);
+}
+
+[data-theme="dark"] #signatureDetailModal .btn-primary,
+[data-theme="dark"] #signatureZoomModal .btn-primary {
+    background-color: #225b7d;
+    border-color: #1d4b68;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] #signatureDetailModal .btn-primary:hover,
+[data-theme="dark"] #signatureDetailModal .btn-primary:focus,
+[data-theme="dark"] #signatureZoomModal .btn-primary:hover,
+[data-theme="dark"] #signatureZoomModal .btn-primary:focus {
+    background-color: #1d4b68;
+    border-color: #16394f;
+}
+</style>
+@endpush
+
 {{-- Page content --}}
 @section('content')
 

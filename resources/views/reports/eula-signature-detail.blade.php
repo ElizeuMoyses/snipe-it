@@ -6,8 +6,28 @@ Detalhes da Assinatura EULA #{{ $signature->id }}
 @parent
 @stop
 
+@push('css')
+<style>
+[data-theme="dark"] .eula-signature-detail .btn-primary {
+    background-color: #225b7d;
+    border-color: #1d4b68;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .eula-signature-detail .btn-primary:hover,
+[data-theme="dark"] .eula-signature-detail .btn-primary:focus {
+    background-color: #1d4b68;
+    border-color: #16394f;
+}
+
+[data-theme="dark"] .eula-signature-detail .signature-preview-frame {
+    border-color: var(--box-header-bottom-border-color) !important;
+}
+</style>
+@endpush
+
 @section('content')
-<div class="row">
+<div class="row eula-signature-detail">
     <div class="col-md-12">
         <div class="box box-default">
             <div class="box-header with-border">
@@ -119,7 +139,7 @@ Detalhes da Assinatura EULA #{{ $signature->id }}
                             </div>
                             <div class="box-body text-center">
                                 @if($signature->signature_filename)
-                                    <div style="border: 1px solid #ddd; border-radius: 4px; padding: 20px; display: inline-block; background: #fff;">
+                                    <div class="signature-preview-frame" style="border: 1px solid #ddd; border-radius: 4px; padding: 20px; display: inline-block; background: #fff;">
                                         <img src="{{ route('reports.eula-signatures.signature-image', $signature->signature_filename) }}"
                                              alt="Assinatura Digital"
                                              style="max-width: 500px; max-height: 200px;">

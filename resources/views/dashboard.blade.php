@@ -1440,6 +1440,89 @@
     text-decoration: none;
 }
 
+[data-theme="dark"] .modern-dashboard {
+    background: linear-gradient(135deg, #1f252b 0%, #2b3238 100%);
+}
+
+[data-theme="dark"] .dashboard-header,
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .modern-card,
+[data-theme="dark"] .empty-state {
+    background: var(--box-bg);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.28);
+}
+
+[data-theme="dark"] .dashboard-header {
+    border-left-color: var(--link-color);
+}
+
+[data-theme="dark"] .dashboard-header h1,
+[data-theme="dark"] .dashboard-header .subtitle,
+[data-theme="dark"] .stat-card-info h3,
+[data-theme="dark"] .stat-card-info p,
+[data-theme="dark"] .modern-card-title,
+[data-theme="dark"] .empty-state h3,
+[data-theme="dark"] .empty-state p,
+[data-theme="dark"] .modern-table thead th,
+[data-theme="dark"] .modern-table tbody td {
+    color: var(--header-color) !important;
+}
+
+[data-theme="dark"] .modern-card-header,
+[data-theme="dark"] .modern-table thead th {
+    background: #363a3d;
+    border-bottom-color: var(--box-header-bottom-border-color);
+}
+
+[data-theme="dark"] .modern-table tbody td,
+[data-theme="dark"] .stat-card-footer,
+[data-theme="dark"] .empty-state,
+[data-theme="dark"] .dashboard-header {
+    border-color: var(--box-header-bottom-border-color);
+}
+
+[data-theme="dark"] .stat-card-footer,
+[data-theme="dark"] .empty-state-icon {
+    color: #8fc7ea;
+}
+
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .stat-card:hover,
+[data-theme="dark"] .stat-card:focus,
+[data-theme="dark"] .stat-card:visited {
+    color: var(--header-color);
+}
+
+[data-theme="dark"] .stat-card-footer,
+[data-theme="dark"] .stat-card:hover .stat-card-footer {
+    color: #8fc7ea !important;
+}
+
+[data-theme="dark"] .empty-state-icon {
+    background: #363a3d;
+}
+
+[data-theme="dark"] .icon-nav-btn,
+[data-theme="dark"] .collapse-btn {
+    background: #2d3236;
+    border-color: var(--box-header-bottom-border-color);
+    color: var(--header-color);
+    box-shadow: none;
+}
+
+[data-theme="dark"] .icon-nav-btn:hover,
+[data-theme="dark"] .collapse-btn:hover {
+    background: #41474c;
+    border-color: #7a7a7a;
+    color: var(--header-color);
+}
+
+[data-theme="dark"] .dashboard-tab {
+    background: #2d3236;
+    color: var(--header-color);
+    border-color: var(--box-header-bottom-border-color);
+}
+
 /* Responsive Design */
 @media (max-width: 1200px) {
     .content-grid {
