@@ -30,6 +30,144 @@
 {{-- Page content --}}
 @section('content')
 
+{{-- EULA Summary Stats - same design as dashboard stat-cards --}}
+@if(isset($eulaStats) && $eulaStats['total'] > 0)
+<style>
+.eula-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+.eula-stat-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+    position: relative;
+    overflow: hidden;
+    text-decoration: none;
+}
+.eula-stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+.eula-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--card-color);
+}
+.eula-stat-card.critical { --card-color: #e74c3c; }
+.eula-stat-card.warning  { --card-color: #f39c12; }
+.eula-stat-card.ok       { --card-color: #27ae60; }
+.eula-stat-card.total    { --card-color: #2980b9; }
+
+.eula-stat-card-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.eula-stat-card-info h3 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: #2c3e50;
+    line-height: 1;
+}
+.eula-stat-card-info p {
+    margin: 0.35rem 0 0 0;
+    color: #7f8c8d;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+.eula-stat-card-info small {
+    color: #95a5a6;
+    font-size: 0.75rem;
+}
+.eula-stat-card-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card-color);
+    color: white;
+    font-size: 1.5rem;
+}
+
+/* Dark mode */
+[data-theme="dark"] .eula-stat-card {
+    background: var(--box-bg, #2d3236);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.28);
+}
+[data-theme="dark"] .eula-stat-card-info h3 {
+    color: var(--header-color, #e0e0e0);
+}
+[data-theme="dark"] .eula-stat-card-info p,
+[data-theme="dark"] .eula-stat-card-info small {
+    color: var(--text-color, #a0a0a0);
+}
+</style>
+
+<div class="eula-stats-grid">
+    <div class="eula-stat-card critical">
+        <div class="eula-stat-card-content">
+            <div class="eula-stat-card-info">
+                <h3>{{ $eulaStats['critical'] }}</h3>
+                <p>{{ trans('general.eula_critical') }}</p>
+                <small>{{ trans('general.eula_over_30_days') }}</small>
+            </div>
+            <div class="eula-stat-card-icon">
+                <i class="fa fa-exclamation-circle"></i>
+            </div>
+        </div>
+    </div>
+    <div class="eula-stat-card warning">
+        <div class="eula-stat-card-content">
+            <div class="eula-stat-card-info">
+                <h3>{{ $eulaStats['warning'] }}</h3>
+                <p>{{ trans('general.eula_attention') }}</p>
+                <small>{{ trans('general.eula_7_to_30_days') }}</small>
+            </div>
+            <div class="eula-stat-card-icon">
+                <i class="fa fa-exclamation-triangle"></i>
+            </div>
+        </div>
+    </div>
+    <div class="eula-stat-card ok">
+        <div class="eula-stat-card-content">
+            <div class="eula-stat-card-info">
+                <h3>{{ $eulaStats['ok'] }}</h3>
+                <p>{{ trans('general.eula_recent') }}</p>
+                <small>{{ trans('general.eula_under_7_days') }}</small>
+            </div>
+            <div class="eula-stat-card-icon">
+                <i class="fa fa-check-circle"></i>
+            </div>
+        </div>
+    </div>
+    <div class="eula-stat-card total">
+        <div class="eula-stat-card-content">
+            <div class="eula-stat-card-info">
+                <h3>{{ $eulaStats['total'] }}</h3>
+                <p>{{ trans('general.eula_total_pending') }}</p>
+                <small>{{ trans('general.eula_oldest') }}: {{ $eulaStats['oldest_days'] }} {{ trans('general.days') }}</small>
+            </div>
+            <div class="eula-stat-card-icon">
+                <i class="fa fa-file-text-o"></i>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
 <div class="row">
   <div class="col-md-12">
     <div class="box box-default">
@@ -59,6 +197,7 @@
                 <th class="col-sm-1" data-sortable="true" >{{ trans('general.name') }}</th>
                 <th class="col-sm-1" data-sortable="true" >{{ trans('admin/hardware/table.asset_tag') }}</th>
                 <th class="col-sm-1" data-sortable="true" >{{ trans('admin/hardware/table.checkoutto') }}</th>
+                <th class="col-sm-1" data-field="days_pending" data-sortable="true" data-sorter="numericSorter">{{ trans('general.days_pending') }}</th>
                 <th class="col-sm-1" data-sortable="false">Link EULA</th>
                 <th class="col-md-1"><span class="line"></span>{{ trans('table.actions') }}</th>
               </tr>
@@ -93,6 +232,23 @@
                               {!! $item->assignee
                                   ? optional($item->assignee->present())->nameUrl() ?? e($item->assignee->name)
                                   : trans('admin/reports/general.deleted_user') !!}
+                          </td>
+
+                          {{-- Days Pending --}}
+                          @php
+                              $daysPending = $item->acceptance->getDaysPending();
+                              $priorityClass = $item->acceptance->getPriorityClass();
+                          @endphp
+                          <td data-value="{{ $daysPending }}" class="text-center">
+                              @if($priorityClass === 'danger-high')
+                                  <span class="label label-danger" style="font-size: 13px; padding: 4px 10px;"><i class="fa fa-exclamation-circle"></i> {{ $daysPending }} {{ trans('general.days') }}</span>
+                              @elseif($priorityClass === 'danger')
+                                  <span class="label label-warning" style="font-size: 13px; padding: 4px 10px; background-color: #e67e22;"><i class="fa fa-exclamation-triangle"></i> {{ $daysPending }} {{ trans('general.days') }}</span>
+                              @elseif($priorityClass === 'warning')
+                                  <span class="label label-warning" style="font-size: 13px; padding: 4px 10px;"><i class="fa fa-clock-o"></i> {{ $daysPending }} {{ trans('general.days') }}</span>
+                              @else
+                                  <span class="label label-success" style="font-size: 13px; padding: 4px 10px;"><i class="fa fa-check-circle"></i> {{ $daysPending }} {{ trans('general.days') }}</span>
+                              @endif
                           </td>
 
                           {{-- Copy EULA signing link --}}
@@ -160,31 +316,54 @@
 @stop
 
 @section('moar_scripts')
+
+<script>
+// Must be defined before bootstrap-table initializes so data-sorter="numericSorter" can resolve it.
+// Strips HTML tags first (avoids extracting digits from style attrs like "13px"),
+// then uses parseInt which stops at the first non-numeric char.
+window.numericSorter = function(a, b) {
+    var textA = String(a).replace(/<[^>]*>/g, '');
+    var textB = String(b).replace(/<[^>]*>/g, '');
+    var numA = parseInt(textA, 10) || 0;
+    var numB = parseInt(textB, 10) || 0;
+    return numA - numB;
+};
+</script>
+
     @include ('partials.bootstrap-table')
 
 <script>
-$(document).ready(function() {
-    // Copy link functionality
-    $('.copy-link-btn').on('click', function() {
-        var targetId = $(this).data('clipboard-target');
+$(function() {
+    // Delegated event — works even after bootstrap-table re-renders rows (sort/page/filter)
+    $(document).on('click', '.copy-link-btn', function() {
+        var btn = $(this);
+        var targetId = btn.data('clipboard-target');
+        var text = $(targetId).val();
+
+        function onSuccess() {
+            var orig = btn.html();
+            btn.html('<i class="fa fa-check"></i>').removeClass('btn-info').addClass('btn-success');
+            setTimeout(function() { btn.html(orig).removeClass('btn-success').addClass('btn-info'); }, 2000);
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(onSuccess).catch(function() {
+                // fallback
+                fallbackCopy(targetId);
+                onSuccess();
+            });
+        } else {
+            fallbackCopy(targetId);
+            onSuccess();
+        }
+    });
+
+    function fallbackCopy(targetId) {
         var input = $(targetId);
         input.select();
         input[0].setSelectionRange(0, 99999);
-        
-        try {
-            document.execCommand('copy');
-            var btn = $(this);
-            var originalHtml = btn.html();
-            btn.html('<i class="fa fa-check"></i>');
-            btn.removeClass('btn-info').addClass('btn-success');
-            setTimeout(function() {
-                btn.html(originalHtml);
-                btn.removeClass('btn-success').addClass('btn-info');
-            }, 2000);
-        } catch (err) {
-            console.error('Copy failed:', err);
-        }
-    });
+        document.execCommand('copy');
+    }
 });
 </script>
 @stop

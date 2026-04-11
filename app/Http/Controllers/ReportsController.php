@@ -1156,7 +1156,15 @@ class ReportsController extends Controller
             ->filter(fn ($unaccepted) => $unaccepted->checkoutable)
             ->map(fn ($unaccepted) => Checkoutable::fromAcceptance($unaccepted));
 
-        return view('reports/unaccepted_assets', compact('itemsForReport', 'showDeleted'));
+        $eulaStats = [
+            'total' => $acceptances->count(),
+            'critical' => $acceptances->filter(fn ($a) => $a->getDaysPending() > 30)->count(),
+            'warning' => $acceptances->filter(fn ($a) => $a->getDaysPending() > 7 && $a->getDaysPending() <= 30)->count(),
+            'ok' => $acceptances->filter(fn ($a) => $a->getDaysPending() <= 7)->count(),
+            'oldest_days' => $acceptances->max(fn ($a) => $a->getDaysPending()) ?? 0,
+        ];
+
+        return view('reports/unaccepted_assets', compact('itemsForReport', 'showDeleted', 'eulaStats'));
     }
 
     /**
