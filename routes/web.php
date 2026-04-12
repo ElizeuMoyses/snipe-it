@@ -83,6 +83,7 @@ Route::group(['middleware' => 'auth'], function () {
     /*
     * Contracts
     */
+    Route::get('contracts/dashboard', [ContractsController::class, 'dashboard'])->name('contracts.dashboard');
     Route::resource('contracts', ContractsController::class);
 
     /*

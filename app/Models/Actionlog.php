@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ActionType;
 use App\Models\Contract;
+use App\Models\ContractAmendment;
 use App\Models\ContractInstallment;
 use App\Models\Traits\CompanyableTrait;
 use App\Models\Traits\Searchable;
@@ -554,6 +555,8 @@ class Actionlog extends SnipeModel
                 return 'private_uploads/suppliers/'.$this->filename;
             case Contract::class:
                 return 'private_uploads/contracts/'.$this->filename;
+            case ContractAmendment::class:
+                return 'private_uploads/contract_amendments/'.$this->filename;
             case ContractInstallment::class:
                 return 'private_uploads/contract_installments/'.$this->filename;
             case User::class:

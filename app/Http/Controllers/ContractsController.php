@@ -12,6 +12,15 @@ use Illuminate\Http\Request;
 class ContractsController extends Controller
 {
     /**
+     * Placeholder for contracts dashboard (Phase 4).
+     */
+    public function dashboard(): RedirectResponse
+    {
+        return redirect()->route('contracts.index')
+            ->with('info', trans('admin/contracts/message.dashboard_info'));
+    }
+
+    /**
      * Show a list of all contracts
      */
     public function index(): View

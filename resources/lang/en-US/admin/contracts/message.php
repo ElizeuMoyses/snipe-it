@@ -4,6 +4,7 @@ return [
 
     'does_not_exist' => 'Contract does not exist.',
     'assoc_installments' => 'This contract has paid installments and cannot be deleted.',
+    'dashboard_info' => 'The contracts dashboard will be available in Phase 4.',
 
     'create' => [
         'error' => 'Contract was not created, please try again.',
