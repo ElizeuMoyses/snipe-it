@@ -19,7 +19,7 @@ return new class extends Migration
             $table->unsignedInteger('sort_order')->default(0);
             $table->boolean('is_default')->default(false);
             $table->text('notes')->nullable();
-            $table->unsignedBigInteger('created_by')->nullable();
+            $table->unsignedInteger('created_by')->nullable();
             $table->timestamps();
             $table->softDeletes();
 

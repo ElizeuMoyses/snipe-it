@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('contract_asset', function (Blueprint $table) {
             $table->unsignedBigInteger('contract_id');
-            $table->unsignedBigInteger('asset_id');
+            $table->unsignedInteger('asset_id');
             $table->timestamp('created_at')->nullable();
 
             $table->primary(['contract_id', 'asset_id']);

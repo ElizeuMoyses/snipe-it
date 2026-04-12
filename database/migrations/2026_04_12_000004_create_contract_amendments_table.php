@@ -20,7 +20,7 @@ return new class extends Migration
             $table->date('effective_date');
             $table->string('ticket_reference', 100)->nullable();
             $table->text('notes')->nullable();
-            $table->unsignedBigInteger('created_by')->nullable();
+            $table->unsignedInteger('created_by')->nullable();
             $table->timestamps();
             $table->softDeletes();
 

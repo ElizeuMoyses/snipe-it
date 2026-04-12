@@ -11,14 +11,8 @@
     <x-container>
         <x-box>
 
-            <x-table
-                name="contractStatusLabel"
-                buttons="contractStatusLabelButtons"
-                fixed_right_number="1"
-                fixed_number="1"
-                api_url="{{ route('api.contract-status-labels.index') }}"
-                :presenter="\App\Presenters\ContractStatusLabelPresenter::dataTableLayout()"
-                export_filename="export-contract-status-labels-{{ date('Y-m-d') }}"
+            <x-table.contract-status-labels
+                name="contract-status-labels"
             />
 
         </x-box>

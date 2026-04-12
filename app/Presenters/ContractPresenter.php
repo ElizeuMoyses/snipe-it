@@ -129,6 +129,6 @@ class ContractPresenter extends Presenter
             ],
         ];
 
-        return $layout;
+        return json_encode($layout);
     }
 }

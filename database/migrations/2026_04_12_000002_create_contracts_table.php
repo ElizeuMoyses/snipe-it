@@ -14,8 +14,8 @@ return new class extends Migration
             $table->string('contract_number', 100)->nullable();
             $table->enum('contract_type', ['recurring', 'one_time']);
             $table->unsignedBigInteger('status_label_id');
-            $table->unsignedBigInteger('supplier_id')->nullable();
-            $table->unsignedBigInteger('company_id')->nullable();
+            $table->unsignedInteger('supplier_id')->nullable();
+            $table->unsignedInteger('company_id')->nullable();
             $table->date('start_date');
             $table->date('end_date')->nullable();
             $table->enum('billing_cycle', ['monthly', 'quarterly', 'semiannual', 'annual', 'one_time'])->nullable();
@@ -26,7 +26,7 @@ return new class extends Migration
             $table->unsignedTinyInteger('readjustment_month')->nullable();
             $table->text('description')->nullable();
             $table->text('notes')->nullable();
-            $table->unsignedBigInteger('created_by')->nullable();
+            $table->unsignedInteger('created_by')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
