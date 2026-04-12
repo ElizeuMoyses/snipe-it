@@ -116,13 +116,13 @@ class ContractStatusLabelsController extends Controller
      */
     public function destroy($id): RedirectResponse
     {
-        $this->authorize('delete', Contract::class);
-
         $statusLabel = ContractStatusLabel::find($id);
 
         if (is_null($statusLabel)) {
             return redirect()->route('contract-status-labels.index')->with('error', trans('admin/contract_status_labels/message.not_found'));
         }
+
+        $this->authorize('delete', new Contract);
 
         if (! $statusLabel->isDeletable()) {
             return redirect()->route('contract-status-labels.index')->with('error', trans('admin/contract_status_labels/message.assoc_contracts'));

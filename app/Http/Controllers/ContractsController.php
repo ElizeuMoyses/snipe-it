@@ -127,7 +127,7 @@ class ContractsController extends Controller
      */
     public function destroy(Contract $contract): RedirectResponse
     {
-        $this->authorize('delete', Contract::class);
+        $this->authorize('delete', $contract);
 
         if (! $contract->isDeletable()) {
             return redirect()->route('contracts.index')->with('error', trans('admin/contracts/message.assoc_installments'));

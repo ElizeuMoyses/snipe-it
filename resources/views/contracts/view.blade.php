@@ -153,7 +153,7 @@
                         @if ($contract->notes)
                             <div class="col-md-12">
                                 <strong>{{ trans('general.notes') }}: </strong>
-                                {!! $contract->present()->notesWithLineBreaks() !!}
+                                {!! nl2br(e($contract->notes)) !!}
                             </div>
                         @endif
 
