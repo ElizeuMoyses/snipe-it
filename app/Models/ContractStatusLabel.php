@@ -119,20 +119,21 @@ class ContractStatusLabel extends SnipeModel
      * Get all status_label IDs for a given scope + meta_type.
      * Cached in-memory per request to avoid N+1.
      */
+    protected static array $metaTypeCache = [];
+
     public static function idsForMetaType(string $scope, string $metaType): array
     {
-        static $cache = [];
         $key = "{$scope}:{$metaType}";
 
-        if (! isset($cache[$key])) {
-            $cache[$key] = static::where('scope', $scope)
+        if (! isset(static::$metaTypeCache[$key])) {
+            static::$metaTypeCache[$key] = static::where('scope', $scope)
                 ->where('meta_type', $metaType)
                 ->whereNull('deleted_at')
                 ->pluck('id')
                 ->all();
         }
 
-        return $cache[$key];
+        return static::$metaTypeCache[$key];
     }
 
     /**
@@ -151,8 +152,7 @@ class ContractStatusLabel extends SnipeModel
      */
     public static function clearMetaTypeCache(): void
     {
-        // Reset static cache by re-declaring
-        // This is a workaround since PHP static vars can't be unset externally
+        static::$metaTypeCache = [];
     }
 
     // ── Deletable ───────────────────────────────────────────────────

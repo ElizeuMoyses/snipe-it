@@ -86,7 +86,7 @@ class ContractsController extends Controller
      */
     public function edit(Contract $contract): View|RedirectResponse
     {
-        $this->authorize('update', Contract::class);
+        $this->authorize('update', $contract);
 
         return view('contracts/edit')->with('item', $contract);
     }
@@ -96,7 +96,7 @@ class ContractsController extends Controller
      */
     public function update(Request $request, Contract $contract): RedirectResponse
     {
-        $this->authorize('update', Contract::class);
+        $this->authorize('update', $contract);
 
         $contract->name = $request->input('name');
         $contract->contract_number = $request->input('contract_number');
@@ -143,7 +143,7 @@ class ContractsController extends Controller
      */
     public function show(Contract $contract): View|RedirectResponse
     {
-        $this->authorize('view', Contract::class);
+        $this->authorize('view', $contract);
 
         return view('contracts/view', compact('contract'));
     }
