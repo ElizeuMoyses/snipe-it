@@ -385,6 +385,33 @@ return [
         ],
     ],
 
+    'Contracts' => [
+        [
+            'permission' => 'contracts.view',
+            'display' => true,
+        ],
+        [
+            'permission' => 'contracts.create',
+            'display' => true,
+        ],
+        [
+            'permission' => 'contracts.edit',
+            'display' => true,
+        ],
+        [
+            'permission' => 'contracts.delete',
+            'display' => true,
+        ],
+        [
+            'permission' => 'contracts.installments',
+            'display' => true,
+        ],
+        [
+            'permission' => 'contracts.files',
+            'display' => true,
+        ],
+    ],
+
     'Manufacturers' => [
         [
             'permission' => 'manufacturers.view',

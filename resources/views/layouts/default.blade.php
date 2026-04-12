@@ -1236,6 +1236,14 @@
                                     </a>
                                 </li>
                             @endcan
+                            @can('view', \App\Models\Contract::class)
+                                <li aria-hidden="true"{!! (request()->is('contracts*') ? ' class="active"' : '') !!}>
+                                    <a href="{{ route('contracts.index') }}" tabindex="-1" data-tooltip="true" data-placement="bottom" data-title="{{ trans('admin/contracts/general.contracts') }}">
+                                        <x-icon type="licenses" class="fa-fw" />
+                                        <span class="sr-only">{{ trans('admin/contracts/general.contracts') }}</span>
+                                    </a>
+                                </li>
+                            @endcan
                             @can('index', \App\Models\Accessory::class)
                                 <li aria-hidden="true"{!! (request()->is('accessories*') ? ' class="active"' : '') !!}>
                                     <a href="{{ route('accessories.index') }}" {{$snipeSettings->shortcuts_enabled == 1 ? "accesskey=3" : ''}} tabindex="-1" data-tooltip="true" data-placement="bottom" data-title="{{ trans('general.accessories') }}">
@@ -1637,6 +1645,14 @@
                                 </a>
                             </li>
                         @endcan
+                        @can('view', \App\Models\Contract::class)
+                            <li{!! (request()->is('contracts*') ? ' class="active"' : '') !!}>
+                                <a href="{{ route('contracts.index') }}">
+                                    <x-icon type="licenses" class="fa-fw"/>
+                                    <span>{{ trans('admin/contracts/general.contracts') }}</span>
+                                </a>
+                            </li>
+                        @endcan
                         @can('index', \App\Models\Accessory::class)
                             <li id="accessories-sidenav-option"{!! (request()->is('accessories*') ? ' class="active"' : '') !!}>
                                 <a href="{{ route('accessories.index') }}">
@@ -1748,6 +1764,14 @@
                                         <li {!! (request()->is('statuslabels*') ? ' class="active"' : '') !!}>
                                             <a href="{{ route('statuslabels.index') }}">
                                                 {{ trans('general.status_labels') }}
+                                            </a>
+                                        </li>
+                                    @endcan
+
+                                    @can('view', \App\Models\Contract::class)
+                                        <li {!! (request()->is('contract-status-labels*') ? ' class="active"' : '') !!}>
+                                            <a href="{{ route('contract-status-labels.index') }}">
+                                                {{ trans('admin/contract_status_labels/general.title') }}
                                             </a>
                                         </li>
                                     @endcan

@@ -24,6 +24,8 @@ use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StatuslabelsController;
+use App\Http\Controllers\ContractsController;
+use App\Http\Controllers\ContractStatusLabelsController;
 use App\Http\Controllers\SuppliersController;
 use App\Http\Controllers\ViewAssetsController;
 use App\Livewire\Importer;
@@ -77,6 +79,16 @@ Route::group(['middleware' => 'auth'], function () {
     * Suppliers
     */
     Route::resource('suppliers', SuppliersController::class);
+
+    /*
+    * Contracts
+    */
+    Route::resource('contracts', ContractsController::class);
+
+    /*
+    * Contract Status Labels
+    */
+    Route::resource('contract-status-labels', ContractStatusLabelsController::class);
 
     /*
     * Depreciations
@@ -753,7 +765,7 @@ Route::group(['middleware' => 'web'], function () {
             'show'
         ]
     )->name('ui.files.show')
-        ->where(['object_type' => 'assets|maintenances|hardware|models|users|locations|accessories|consumables|licenses|components']);
+        ->where(['object_type' => 'assets|maintenances|hardware|models|users|locations|accessories|consumables|licenses|components|contracts|contract_installments']);
 
     // Upload files(s)
     Route::post('{object_type}/{id}/files',
@@ -762,7 +774,7 @@ Route::group(['middleware' => 'web'], function () {
             'store'
         ]
     )->name('ui.files.store')
-        ->where(['object_type' => 'assets|maintenances|hardware|models|users|locations|accessories|consumables|licenses|components']);
+        ->where(['object_type' => 'assets|maintenances|hardware|models|users|locations|accessories|consumables|licenses|components|contracts|contract_installments']);
 
     // Delete files(s)
     Route::delete('{object_type}/{id}/files/{file_id}/delete',
@@ -771,7 +783,7 @@ Route::group(['middleware' => 'web'], function () {
             'destroy'
         ]
     )->name('ui.files.destroy')
-        ->where(['object_type' => 'assets|hardware|models|users|locations|accessories|consumables|licenses|components']);
+        ->where(['object_type' => 'assets|hardware|models|users|locations|accessories|consumables|licenses|components|contracts|contract_installments']);
 });
 
 

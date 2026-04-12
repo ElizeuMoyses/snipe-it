@@ -1055,6 +1055,62 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
     ); // end suppliers API routes
 
     /**
+     * Contracts API routes
+     */
+    Route::group(['prefix' => 'contracts'], function () {
+
+        Route::get('selectlist',
+            [
+                Api\ContractsController::class,
+                'selectlist',
+            ]
+        )->name('api.contracts.selectlist');
+
+    });
+
+    Route::resource('contracts',
+        Api\ContractsController::class,
+        ['names' => [
+            'index' => 'api.contracts.index',
+            'show' => 'api.contracts.show',
+            'update' => 'api.contracts.update',
+            'store' => 'api.contracts.store',
+            'destroy' => 'api.contracts.destroy',
+        ],
+            'except' => ['create', 'edit'],
+            'parameters' => ['contract' => 'contract_id'],
+        ]
+    ); // end contracts API routes
+
+    /**
+     * Contract Status Labels API routes
+     */
+    Route::group(['prefix' => 'contract-status-labels'], function () {
+
+        Route::get('selectlist',
+            [
+                Api\ContractStatusLabelsController::class,
+                'selectlist',
+            ]
+        )->name('api.contract-status-labels.selectlist');
+
+    });
+
+    Route::resource('contract-status-labels',
+        Api\ContractStatusLabelsController::class,
+        ['names' => [
+            'index' => 'api.contract-status-labels.index',
+            'show' => 'api.contract-status-labels.show',
+            'update' => 'api.contract-status-labels.update',
+            'store' => 'api.contract-status-labels.store',
+            'destroy' => 'api.contract-status-labels.destroy',
+        ],
+            'except' => ['create', 'edit'],
+            'parameters' => ['contract_status_label' => 'contract_status_label_id'],
+        ]
+    ); // end contract status labels API routes
+
+    /**
      * Users API routes
      */
     Route::group(['prefix' => 'users'], function () {
@@ -1352,7 +1408,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
             'index',
         ]
     )->name('api.files.index')
-        ->where(['object_type' => 'accessories|audits|assets|components|consumables|hardware|licenses|locations|maintenances|models|suppliers|users|companies|departments']);
+        ->where(['object_type' => 'accessories|audits|assets|components|consumables|hardware|licenses|locations|maintenances|models|suppliers|users|companies|departments|contracts|contract_installments']);
 
     // Get a file
     Route::get('{object_type}/{id}/files/{file_id}',
@@ -1361,7 +1417,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
             'show',
         ]
     )->name('api.files.show')
-        ->where(['object_type' => 'accessories|audits|assets|components|consumables|hardware|licenses|locations|maintenances|models|suppliers|users|companies|departments']);
+        ->where(['object_type' => 'accessories|audits|assets|components|consumables|hardware|licenses|locations|maintenances|models|suppliers|users|companies|departments|contracts|contract_installments']);
 
     // Upload files(s)
     Route::post('{object_type}/{id}/files',
@@ -1370,7 +1426,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
             'store',
         ]
     )->name('api.files.store')
-        ->where(['object_type' => 'accessories|audits|assets|components|consumables|hardware|licenses|locations|maintenances|models|suppliers|users|companies|departments']);
+        ->where(['object_type' => 'accessories|audits|assets|components|consumables|hardware|licenses|locations|maintenances|models|suppliers|users|companies|departments|contracts|contract_installments']);
 
     // Delete files(s)
     Route::delete('{object_type}/{id}/files/{file_id}/delete',
@@ -1379,6 +1435,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
             'destroy',
         ]
     )->name('api.files.destroy')
-        ->where(['object_type' => 'accessories|assets|components|consumables|hardware|licenses|locations|maintenances|models|suppliers|users|companies|departments']);
+        ->where(['object_type' => 'accessories|assets|components|consumables|hardware|licenses|locations|maintenances|models|suppliers|users|companies|departments|contracts|contract_installments']);
 
 }); // end API routes
