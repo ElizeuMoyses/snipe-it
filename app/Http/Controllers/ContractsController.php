@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use App\Models\Contract;
+use App\Models\ContractInstallment;
 use App\Models\ContractStatusLabel;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -12,12 +13,58 @@ use Illuminate\Http\Request;
 class ContractsController extends Controller
 {
     /**
-     * Placeholder for contracts dashboard (Phase 4).
+     * Display the contracts dashboard.
      */
-    public function dashboard(): RedirectResponse
+    public function dashboard(): View
     {
-        return redirect()->route('contracts.index')
-            ->with('info', trans('admin/contracts/message.dashboard_info'));
+        $this->authorize('view', Contract::class);
+
+        // Cards de resumo
+        $activeCount = Contract::active()->count();
+        $expiringSoonCount = Contract::active()->expiringSoon(30)->count();
+        $overdueCount = ContractInstallment::overdue()->count();
+
+        $pendingMonthCount = ContractInstallment::pending()
+            ->whereMonth('due_date', now()->month)
+            ->whereYear('due_date', now()->year)
+            ->count();
+
+        $monthlyCommitted = ContractInstallment::pending()
+            ->whereMonth('due_date', now()->month)
+            ->whereYear('due_date', now()->year)
+            ->sum('expected_value');
+
+        $monthlyPaid = ContractInstallment::paid()
+            ->whereMonth('payment_date', now()->month)
+            ->whereYear('payment_date', now()->year)
+            ->sum('paid_value');
+
+        // Tabela: próximos vencimentos (15 dias)
+        $upcomingInstallments = ContractInstallment::with(['contract.supplier', 'statusLabel'])
+            ->pending()
+            ->where('due_date', '>=', now()->startOfDay())
+            ->where('due_date', '<=', now()->addDays(15)->endOfDay())
+            ->orderBy('due_date')
+            ->limit(20)
+            ->get();
+
+        // Tabela: parcelas em atraso (mais antigas primeiro)
+        $overdueInstallments = ContractInstallment::with(['contract.supplier', 'statusLabel'])
+            ->overdue()
+            ->orderBy('due_date')
+            ->limit(20)
+            ->get();
+
+        return view('contracts.dashboard', compact(
+            'activeCount',
+            'expiringSoonCount',
+            'overdueCount',
+            'pendingMonthCount',
+            'monthlyCommitted',
+            'monthlyPaid',
+            'upcomingInstallments',
+            'overdueInstallments',
+        ));
     }
 
     /**
@@ -145,8 +192,49 @@ class ContractsController extends Controller
     {
         $this->authorize('view', $contract);
 
-        $contract->load(['installments.statusLabel', 'installments.adminuser']);
+        $contract->load(['installments.statusLabel', 'installments.adminuser', 'amendments.adminuser', 'assets.model', 'assets.assetstatus']);
 
         return view('contracts/view', compact('contract'));
+    }
+
+    /**
+     * Attach an asset to the contract.
+     */
+    public function attachAsset(Request $request, Contract $contract): RedirectResponse
+    {
+        $this->authorize('update', $contract);
+
+        $request->validate([
+            'asset_id' => 'required|exists:assets,id',
+        ]);
+
+        $assetId = $request->input('asset_id');
+
+        // Prevent duplicate attachment
+        if ($contract->assets()->where('assets.id', $assetId)->exists()) {
+            return redirect()->route('contracts.show', $contract->id)
+                ->with('error', trans('admin/contracts/message.asset.already_linked'))
+                ->withFragment('contract-assets');
+        }
+
+        $contract->assets()->attach($assetId, ['created_at' => now()]);
+
+        return redirect()->route('contracts.show', $contract->id)
+            ->with('success', trans('admin/contracts/message.asset.attach.success'))
+            ->withFragment('contract-assets');
+    }
+
+    /**
+     * Detach an asset from the contract.
+     */
+    public function detachAsset(Contract $contract, $assetId): RedirectResponse
+    {
+        $this->authorize('update', $contract);
+
+        $contract->assets()->detach($assetId);
+
+        return redirect()->route('contracts.show', $contract->id)
+            ->with('success', trans('admin/contracts/message.asset.detach.success'))
+            ->withFragment('contract-assets');
     }
 }

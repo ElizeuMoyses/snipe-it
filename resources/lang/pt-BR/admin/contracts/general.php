@@ -54,4 +54,40 @@ return [
     'method_card'           => 'Cartão de Crédito',
     'method_other'          => 'Outro',
 
+    // Aditivos
+    'amendments'            => 'Aditivos',
+    'amendment'             => 'Aditivo',
+    'amendment_type'        => 'Tipo de Aditivo',
+    'amendment_type_readjustment' => 'Reajuste',
+    'amendment_type_renewal'      => 'Renovação',
+    'amendment_type_termination'  => 'Rescisão',
+    'amendment_type_scope_change'  => 'Alteração de Escopo',
+    'effective_date'        => 'Data de Vigência',
+    'old_value'             => 'Valor Anterior',
+    'new_value'             => 'Novo Valor',
+    'old_end_date'          => 'Data Final Anterior',
+    'new_end_date'          => 'Nova Data Final',
+    'create_amendment'      => 'Criar Aditivo',
+    'update_amendment'      => 'Atualizar Aditivo',
+    'confirm_amendment'     => 'Confirmar Aditivo',
+    'confirm_and_save'      => 'Confirmar e Salvar',
+    'preview_impact'        => 'Visualizar Impacto',
+    // Ativos
+    'linked_assets'         => 'Ativos Vinculados',
+    'link_asset'            => 'Vincular Ativo',
+    'unlink_asset'          => 'Desvincular',
+    'select_asset'          => 'Selecione um ativo...',
+
+    // Dashboard
+    'dashboard'              => 'Painel de Contratos',
+    'active_contracts'       => 'Contratos Ativos',
+    'expiring_soon'          => 'Vencendo em 30 Dias',
+    'overdue_installments'   => 'Parcelas em Atraso',
+    'upcoming_installments'  => 'Próximos Vencimentos',
+    'monthly_committed'      => 'Comprometido no Mês',
+    'monthly_paid'           => 'Pago no Mês',
+    'no_upcoming'            => 'Nenhuma parcela vencendo nos próximos 15 dias.',
+    'no_overdue'             => 'Nenhuma parcela em atraso.',
+    'pending_count'          => 'pendente(s)',
+
 ];

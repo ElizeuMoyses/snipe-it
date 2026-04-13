@@ -54,4 +54,40 @@ return [
     'method_card'           => 'Credit Card',
     'method_other'          => 'Other',
 
+    // Amendments
+    'amendments'            => 'Amendments',
+    'amendment'             => 'Amendment',
+    'amendment_type'        => 'Amendment Type',
+    'amendment_type_readjustment' => 'Readjustment',
+    'amendment_type_renewal'      => 'Renewal',
+    'amendment_type_termination'  => 'Termination',
+    'amendment_type_scope_change'  => 'Scope Change',
+    'effective_date'        => 'Effective Date',
+    'old_value'             => 'Old Value',
+    'new_value'             => 'New Value',
+    'old_end_date'          => 'Old End Date',
+    'new_end_date'          => 'New End Date',
+    'create_amendment'      => 'Create Amendment',
+    'update_amendment'      => 'Update Amendment',
+    'confirm_amendment'     => 'Confirm Amendment',
+    'confirm_and_save'      => 'Confirm & Save',
+    'preview_impact'        => 'Preview Impact',
+    // Assets
+    'linked_assets'         => 'Linked Assets',
+    'link_asset'            => 'Link Asset',
+    'unlink_asset'          => 'Unlink',
+    'select_asset'          => 'Select an asset...',
+
+    // Dashboard
+    'dashboard'              => 'Contracts Dashboard',
+    'active_contracts'       => 'Active Contracts',
+    'expiring_soon'          => 'Expiring in 30 Days',
+    'overdue_installments'   => 'Overdue Installments',
+    'upcoming_installments'  => 'Upcoming Installments',
+    'monthly_committed'      => 'Committed This Month',
+    'monthly_paid'           => 'Paid This Month',
+    'no_upcoming'            => 'No installments due in the next 15 days.',
+    'no_overdue'             => 'No overdue installments.',
+    'pending_count'          => 'pending',
+
 ];

@@ -85,6 +85,7 @@ class Supplier extends SnipeModel
             && (($this->accessories_count ?? $this->accessories()->count()) === 0)
             && (($this->components_count ?? $this->components()->count()) === 0)
             && (($this->maintenances_count ?? $this->maintenances()->count()) === 0)
+            && (($this->contracts_count ?? $this->contracts()->count()) === 0)
             && ($this->deleted_at == '');
     }
 
@@ -183,6 +184,14 @@ class Supplier extends SnipeModel
     public function maintenances(): Relation
     {
         return $this->hasMany(Maintenance::class, 'supplier_id');
+    }
+
+    /**
+     * Contracts associated with this supplier.
+     */
+    public function contracts()
+    {
+        return $this->hasMany(\App\Models\Contract::class, 'supplier_id');
     }
 
     /**

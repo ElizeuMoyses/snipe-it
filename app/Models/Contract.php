@@ -152,6 +152,17 @@ class Contract extends SnipeModel
         return $query->whereIn('status_label_id', ContractStatusLabel::idsForMetaType('contract', 'expired'));
     }
 
+    /**
+     * Scope: contratos com end_date dentro de $days dias a partir de hoje.
+     * Exclui contratos com end_date null (vigência indeterminada).
+     */
+    public function scopeExpiringSoon($query, int $days = 30)
+    {
+        return $query->whereNotNull('end_date')
+            ->where('end_date', '>=', now()->startOfDay())
+            ->where('end_date', '<=', now()->addDays($days)->endOfDay());
+    }
+
     // ── Installment generation ──────────────────────────────────────
 
     /**
@@ -243,6 +254,106 @@ class Contract extends SnipeModel
             ->pending()
             ->orderBy('due_date', 'asc')
             ->value('due_date');
+    }
+
+    // ── Amendment side-effects ──────────────────────────────────────
+
+    /**
+     * Apply readjustment side-effects: update contract installment_value
+     * and recalculate expected_value of pending installments from effective_date.
+     *
+     * @return array Summary with keys: updated_count, old_value, new_value
+     */
+    public function applyReadjustment(ContractAmendment $amendment): array
+    {
+        $oldValue = $this->installment_value;
+
+        $this->installment_value = $amendment->new_value;
+        $this->save();
+
+        $pendingInstallments = $this->installments()
+            ->pending()
+            ->where('due_date', '>=', $amendment->effective_date)
+            ->get();
+
+        $updatedCount = 0;
+        foreach ($pendingInstallments as $installment) {
+            $installment->expected_value = $amendment->new_value;
+            $installment->save();
+            $updatedCount++;
+        }
+
+        return [
+            'updated_count' => $updatedCount,
+            'old_value'     => $oldValue,
+            'new_value'     => $amendment->new_value,
+        ];
+    }
+
+    /**
+     * Apply renewal side-effects: update contract end_date
+     * and generate new installments for the extended period.
+     *
+     * @return array Summary with keys: new_end_date, generated_count
+     */
+    public function applyRenewal(ContractAmendment $amendment): array
+    {
+        $this->end_date = $amendment->new_end_date;
+
+        if ($amendment->new_value) {
+            $this->installment_value = $amendment->new_value;
+        }
+
+        $this->save();
+
+        $generationStart = $amendment->old_end_date
+            ? $amendment->old_end_date->copy()->addDay()
+            : $this->start_date->copy();
+
+        $generatedCount = $this->generateRecurringInstallments(
+            ContractStatusLabel::defaultForMetaType('installment', 'pending'),
+            $generationStart,
+            0
+        );
+
+        return [
+            'new_end_date'    => $amendment->new_end_date,
+            'generated_count' => $generatedCount,
+        ];
+    }
+
+    /**
+     * Apply termination side-effects: cancel pending installments after effective_date
+     * and change contract status to cancelled.
+     *
+     * @return array Summary with keys: cancelled_count, kept_overdue_count
+     */
+    public function applyTermination(ContractAmendment $amendment): array
+    {
+        $defaultCancelledInstallment = ContractStatusLabel::defaultForMetaType('installment', 'cancelled');
+        $defaultCancelledContract = ContractStatusLabel::defaultForMetaType('contract', 'cancelled');
+
+        $pendingToCancel = $this->installments()
+            ->pending()
+            ->where('due_date', '>', $amendment->effective_date)
+            ->get();
+
+        $cancelledCount = 0;
+        foreach ($pendingToCancel as $installment) {
+            $installment->status_label_id = $defaultCancelledInstallment->id;
+            $installment->save();
+            $cancelledCount++;
+        }
+
+        $keptOverdueCount = $this->installments()->overdue()->count();
+
+        $this->status_label_id = $defaultCancelledContract->id;
+        $this->save();
+
+        return [
+            'cancelled_count'   => $cancelledCount,
+            'kept_overdue_count' => $keptOverdueCount,
+        ];
     }
 
     // ── Deletable ───────────────────────────────────────────────────

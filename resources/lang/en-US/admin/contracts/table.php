@@ -17,4 +17,17 @@ return [
     'payment_date'       => 'Payment Date',
     'payment_method'     => 'Method',
     'ticket_reference'   => 'Ticket',
+
+    // Amendment columns
+    'amendment_type'     => 'Type',
+    'effective_date'     => 'Effective Date',
+    'old_value'          => 'Old Value',
+    'new_value'          => 'New Value',
+    'old_end_date'       => 'Old End Date',
+    'new_end_date'       => 'New End Date',
+    'created_by'         => 'Created By',
+
+    // Dashboard
+    'supplier'           => 'Supplier',
+    'days_overdue'       => 'Days Overdue',
 ];
