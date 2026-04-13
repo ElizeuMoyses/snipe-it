@@ -2,6 +2,7 @@
 
 return [
 
+    'contract' => 'Contract',
     'contracts' => 'Contracts',
     'name' => 'Contract Name',
     'contract_number' => 'Contract Number',

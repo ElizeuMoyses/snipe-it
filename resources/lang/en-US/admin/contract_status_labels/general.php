@@ -3,6 +3,7 @@
 return [
 
     'title' => 'Contract Status Labels',
+    'contract_status_labels' => 'Contract Status Labels',
     'create' => 'Create Contract Status Label',
     'update' => 'Update Contract Status Label',
     'view' => 'View Contract Status Label',

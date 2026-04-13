@@ -770,6 +770,46 @@
     @endcan
 
 
+    // Contract table buttons
+    window.contractButtons = () => ({
+        @can('create', \App\Models\Contract::class)
+        btnAdd: {
+            text: '{{ trans('general.create') }}',
+            icon: 'fa fa-plus',
+            event () {
+                window.location.href = '{{ route('contracts.create') }}';
+            },
+            attributes: {
+                class: 'btn-warning',
+                title: '{{ trans('general.create') }}',
+                @if ($snipeSettings->shortcuts_enabled == 1)
+                accesskey: 'n'
+                @endif
+            },
+        },
+        @endcan
+    });
+
+    // Contract Status Label table buttons
+    window.contractStatusLabelButtons = () => ({
+        @can('create', \App\Models\Contract::class)
+        btnAdd: {
+            text: '{{ trans('general.create') }}',
+            icon: 'fa fa-plus',
+            event () {
+                window.location.href = '{{ route('contract-status-labels.create') }}';
+            },
+            attributes: {
+                class: 'btn-info',
+                title: '{{ trans('general.create') }}',
+                @if ($snipeSettings->shortcuts_enabled == 1)
+                accesskey: 'n'
+                @endif
+            },
+        },
+        @endcan
+    });
+
     // License table buttons
     window.licenseButtons = () => ({
         @can('create', \App\Models\License::class)

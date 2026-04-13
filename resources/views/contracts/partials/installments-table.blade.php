@@ -199,7 +199,7 @@
                                     <p class="help-block">{{ trans('general.upload_filetypes_help', ['allowed_filetypes' => config('filesystems.allowed_upload_extensions'), 'size' => Helper::file_upload_max_size_readable()]) }}</p>
                                 </div>
                                 <div class="col-md-12">
-                                    <x-input.textarea name="notes" :value="old('notes')" placeholder="Notes (Optional)" rows="3" aria-label="file" />
+                                    <x-input.textarea name="notes" :value="old('notes')" :placeholder="trans('general.notes')" rows="3" aria-label="file" />
                                 </div>
                             </div>
                         </div>

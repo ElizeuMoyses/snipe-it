@@ -1353,6 +1353,14 @@
                                                 </a>
                                             </li>
                                         @endcan
+                                        @can('create', \App\Models\Contract::class)
+                                            <li {!! (request()->is('contracts/create') ? 'class="active"' : '') !!}>
+                                                <a href="{{ route('contracts.create') }}" tabindex="-1">
+                                                    <x-icon type="licenses" class="fa-fw" />
+                                                    {{ trans('admin/contracts/general.contract') }}
+                                                </a>
+                                            </li>
+                                        @endcan
 
 
                                     </ul>
