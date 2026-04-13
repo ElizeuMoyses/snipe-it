@@ -1392,6 +1392,7 @@
         'companies',
         'components',
         'consumables',
+        'contracts',
         'departments',
         'depreciations',
         'fieldsets',
@@ -1426,6 +1427,23 @@
         var owner_name = child_formatters[i][0];
         var child_name = child_formatters[i][1];
         window[owner_name + '_' + child_name + 'ActionsFormatter'] = genericActionsFormatter(owner_name, child_name);
+    }
+
+    // Contract Status Labels formatters (route uses hyphens: contract-status-labels)
+    window.contractStatusLabelsLinkFormatter = genericRowLinkFormatter('contract-status-labels');
+    window.contractStatusLabelsLinkObjFormatter = genericColumnObjLinkFormatter('contract-status-labels');
+    window.contractStatusLabelsActionsFormatter = genericActionsFormatter('contract-status-labels');
+
+    // Contract status badge formatter (colored badge with icon)
+    function contractStatusFormatter(value, row) {
+        if (value) {
+            var color = value.color || '#888';
+            var icon = value.icon || 'fa-circle';
+            var name = value.name || '';
+            return '<span class="label" style="background-color: ' + color + '; white-space: nowrap;">' +
+                   '<i class="fa ' + icon + '" aria-hidden="true"></i> ' + name + '</span>';
+        }
+        return '';
     }
 
 

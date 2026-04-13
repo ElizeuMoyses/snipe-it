@@ -26,7 +26,9 @@ class ContractsTransformer
                 'id'                => (int) $contract->id,
                 'name'              => e($contract->name),
                 'contract_number'   => e($contract->contract_number),
-                'contract_type'     => e($contract->contract_type),
+                'contract_type'     => $contract->contract_type
+                    ? trans('admin/contracts/general.type_' . $contract->contract_type)
+                    : null,
                 'status_label'      => $contract->statusLabel ? [
                     'id'        => (int) $contract->statusLabel->id,
                     'name'      => e($contract->statusLabel->name),
@@ -59,8 +61,8 @@ class ContractsTransformer
             ];
 
             $permissions_array['available_actions'] = [
-                'update' => Gate::allows('update', Contract::class),
-                'delete' => Gate::allows('delete', Contract::class) && $contract->isDeletable(),
+                'update' => Gate::allows('update', $contract),
+                'delete' => Gate::allows('delete', $contract) && $contract->isDeletable(),
             ];
 
             $array += $permissions_array;
