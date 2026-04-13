@@ -25,6 +25,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StatuslabelsController;
 use App\Http\Controllers\ContractsController;
+use App\Http\Controllers\ContractInstallmentsController;
 use App\Http\Controllers\ContractStatusLabelsController;
 use App\Http\Controllers\SuppliersController;
 use App\Http\Controllers\ViewAssetsController;
@@ -85,6 +86,17 @@ Route::group(['middleware' => 'auth'], function () {
     */
     Route::get('contracts/dashboard', [ContractsController::class, 'dashboard'])->name('contracts.dashboard');
     Route::resource('contracts', ContractsController::class);
+
+    /*
+    * Contract Installments
+    */
+    Route::resource('contracts.installments', ContractInstallmentsController::class)->except(['index', 'show']);
+    Route::get('contracts/{contract}/installments/{installment}/pay', [ContractInstallmentsController::class, 'registerPayment'])
+        ->name('contracts.installments.pay');
+    Route::post('contracts/{contract}/installments/{installment}/pay', [ContractInstallmentsController::class, 'storePayment'])
+        ->name('contracts.installments.pay.store');
+    Route::patch('contracts/{contract}/installments/{installment}/status', [ContractInstallmentsController::class, 'updateStatus'])
+        ->name('contracts.installments.status.update');
 
     /*
     * Contract Status Labels

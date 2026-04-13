@@ -1083,6 +1083,28 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
     ); // end contracts API routes
 
     /**
+     * Contract Installments API routes
+     */
+    Route::resource('contracts.installments',
+        Api\ContractInstallmentsController::class,
+        ['names' => [
+            'index' => 'api.contracts.installments.index',
+            'show' => 'api.contracts.installments.show',
+            'update' => 'api.contracts.installments.update',
+            'store' => 'api.contracts.installments.store',
+            'destroy' => 'api.contracts.installments.destroy',
+        ],
+            'except' => ['create', 'edit'],
+            'parameters' => ['installments' => 'installment'],
+        ]
+    );
+
+    Route::post('contracts/{contract}/installments/{installment}/pay',
+        [Api\ContractInstallmentsController::class, 'storePayment']
+    )->name('api.contracts.installments.pay.store');
+    // end contract installments API routes
+
+    /**
      * Contract Status Labels API routes
      */
     Route::group(['prefix' => 'contract-status-labels'], function () {

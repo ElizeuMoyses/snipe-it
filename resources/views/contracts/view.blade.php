@@ -20,12 +20,38 @@
             <x-tabs>
                 <x-slot:tabnav>
 
+                    <li class="nav-item">
+                        <a class="nav-link" data-toggle="tab" href="#installments" role="tab">
+                            {{ trans('admin/contracts/general.installments') }}
+                            @if($contract->installments->count() > 0)
+                                <badge class="badge badge-secondary">{{ $contract->installments->count() }}</badge>
+                            @endif
+                        </a>
+                    </li>
+
                     <x-tabs.files-tab :item="$contract" count="{{ $contract->uploads()->count() }}"/>
                     <x-tabs.upload-tab :item="$contract"/>
 
                 </x-slot:tabnav>
 
                 <x-slot:tabpanes>
+
+                    <!-- start installments tab pane -->
+                    <x-tabs.pane name="installments">
+                        @can('installments', $contract)
+                            @if(! in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled']))
+                                <div class="row" style="margin-bottom: 10px;">
+                                    <div class="col-md-12 text-right">
+                                        <a href="{{ route('contracts.installments.create', $contract->id) }}" class="btn btn-primary btn-sm">
+                                            {{ trans('admin/contracts/general.create_installment') }}
+                                        </a>
+                                    </div>
+                                </div>
+                            @endif
+                        @endcan
+                        @include('contracts.partials.installments-table', ['contract' => $contract])
+                    </x-tabs.pane>
+                    <!-- end installments tab pane -->
 
                     <!-- start files tab pane -->
                     <x-tabs.pane name="files" class="{{ $contract->uploads->count() == 0 ? 'hidden-print' : '' }}">

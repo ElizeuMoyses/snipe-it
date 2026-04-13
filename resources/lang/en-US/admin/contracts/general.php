@@ -29,4 +29,28 @@ return [
     'about_contracts_title' => 'About Contracts',
     'about_contracts_text' => 'Contracts are used to track service agreements, subscriptions and other contractual relationships with suppliers.',
 
+    // Installments
+    'installments'          => 'Installments',
+    'installment'           => 'Installment',
+    'create_installment'    => 'Create Installment',
+    'update_installment'    => 'Update Installment',
+    'register_payment'      => 'Register Payment',
+    'change_status'         => 'Change Status',
+    'payment_details'       => 'Payment Details',
+    'installment_info'      => 'Installment Information',
+    'totals'                => 'Totals',
+    'installment_number'    => 'Installment #',
+    'reference_date'        => 'Reference Date',
+    'due_date'              => 'Due Date',
+    'expected_value'        => 'Expected Value',
+    'paid_value'            => 'Paid Value',
+    'payment_date'          => 'Payment Date',
+    'payment_method'        => 'Payment Method',
+    'ticket_reference'      => 'Ticket Reference',
+    'method_boleto'         => 'Boleto',
+    'method_pix'            => 'PIX',
+    'method_transfer'       => 'Bank Transfer',
+    'method_card'           => 'Credit Card',
+    'method_other'          => 'Other',
+
 ];
