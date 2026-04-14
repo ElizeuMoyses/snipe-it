@@ -3,6 +3,7 @@
 namespace Tests\Feature\Contracts\Ui;
 
 use App\Models\Contract;
+use App\Models\ContractAmendment;
 use App\Models\ContractStatusLabel;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -88,7 +89,7 @@ class ContractInstallmentGenerationTest extends TestCase
         $this->assertEquals(0, $contract->installments()->count());
     }
 
-    public function test_recurring_without_end_date_returns_zero()
+    public function test_recurring_without_end_date_generates_twelve_months()
     {
         $this->actingAs(User::factory()->superuser()->create());
 
@@ -101,6 +102,65 @@ class ContractInstallmentGenerationTest extends TestCase
 
         $count = $contract->generateInstallments();
 
-        $this->assertEquals(0, $count);
+        $this->assertEquals(12, $count);
+        $this->assertEquals(12, $contract->installments()->count());
+        $this->assertEquals('2026-12-01', $contract->installments()->orderByDesc('due_date')->first()->due_date->format('Y-m-d'));
+    }
+
+    public function test_apply_renewal_requires_old_end_date()
+    {
+        $this->actingAs(User::factory()->superuser()->create());
+
+        $contract = Contract::factory()->create([
+            'contract_type' => 'recurring',
+            'billing_cycle' => 'monthly',
+            'start_date' => '2026-01-01',
+            'end_date' => '2026-01-31',
+        ]);
+
+        $amendment = new ContractAmendment([
+            'amendment_type' => 'renewal',
+            'description' => 'Renewal without previous end date',
+            'effective_date' => '2026-02-01',
+            'new_end_date' => '2026-02-28',
+        ]);
+
+        $this->expectException(\LogicException::class);
+
+        $contract->applyRenewal($amendment);
+    }
+
+    public function test_apply_renewal_with_billing_day_skips_existing_due_date()
+    {
+        $this->actingAs(User::factory()->superuser()->create());
+
+        $contract = Contract::factory()->create([
+            'contract_type' => 'recurring',
+            'billing_cycle' => 'monthly',
+            'billing_day' => 15,
+            'start_date' => '2026-01-01',
+            'end_date' => '2026-01-15',
+            'installment_value' => 100.00,
+        ]);
+
+        $this->assertEquals(1, $contract->generateInstallments());
+
+        $amendment = new ContractAmendment([
+            'amendment_type' => 'renewal',
+            'description' => 'Monthly renewal',
+            'effective_date' => '2026-01-16',
+            'old_end_date' => '2026-01-15',
+            'new_end_date' => '2026-02-15',
+        ]);
+
+        $result = $contract->applyRenewal($amendment);
+        $dueDates = $contract->installments()
+            ->orderBy('due_date')
+            ->get()
+            ->map(fn ($installment) => $installment->due_date->format('Y-m-d'))
+            ->all();
+
+        $this->assertEquals(1, $result['generated_count']);
+        $this->assertSame(['2026-01-15', '2026-02-15'], $dueDates);
     }
 }

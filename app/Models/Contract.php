@@ -187,6 +187,18 @@ class Contract extends SnipeModel
         return $this->generateRecurringInstallments($defaultStatus, $from, $count);
     }
 
+    protected function resolveInstallmentDueDate(Carbon $baseDate): Carbon
+    {
+        $dueDate = $baseDate->copy();
+
+        if ($this->billing_day) {
+            $adjustedDay = min($this->billing_day, $dueDate->daysInMonth);
+            $dueDate->day($adjustedDay);
+        }
+
+        return $dueDate;
+    }
+
     protected function generateOneTimeInstallments(ContractStatusLabel $defaultStatus, int $count): int
     {
         $totalInstallments = $this->total_installments ?: 1;
@@ -195,13 +207,9 @@ class Contract extends SnipeModel
             : $this->installment_value;
 
         for ($i = 1; $i <= $totalInstallments; $i++) {
-            $dueDate = $this->start_date->copy()->addMonths($i - 1);
-
-            // Adjust due_date to billing_day if set
-            if ($this->billing_day) {
-                $adjustedDay = min($this->billing_day, $dueDate->daysInMonth);
-                $dueDate->day($adjustedDay);
-            }
+            $dueDate = $this->resolveInstallmentDueDate(
+                $this->start_date->copy()->addMonths($i - 1)
+            );
 
             $this->installments()->create([
                 'installment_number' => $i,
@@ -236,25 +244,23 @@ class Contract extends SnipeModel
         };
 
         $existingCount = $this->installments()->count();
-        $current = $start->copy();
+        $current = $this->billing_day ? $start->copy()->startOfMonth() : $start->copy();
         $number = $existingCount;
 
-        // Guard: avoid generating in period already covered by existing installments
         $lastInstallment = $this->installments()->latest('due_date')->first();
-        if ($lastInstallment && $start->lte($lastInstallment->due_date)) {
-            $start = $lastInstallment->due_date->copy()->addDay();
-            $current = $start->copy();
+        $thresholdDate = $from ? $from->copy()->subDay() : null;
+
+        if ($lastInstallment?->due_date && (! $thresholdDate || $lastInstallment->due_date->gt($thresholdDate))) {
+            $thresholdDate = $lastInstallment->due_date->copy();
         }
 
-        while ($current->lte($end)) {
-            $number++;
+        while ($thresholdDate && $this->resolveInstallmentDueDate($current)->lte($thresholdDate)) {
+            $current->addMonths($monthsInterval);
+        }
 
-            // Adjust due_date to billing_day if set
-            $dueDate = $current->copy();
-            if ($this->billing_day) {
-                $adjustedDay = min($this->billing_day, $dueDate->daysInMonth);
-                $dueDate->day($adjustedDay);
-            }
+        while ($this->resolveInstallmentDueDate($current)->lte($end)) {
+            $number++;
+            $dueDate = $this->resolveInstallmentDueDate($current);
 
             $this->installments()->create([
                 'installment_number' => $number,
