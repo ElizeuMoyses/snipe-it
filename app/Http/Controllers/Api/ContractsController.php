@@ -30,6 +30,7 @@ class ContractsController extends Controller
             'start_date',
             'end_date',
             'billing_cycle',
+            'billing_day',
             'installment_value',
             'total_value',
             'total_installments',
@@ -41,7 +42,7 @@ class ContractsController extends Controller
         $contracts = Contract::select([
             'id', 'name', 'contract_number', 'contract_type', 'status_label_id',
             'supplier_id', 'company_id', 'start_date', 'end_date', 'billing_cycle',
-            'installment_value', 'total_value', 'total_installments', 'notes',
+            'billing_day', 'installment_value', 'total_value', 'total_installments', 'notes',
             'created_at', 'created_by', 'updated_at', 'deleted_at',
         ])
             ->with('supplier', 'company', 'statusLabel', 'adminuser')
@@ -113,9 +114,13 @@ class ContractsController extends Controller
         }
 
         if ($contract->save()) {
-            // Generate installments if contract is recurring
-            if ($contract->contract_type === 'recurring' && $contract->start_date && $contract->end_date) {
-                $contract->generateInstallments();
+            // Generate installments automatically
+            if ($contract->start_date) {
+                if ($contract->contract_type === 'recurring'
+                    || ($contract->contract_type === 'one_time'
+                        && ($contract->total_value > 0 || $contract->installment_value > 0))) {
+                    $contract->generateInstallments();
+                }
             }
 
             return response()->json(Helper::formatStandardApiResponse('success', $contract, trans('admin/contracts/message.create.success')));

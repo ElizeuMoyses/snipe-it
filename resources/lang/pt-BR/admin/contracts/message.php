@@ -58,6 +58,11 @@ return [
             'invalid_scope'      => 'O status selecionado não pertence ao escopo de parcelas.',
         ],
         'terminal_locked' => 'Esta parcela tem um status terminal e não pode ser modificada.',
+        'generate' => [
+            'success' => ':count parcela(s) gerada(s) com sucesso.',
+            'error'   => 'Não foi possível gerar parcelas. Verifique as datas e o ciclo de faturamento do contrato.',
+        ],
+        'already_generated' => 'Já existem parcelas para este contrato.',
     ],
 
     'amendment' => [

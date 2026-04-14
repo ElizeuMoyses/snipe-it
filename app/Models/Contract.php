@@ -41,6 +41,7 @@ class Contract extends SnipeModel
         'start_date',
         'end_date',
         'billing_cycle',
+        'billing_day',
         'installment_value',
         'total_value',
         'total_installments',
@@ -57,6 +58,7 @@ class Contract extends SnipeModel
         'total_value'        => 'decimal:2',
         'total_installments' => 'integer',
         'readjustment_month' => 'integer',
+        'billing_day'        => 'integer',
         'supplier_id'        => 'integer',
         'company_id'         => 'integer',
         'status_label_id'    => 'integer',
@@ -71,6 +73,7 @@ class Contract extends SnipeModel
         'start_date'         => 'required|date',
         'end_date'           => 'nullable|date|after_or_equal:start_date',
         'billing_cycle'      => 'nullable|in:monthly,quarterly,semiannual,annual,one_time',
+        'billing_day'        => 'nullable|integer|min:1|max:28',
         'installment_value'  => 'required|numeric|min:0',
         'total_value'        => 'nullable|numeric|min:0',
         'total_installments' => 'nullable|integer|min:1',
@@ -194,6 +197,12 @@ class Contract extends SnipeModel
         for ($i = 1; $i <= $totalInstallments; $i++) {
             $dueDate = $this->start_date->copy()->addMonths($i - 1);
 
+            // Adjust due_date to billing_day if set
+            if ($this->billing_day) {
+                $adjustedDay = min($this->billing_day, $dueDate->daysInMonth);
+                $dueDate->day($adjustedDay);
+            }
+
             $this->installments()->create([
                 'installment_number' => $i,
                 'reference_date'     => $dueDate->copy()->startOfMonth(),
@@ -214,7 +223,8 @@ class Contract extends SnipeModel
         $end = $this->end_date;
 
         if (! $end) {
-            return 0;
+            // Contratos sem data final: gerar 12 meses a partir do início
+            $end = $start->copy()->addMonths(11)->endOfMonth();
         }
 
         $monthsInterval = match ($this->billing_cycle) {
@@ -229,12 +239,27 @@ class Contract extends SnipeModel
         $current = $start->copy();
         $number = $existingCount;
 
+        // Guard: avoid generating in period already covered by existing installments
+        $lastInstallment = $this->installments()->latest('due_date')->first();
+        if ($lastInstallment && $start->lte($lastInstallment->due_date)) {
+            $start = $lastInstallment->due_date->copy()->addDay();
+            $current = $start->copy();
+        }
+
         while ($current->lte($end)) {
             $number++;
+
+            // Adjust due_date to billing_day if set
+            $dueDate = $current->copy();
+            if ($this->billing_day) {
+                $adjustedDay = min($this->billing_day, $dueDate->daysInMonth);
+                $dueDate->day($adjustedDay);
+            }
+
             $this->installments()->create([
                 'installment_number' => $number,
                 'reference_date'     => $current->copy()->startOfMonth(),
-                'due_date'           => $current->copy(),
+                'due_date'           => $dueDate,
                 'expected_value'     => $this->installment_value,
                 'status_label_id'    => $defaultStatus->id,
                 'created_by'         => auth()->id(),
@@ -298,6 +323,13 @@ class Contract extends SnipeModel
      */
     public function applyRenewal(ContractAmendment $amendment): array
     {
+        // Guard: old_end_date is required for safe renewal
+        if (! $amendment->old_end_date) {
+            throw new \LogicException(
+                'Contract renewal requires old_end_date to prevent installment duplication.'
+            );
+        }
+
         $this->end_date = $amendment->new_end_date;
 
         if ($amendment->new_value) {
@@ -306,9 +338,7 @@ class Contract extends SnipeModel
 
         $this->save();
 
-        $generationStart = $amendment->old_end_date
-            ? $amendment->old_end_date->copy()->addDay()
-            : $this->start_date->copy();
+        $generationStart = $amendment->old_end_date->copy()->addDay();
 
         $generatedCount = $this->generateRecurringInstallments(
             ContractStatusLabel::defaultForMetaType('installment', 'pending'),

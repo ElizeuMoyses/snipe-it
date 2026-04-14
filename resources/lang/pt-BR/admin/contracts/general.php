@@ -16,7 +16,7 @@ return [
     'billing_cycle' => 'Ciclo de Cobrança',
     'cycle_monthly' => 'Mensal',
     'cycle_quarterly' => 'Trimestral',
-    'cycle_semi_annual' => 'Semestral',
+    'cycle_semiannual' => 'Semestral',
     'cycle_annual' => 'Anual',
     'installment_value' => 'Valor da Parcela',
     'total_value' => 'Valor Total',
@@ -88,6 +88,13 @@ return [
     'monthly_paid'           => 'Pago no Mês',
     'no_upcoming'            => 'Nenhuma parcela vencendo nos próximos 15 dias.',
     'no_overdue'             => 'Nenhuma parcela em atraso.',
+
+    // Dia de Vencimento & Geração
+    'billing_day'                    => 'Dia de Vencimento',
+    'billing_day_help'               => 'Dia fixo do mês para vencimento das parcelas (1-28). Deixe vazio para usar o dia da data de início do contrato.',
+    'auto_generate_installments'     => 'Gerar parcelas automaticamente',
+    'generate_installments'          => 'Gerar Parcelas',
+    'generate_installments_confirm'  => 'Isso irá gerar todas as parcelas deste contrato. Continuar?',
     'pending_count'          => 'pendente(s)',
 
 ];

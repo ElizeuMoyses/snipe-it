@@ -58,6 +58,11 @@ return [
             'invalid_scope'      => 'The selected status does not belong to the installment scope.',
         ],
         'terminal_locked' => 'This installment has a terminal status and cannot be modified.',
+        'generate' => [
+            'success' => ':count installment(s) generated successfully.',
+            'error'   => 'Could not generate installments. Check contract dates and billing cycle.',
+        ],
+        'already_generated' => 'Installments already exist for this contract.',
     ],
 
     'amendment' => [

@@ -47,6 +47,7 @@ class ContractsTransformer
                 'start_date'        => Helper::getFormattedDateObject($contract->start_date, 'date'),
                 'end_date'          => Helper::getFormattedDateObject($contract->end_date, 'date'),
                 'billing_cycle'     => e($contract->billing_cycle),
+                'billing_day'       => $contract->billing_day,
                 'installment_value' => $contract->installment_value ? Helper::formatCurrencyOutput($contract->installment_value) : null,
                 'total_value'       => $contract->total_value ? Helper::formatCurrencyOutput($contract->total_value) : null,
                 'total_installments' => $contract->total_installments ? (int) $contract->total_installments : null,

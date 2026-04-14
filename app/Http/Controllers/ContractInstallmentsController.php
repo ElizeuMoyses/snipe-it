@@ -70,6 +70,39 @@ class ContractInstallmentsController extends Controller
     }
 
     /**
+     * Generate all installments for a contract in batch.
+     */
+    public function generate(Contract $contract): RedirectResponse
+    {
+        $this->authorize('installments', $contract);
+
+        // Guard: terminal contracts
+        if (in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled'])) {
+            return redirect()->route('contracts.show', $contract->id)
+                ->with('error', trans('admin/contracts/message.installment.contract_terminal'));
+        }
+
+        // Guard: only generate if no installments exist
+        if ($contract->installments()->count() > 0) {
+            return redirect()->route('contracts.show', $contract->id)
+                ->with('warning', trans('admin/contracts/message.installment.already_generated'))
+                ->withFragment('installments');
+        }
+
+        $count = $contract->generateInstallments();
+
+        if ($count > 0) {
+            return redirect()->route('contracts.show', $contract->id)
+                ->with('success', trans('admin/contracts/message.installment.generate.success', ['count' => $count]))
+                ->withFragment('installments');
+        }
+
+        return redirect()->route('contracts.show', $contract->id)
+            ->with('error', trans('admin/contracts/message.installment.generate.error'))
+            ->withFragment('installments');
+    }
+
+    /**
      * Show form for editing an installment.
      */
     public function edit(Contract $contract, $installmentId): View|RedirectResponse

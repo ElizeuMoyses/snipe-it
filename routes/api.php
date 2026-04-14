@@ -1105,6 +1105,23 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
     // end contract installments API routes
 
     /**
+     * Contract Amendments API routes
+     */
+    Route::resource('contracts.amendments',
+        Api\ContractAmendmentsController::class,
+        ['names' => [
+            'index' => 'api.contracts.amendments.index',
+            'show' => 'api.contracts.amendments.show',
+            'update' => 'api.contracts.amendments.update',
+            'store' => 'api.contracts.amendments.store',
+            'destroy' => 'api.contracts.amendments.destroy',
+        ],
+            'except' => ['create', 'edit'],
+            'parameters' => ['amendments' => 'amendment'],
+        ]
+    ); // end contract amendments API routes
+
+    /**
      * Contract Status Labels API routes
      */
     Route::group(['prefix' => 'contract-status-labels'], function () {

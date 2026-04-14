@@ -16,7 +16,7 @@ return [
     'billing_cycle' => 'Billing Cycle',
     'cycle_monthly' => 'Monthly',
     'cycle_quarterly' => 'Quarterly',
-    'cycle_semi_annual' => 'Semi-Annual',
+    'cycle_semiannual' => 'Semi-Annual',
     'cycle_annual' => 'Annual',
     'installment_value' => 'Installment Value',
     'total_value' => 'Total Value',
@@ -88,6 +88,13 @@ return [
     'monthly_paid'           => 'Paid This Month',
     'no_upcoming'            => 'No installments due in the next 15 days.',
     'no_overdue'             => 'No overdue installments.',
+
+    // Billing Day & Generation
+    'billing_day'                    => 'Billing Day',
+    'billing_day_help'               => 'Fixed day of the month for installment due dates (1-28). Leave empty to use the contract start date day.',
+    'auto_generate_installments'     => 'Automatically generate installments',
+    'generate_installments'          => 'Generate Installments',
+    'generate_installments_confirm'  => 'This will generate all installments for this contract. Continue?',
     'pending_count'          => 'pending',
 
 ];

@@ -8,6 +8,7 @@ use App\Models\AssetModel;
 use App\Models\Category;
 use App\Models\Company;
 use App\Models\Component;
+use App\Models\Contract;
 use App\Models\Consumable;
 use App\Models\CustomField;
 use App\Models\CustomFieldset;
@@ -507,6 +508,42 @@ class BreadcrumbsServiceProvider extends ServiceProvider
         Breadcrumbs::for('users.edit', fn (Trail $trail, User $user) => $trail->parent('users.index', route('users.index'))
             ->push($user->display_name, route('users.show', $user))
             ->push(trans('general.update'))
+        );
+
+        /**
+         * Contract Breadcrumbs
+         */
+        Breadcrumbs::for('contracts.index', fn (Trail $trail) => $trail->parent('home', route('home'))
+            ->push(trans('admin/contracts/general.contracts'), route('contracts.index'))
+        );
+
+        Breadcrumbs::for('contracts.create', fn (Trail $trail) => $trail->parent('contracts.index', route('contracts.index'))
+            ->push(trans('general.create'), route('contracts.create'))
+        );
+
+        Breadcrumbs::for('contracts.show', fn (Trail $trail, Contract $contract) => $trail->parent('contracts.index', route('contracts.index'))
+            ->push($contract->name, route('contracts.show', $contract))
+        );
+
+        Breadcrumbs::for('contracts.edit', fn (Trail $trail, Contract $contract) => $trail->parent('contracts.index', route('contracts.index'))
+            ->push($contract->name, route('contracts.show', $contract))
+            ->push(trans('general.update'))
+        );
+
+        Breadcrumbs::for('contracts.dashboard', fn (Trail $trail) => $trail->parent('contracts.index', route('contracts.index'))
+            ->push(trans('general.dashboard'))
+        );
+
+        Breadcrumbs::for('contracts.installments.create', fn (Trail $trail, Contract $contract) => $trail->parent('contracts.show', $contract)
+            ->push(trans('admin/contracts/general.create_installment'))
+        );
+
+        Breadcrumbs::for('contracts.installments.edit', fn (Trail $trail, Contract $contract, $installmentId) => $trail->parent('contracts.show', $contract)
+            ->push(trans('admin/contracts/general.update_installment'))
+        );
+
+        Breadcrumbs::for('contracts.installments.pay', fn (Trail $trail, Contract $contract, $installmentId) => $trail->parent('contracts.show', $contract)
+            ->push(trans('admin/contracts/general.register_payment'))
         );
 
     }

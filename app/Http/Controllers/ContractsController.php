@@ -103,6 +103,7 @@ class ContractsController extends Controller
         $contract->start_date = $request->input('start_date');
         $contract->end_date = $request->input('end_date');
         $contract->billing_cycle = $request->input('billing_cycle');
+        $contract->billing_day = $request->input('billing_day');
         $contract->installment_value = $request->input('installment_value');
         $contract->total_value = $request->input('total_value');
         $contract->total_installments = $request->input('total_installments');
@@ -117,9 +118,13 @@ class ContractsController extends Controller
         $contract->status_label_id = $request->input('status_label_id', $defaultStatus?->id);
 
         if ($contract->save()) {
-            // Generate installments if contract is recurring and has the necessary data
-            if ($contract->contract_type === 'recurring' && $contract->start_date && $contract->end_date) {
-                $contract->generateInstallments();
+            // Generate installments only if checkbox is checked (default: checked)
+            if ($request->has('auto_generate_installments') && $contract->start_date) {
+                if ($contract->contract_type === 'recurring'
+                    || ($contract->contract_type === 'one_time'
+                        && ($contract->total_value > 0 || $contract->installment_value > 0))) {
+                    $contract->generateInstallments();
+                }
             }
 
             return redirect()->route('contracts.index')->with('success', trans('admin/contracts/message.create.success'));
@@ -153,6 +158,7 @@ class ContractsController extends Controller
         $contract->start_date = $request->input('start_date');
         $contract->end_date = $request->input('end_date');
         $contract->billing_cycle = $request->input('billing_cycle');
+        $contract->billing_day = $request->input('billing_day');
         $contract->installment_value = $request->input('installment_value');
         $contract->total_value = $request->input('total_value');
         $contract->total_installments = $request->input('total_installments');

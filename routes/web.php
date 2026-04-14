@@ -25,6 +25,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StatuslabelsController;
 use App\Http\Controllers\ContractsController;
+use App\Http\Controllers\ContractAmendmentsController;
 use App\Http\Controllers\ContractInstallmentsController;
 use App\Http\Controllers\ContractStatusLabelsController;
 use App\Http\Controllers\SuppliersController;
@@ -90,6 +91,8 @@ Route::group(['middleware' => 'auth'], function () {
     /*
     * Contract Installments
     */
+    Route::post('contracts/{contract}/installments/generate', [ContractInstallmentsController::class, 'generate'])
+        ->name('contracts.installments.generate');
     Route::resource('contracts.installments', ContractInstallmentsController::class)->except(['index', 'show']);
     Route::get('contracts/{contract}/installments/{installment}/pay', [ContractInstallmentsController::class, 'registerPayment'])
         ->name('contracts.installments.pay');
@@ -97,6 +100,19 @@ Route::group(['middleware' => 'auth'], function () {
         ->name('contracts.installments.pay.store');
     Route::patch('contracts/{contract}/installments/{installment}/status', [ContractInstallmentsController::class, 'updateStatus'])
         ->name('contracts.installments.status.update');
+
+    /*
+    * Contract Amendments
+    */
+    Route::resource('contracts.amendments', ContractAmendmentsController::class)->except(['index', 'show']);
+    Route::post('contracts/{contract}/amendments/preview', [ContractAmendmentsController::class, 'preview'])
+        ->name('contracts.amendments.preview');
+
+    /*
+    * Contract Asset Links
+    */
+    Route::post('contracts/{contract}/assets', [ContractsController::class, 'attachAsset'])->name('contracts.assets.attach');
+    Route::delete('contracts/{contract}/assets/{asset}', [ContractsController::class, 'detachAsset'])->name('contracts.assets.detach');
 
     /*
     * Contract Status Labels

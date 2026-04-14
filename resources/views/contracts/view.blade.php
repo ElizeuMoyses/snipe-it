@@ -20,14 +20,29 @@
             <x-tabs>
                 <x-slot:tabnav>
 
-                    <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#installments" role="tab">
-                            {{ trans('admin/contracts/general.installments') }}
-                            @if($contract->installments->count() > 0)
-                                <badge class="badge badge-secondary">{{ $contract->installments->count() }}</badge>
-                            @endif
-                        </a>
-                    </li>
+                    <x-tabs.nav-item
+                        name="installments"
+                        icon="fas fa-money-bill-wave"
+                        label="{{ trans('admin/contracts/general.installments') }}"
+                        count="{{ $contract->installments->count() }}"
+                        tooltip="{{ trans('admin/contracts/general.installments') }}"
+                    />
+
+                    <x-tabs.nav-item
+                        name="amendments"
+                        icon="fas fa-file-signature"
+                        label="{{ trans('admin/contracts/general.amendments') }}"
+                        count="{{ $contract->amendments->count() }}"
+                        tooltip="{{ trans('admin/contracts/general.amendments') }}"
+                    />
+
+                    <x-tabs.nav-item
+                        name="contract-assets"
+                        icon="fas fa-link"
+                        label="{{ trans('admin/contracts/general.linked_assets') }}"
+                        count="{{ $contract->assets->count() }}"
+                        tooltip="{{ trans('admin/contracts/general.linked_assets') }}"
+                    />
 
                     <x-tabs.files-tab :item="$contract" count="{{ $contract->uploads()->count() }}"/>
                     <x-tabs.upload-tab :item="$contract"/>
@@ -42,6 +57,16 @@
                             @if(! in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled']))
                                 <div class="row" style="margin-bottom: 10px;">
                                     <div class="col-md-12 text-right">
+                                        @if ($contract->installments->count() === 0)
+                                            <form action="{{ route('contracts.installments.generate', $contract->id) }}"
+                                                  method="POST" style="display:inline;">
+                                                @csrf
+                                                <button type="submit" class="btn btn-success btn-sm"
+                                                        onclick="return confirm('{{ trans('admin/contracts/general.generate_installments_confirm') }}')">
+                                                    {{ trans('admin/contracts/general.generate_installments') }}
+                                                </button>
+                                            </form>
+                                        @endif
                                         <a href="{{ route('contracts.installments.create', $contract->id) }}" class="btn btn-primary btn-sm">
                                             {{ trans('admin/contracts/general.create_installment') }}
                                         </a>
@@ -52,6 +77,58 @@
                         @include('contracts.partials.installments-table', ['contract' => $contract])
                     </x-tabs.pane>
                     <!-- end installments tab pane -->
+
+                    <!-- start amendments tab pane -->
+                    <x-tabs.pane name="amendments">
+                        @can('update', $contract)
+                            @if(! in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled']))
+                                <div class="row" style="margin-bottom: 10px;">
+                                    <div class="col-md-12 text-right">
+                                        <a href="{{ route('contracts.amendments.create', $contract->id) }}" class="btn btn-primary btn-sm">
+                                            {{ trans('admin/contracts/general.create_amendment') }}
+                                        </a>
+                                    </div>
+                                </div>
+                            @endif
+                        @endcan
+                        @if($contract->amendments->count() > 0)
+                            @include('contracts.partials.amendments-table', ['contract' => $contract])
+                        @else
+                            <div class="alert alert-info">
+                                {{ trans('admin/contracts/message.amendment.no_amendments') }}
+                            </div>
+                        @endif
+                    </x-tabs.pane>
+                    <!-- end amendments tab pane -->
+
+                    <!-- start assets tab pane -->
+                    <x-tabs.pane name="contract-assets">
+                        @can('update', $contract)
+                            <div class="row" style="margin-bottom: 10px;">
+                                <div class="col-md-12">
+                                    <form method="POST" action="{{ route('contracts.assets.attach', $contract->id) }}" class="form-inline">
+                                        @csrf
+                                        <div class="form-group" style="margin-right: 10px;">
+                                            <select name="asset_id" class="js-data-ajax" data-endpoint="hardware" data-placeholder="{{ trans('admin/contracts/general.select_asset') }}" style="min-width: 300px;">
+                                            </select>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-link"></i>
+                                            {{ trans('admin/contracts/general.link_asset') }}
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        @endcan
+                        @if($contract->assets->count() > 0)
+                            @include('contracts.partials.assets-table', ['contract' => $contract])
+                        @else
+                            <div class="alert alert-info">
+                                {{ trans('admin/contracts/message.asset.no_assets') }}
+                            </div>
+                        @endif
+                    </x-tabs.pane>
+                    <!-- end assets tab pane -->
 
                     <!-- start files tab pane -->
                     <x-tabs.pane name="files" class="{{ $contract->uploads->count() == 0 ? 'hidden-print' : '' }}">
@@ -131,6 +208,13 @@
                             <div class="col-md-12">
                                 <strong>{{ trans('admin/contracts/general.billing_cycle') }}: </strong>
                                 {{ trans('admin/contracts/general.cycle_' . $contract->billing_cycle) }}
+                            </div>
+                        @endif
+
+                        @if ($contract->billing_day)
+                            <div class="col-md-12">
+                                <strong>{{ trans('admin/contracts/general.billing_day') }}: </strong>
+                                {{ $contract->billing_day }}
                             </div>
                         @endif
 

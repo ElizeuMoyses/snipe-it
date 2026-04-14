@@ -81,10 +81,20 @@
             <option value="">{{ trans('general.select') }}</option>
             <option value="monthly" {{ old('billing_cycle', $item->billing_cycle) == 'monthly' ? 'selected' : '' }}>{{ trans('admin/contracts/general.cycle_monthly') }}</option>
             <option value="quarterly" {{ old('billing_cycle', $item->billing_cycle) == 'quarterly' ? 'selected' : '' }}>{{ trans('admin/contracts/general.cycle_quarterly') }}</option>
-            <option value="semi_annual" {{ old('billing_cycle', $item->billing_cycle) == 'semi_annual' ? 'selected' : '' }}>{{ trans('admin/contracts/general.cycle_semi_annual') }}</option>
+            <option value="semiannual" {{ old('billing_cycle', $item->billing_cycle) == 'semiannual' ? 'selected' : '' }}>{{ trans('admin/contracts/general.cycle_semiannual') }}</option>
             <option value="annual" {{ old('billing_cycle', $item->billing_cycle) == 'annual' ? 'selected' : '' }}>{{ trans('admin/contracts/general.cycle_annual') }}</option>
         </select>
         {!! $errors->first('billing_cycle', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+    </div>
+</div>
+
+<!-- Billing Day -->
+<div class="form-group {{ $errors->has('billing_day') ? ' has-error' : '' }}">
+    <label for="billing_day" class="col-md-3 control-label">{{ trans('admin/contracts/general.billing_day') }}</label>
+    <div class="col-md-7">
+        <input class="form-control" name="billing_day" type="number" min="1" max="28" id="billing_day" value="{{ old('billing_day', $item->billing_day) }}" placeholder="">
+        <p class="help-block">{{ trans('admin/contracts/general.billing_day_help') }}</p>
+        {!! $errors->first('billing_day', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
     </div>
 </div>
 
@@ -149,5 +159,18 @@
 </div>
 
 @include ('partials.forms.edit.notes')
+
+@if (!isset($item->id))
+<!-- Auto Generate Installments (create only) -->
+<div class="form-group">
+    <div class="col-md-9 col-md-offset-3">
+        <label class="form-control">
+            <input type="checkbox" value="1" name="auto_generate_installments"
+                   id="auto_generate_installments" checked="checked">
+            {{ trans('admin/contracts/general.auto_generate_installments') }}
+        </label>
+    </div>
+</div>
+@endif
 
 @stop
