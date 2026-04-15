@@ -215,20 +215,20 @@
 
         <script nonce="{{ csrf_token() }}">
             document.addEventListener('DOMContentLoaded', function() {
-                var uploadBtns = document.querySelectorAll('.js-installment-upload-btn');
                 var form = document.getElementById('installmentUploadForm');
 
-                // Set form action from pre-built URL on button click
-                uploadBtns.forEach(function(btn) {
-                    btn.addEventListener('click', function() {
-                        var actionUrl = this.getAttribute('data-action-url');
+                // Event delegation: catches clicks on original AND Bootstrap Table cloned elements
+                document.addEventListener('click', function(e) {
+                    var btn = e.target.closest('.js-installment-upload-btn');
+                    if (btn && form) {
+                        var actionUrl = btn.getAttribute('data-action-url');
                         if (actionUrl) {
                             form.action = actionUrl;
                         }
-                    });
+                    }
                 });
 
-                // Guard: prevent submit if action is still empty
+                // Guard: prevent submit if action is still empty or points to current page
                 if (form) {
                     form.addEventListener('submit', function(e) {
                         if (!form.action || form.action === window.location.href || form.action === '') {
