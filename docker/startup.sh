@@ -73,6 +73,9 @@ for dir in \
   'data/private_uploads/users' \
   'data/private_uploads/licenses' \
   'data/private_uploads/signatures' \
+  'data/private_uploads/contracts' \
+  'data/private_uploads/contract_amendments' \
+  'data/private_uploads/contract_installments' \
   'data/uploads/accessories' \
   'data/uploads/assets' \
   'data/uploads/avatars' \

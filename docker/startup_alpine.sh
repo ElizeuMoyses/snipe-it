@@ -58,6 +58,9 @@ fi
 # create data directories
 for dir in \
   'data/private_uploads' \
+  'data/private_uploads/contracts' \
+  'data/private_uploads/contract_amendments' \
+  'data/private_uploads/contract_installments' \
   'data/uploads/accessories' \
   'data/uploads/avatars' \
   'data/uploads/barcodes' \
