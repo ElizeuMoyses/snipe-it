@@ -1239,7 +1239,7 @@
                             @can('view', \App\Models\Contract::class)
                                 <li aria-hidden="true"{!! (request()->is('contracts*') ? ' class="active"' : '') !!}>
                                     <a href="{{ route('contracts.index') }}" tabindex="-1" data-tooltip="true" data-placement="bottom" data-title="{{ trans('admin/contracts/general.contracts') }}">
-                                        <x-icon type="licenses" class="fa-fw" />
+                                        <x-icon type="contracts" class="fa-fw" />
                                         <span class="sr-only">{{ trans('admin/contracts/general.contracts') }}</span>
                                     </a>
                                 </li>
@@ -1356,7 +1356,7 @@
                                         @can('create', \App\Models\Contract::class)
                                             <li {!! (request()->is('contracts/create') ? 'class="active"' : '') !!}>
                                                 <a href="{{ route('contracts.create') }}" tabindex="-1">
-                                                    <x-icon type="licenses" class="fa-fw" />
+                                                    <x-icon type="contracts" class="fa-fw" />
                                                     {{ trans('admin/contracts/general.contract') }}
                                                 </a>
                                             </li>
@@ -1654,11 +1654,26 @@
                             </li>
                         @endcan
                         @can('view', \App\Models\Contract::class)
-                            <li{!! (request()->is('contracts*') ? ' class="active"' : '') !!}>
-                                <a href="{{ route('contracts.index') }}">
-                                    <x-icon type="licenses" class="fa-fw"/>
+                            <li class="treeview{{ (request()->is('contracts*') ? ' active' : '') }}" id="contracts-sidenav-option">
+                                <a href="#">
+                                    <x-icon type="contracts" class="fa-fw"/>
                                     <span>{{ trans('admin/contracts/general.contracts') }}</span>
+                                    <x-icon type="angle-left" class="pull-right fa-fw"/>
                                 </a>
+                                <ul class="treeview-menu">
+                                    <li{!! (request()->is('contracts/dashboard') ? ' class="active"' : '') !!}>
+                                        <a href="{{ route('contracts.dashboard') }}">
+                                            <x-icon type="dashboard" class="text-grey fa-fw"/>
+                                            {{ trans('general.dashboard') }}
+                                        </a>
+                                    </li>
+                                    <li{!! (request()->is('contracts') && !request()->is('contracts/*') ? ' class="active"' : '') !!}>
+                                        <a href="{{ route('contracts.index') }}">
+                                            <x-icon type="circle" class="text-grey fa-fw"/>
+                                            {{ trans('general.list_all') }}
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
                         @endcan
                         @can('index', \App\Models\Accessory::class)
