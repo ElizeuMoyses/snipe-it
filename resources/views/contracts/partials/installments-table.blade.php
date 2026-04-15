@@ -193,11 +193,14 @@
                                 <div class="col-md-12">
                                     <label class="btn btn-theme btn-block">
                                         {{ trans('button.select_files') }}
-                                        <input type="file" name="file[]" multiple class="js-uploadFile" data-maxsize="{{ Helper::file_upload_max_size() }}" accept="{{ config('filesystems.allowed_upload_mimetypes') }}" style="display:none" required>
+                                        <input type="file" name="file[]" multiple class="js-uploadFile" id="installmentUploadFile" data-maxsize="{{ Helper::file_upload_max_size() }}" accept="{{ config('filesystems.allowed_upload_mimetypes') }}" style="display:none" required>
                                     </label>
                                 </div>
                                 <div class="col-md-12">
-                                    <p class="help-block">{{ trans('general.upload_filetypes_help', ['allowed_filetypes' => config('filesystems.allowed_upload_extensions'), 'size' => Helper::file_upload_max_size_readable()]) }}</p>
+                                    <span id="installmentUploadFile-info"></span>
+                                </div>
+                                <div class="col-md-12">
+                                    <p class="help-block" id="installmentUploadFile-status">{{ trans('general.upload_filetypes_help', ['allowed_filetypes' => config('filesystems.allowed_upload_extensions'), 'size' => Helper::file_upload_max_size_readable()]) }}</p>
                                 </div>
                                 <div class="col-md-12">
                                     <x-input.textarea name="notes" :value="old('notes')" :placeholder="trans('general.notes')" rows="3" aria-label="file" />
@@ -216,6 +219,7 @@
         <script nonce="{{ csrf_token() }}">
             document.addEventListener('DOMContentLoaded', function() {
                 var form = document.getElementById('installmentUploadForm');
+                var modal = document.getElementById('uploadFileModalInstallment');
 
                 // Event delegation: catches clicks on original AND Bootstrap Table cloned elements
                 document.addEventListener('click', function(e) {
@@ -227,6 +231,17 @@
                         }
                     }
                 });
+
+                // Reset modal state when it's closed (prevents stale file selections across installments)
+                if (modal) {
+                    $(modal).on('hidden.bs.modal', function() {
+                        form.action = '';
+                        form.reset();
+                        $('#installmentUploadFile-info').html('');
+                        $('#installmentUploadFile-status').removeClass('text-success text-danger');
+                        $('#installmentUploadFile-status .goodfile, #installmentUploadFile-status .badfile').remove();
+                    });
+                }
 
                 // Guard: prevent submit if action is still empty or points to current page
                 if (form) {
