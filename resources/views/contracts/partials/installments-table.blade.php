@@ -155,7 +155,8 @@
                                         <a href="#" data-toggle="modal" data-target="#uploadFileModalInstallment"
                                            class="btn btn-sm btn-default js-installment-upload-btn" data-tooltip="true"
                                            title="{{ trans('button.upload') }}"
-                                           data-installment-id="{{ $installment->id }}">
+                                           data-installment-id="{{ $installment->id }}"
+                                           data-action-url="{{ url('contract_installments/' . $installment->id . '/files') }}">
                                             <i class="fas fa-paperclip"></i>
                                         </a>
                                     @endcan
@@ -215,13 +216,27 @@
         <script nonce="{{ csrf_token() }}">
             document.addEventListener('DOMContentLoaded', function() {
                 var uploadBtns = document.querySelectorAll('.js-installment-upload-btn');
+                var form = document.getElementById('installmentUploadForm');
+
+                // Set form action from pre-built URL on button click
                 uploadBtns.forEach(function(btn) {
                     btn.addEventListener('click', function() {
-                        var installmentId = this.getAttribute('data-installment-id');
-                        var form = document.getElementById('installmentUploadForm');
-                        form.action = '{{ url("contract_installments") }}/' + installmentId + '/files';
+                        var actionUrl = this.getAttribute('data-action-url');
+                        if (actionUrl) {
+                            form.action = actionUrl;
+                        }
                     });
                 });
+
+                // Guard: prevent submit if action is still empty
+                if (form) {
+                    form.addEventListener('submit', function(e) {
+                        if (!form.action || form.action === window.location.href || form.action === '') {
+                            e.preventDefault();
+                            alert('{{ trans("general.error") }}: Upload action URL not set. Please close this modal and try again.');
+                        }
+                    });
+                }
             });
         </script>
     @endcan
