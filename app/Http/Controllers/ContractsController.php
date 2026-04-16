@@ -198,7 +198,7 @@ class ContractsController extends Controller
     {
         $this->authorize('view', $contract);
 
-        $contract->load(['installments.statusLabel', 'installments.adminuser', 'amendments.adminuser', 'assets.model', 'assets.assetstatus']);
+        $contract->load(['installments.statusLabel', 'installments.adminuser', 'installments.uploads.adminuser', 'amendments.adminuser', 'assets.model', 'assets.assetstatus']);
 
         return view('contracts/view', compact('contract'));
     }

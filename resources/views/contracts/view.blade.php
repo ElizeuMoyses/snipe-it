@@ -44,7 +44,11 @@
                         tooltip="{{ trans('admin/contracts/general.linked_assets') }}"
                     />
 
-                    <x-tabs.files-tab :item="$contract" count="{{ $contract->uploads()->count() }}"/>
+                    @php
+                        $installmentUploadsCount = $contract->installments->sum(fn ($i) => $i->uploads->count());
+                        $totalUploadsCount = $contract->uploads()->count() + $installmentUploadsCount;
+                    @endphp
+                    <x-tabs.files-tab :item="$contract" count="{{ $totalUploadsCount }}"/>
                     <x-tabs.upload-tab :item="$contract"/>
 
                 </x-slot:tabnav>
@@ -131,8 +135,68 @@
                     <!-- end assets tab pane -->
 
                     <!-- start files tab pane -->
-                    <x-tabs.pane name="files" class="{{ $contract->uploads->count() == 0 ? 'hidden-print' : '' }}">
+                    <x-tabs.pane name="files" class="{{ $totalUploadsCount == 0 ? 'hidden-print' : '' }}">
                         <x-table.files object_type="contracts" :object="$contract"/>
+
+                        {{-- Installment files --}}
+                        @if($installmentUploadsCount > 0)
+                            <h4 style="margin-top: 20px;">
+                                <i class="fas fa-file-invoice"></i>
+                                {{ trans('admin/contracts/general.installment_files') }}
+                                <span class="badge">{{ $installmentUploadsCount }}</span>
+                            </h4>
+                            <div class="table-responsive">
+                                <table class="table table-striped snipe-table">
+                                    <thead>
+                                        <tr>
+                                            <th></th>
+                                            <th>{{ trans('admin/contracts/general.installment_number') }}</th>
+                                            <th>{{ trans('general.file_name') }}</th>
+                                            <th>{{ trans('general.notes') }}</th>
+                                            <th>{{ trans('general.created_by') }}</th>
+                                            <th>{{ trans('general.created_at') }}</th>
+                                            <th>{{ trans('table.actions') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($contract->installments->sortBy('installment_number') as $installment)
+                                            @foreach($installment->uploads as $upload)
+                                                <tr>
+                                                    <td><i class="{{ \App\Helpers\Helper::filetype_icon($upload->filename) }}"></i></td>
+                                                    <td>#{{ $installment->installment_number }}</td>
+                                                    <td>
+                                                        <a href="{{ route('ui.files.show', ['object_type' => 'contract_installments', 'id' => $installment->id, 'file_id' => $upload->id]) }}">
+                                                            {{ $upload->filename }}
+                                                        </a>
+                                                    </td>
+                                                    <td>{{ $upload->note }}</td>
+                                                    <td>
+                                                        @if($upload->adminuser)
+                                                            {{ $upload->adminuser->display_name }}
+                                                        @endif
+                                                    </td>
+                                                    <td>{{ $upload->created_at->format('Y-m-d H:i') }}</td>
+                                                    <td>
+                                                        <a href="{{ route('ui.files.show', ['object_type' => 'contract_installments', 'id' => $installment->id, 'file_id' => $upload->id]) }}" class="btn btn-sm btn-default" data-tooltip="true" title="{{ trans('general.download') }}">
+                                                            <i class="fas fa-download"></i>
+                                                        </a>
+                                                        @can('files', $contract)
+                                                            <form method="POST" action="{{ route('ui.files.destroy', ['object_type' => 'contract_installments', 'id' => $installment->id, 'file_id' => $upload->id]) }}" style="display:inline;">
+                                                                @csrf
+                                                                @method('DELETE')
+                                                                <button type="submit" class="btn btn-sm btn-danger" data-tooltip="true" title="{{ trans('button.delete') }}" onclick="return confirm('{{ trans('general.are_you_sure') }}')">
+                                                                    <i class="fas fa-trash"></i>
+                                                                </button>
+                                                            </form>
+                                                        @endcan
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
                     </x-tabs.pane>
                     <!-- end files tab pane -->
 

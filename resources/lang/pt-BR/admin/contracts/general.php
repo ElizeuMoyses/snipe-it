@@ -33,6 +33,7 @@ return [
     // Parcelas
     'installments'          => 'Parcelas',
     'installment'           => 'Parcela',
+    'installment_files'     => 'Arquivos das Parcelas',
     'create_installment'    => 'Criar Parcela',
     'update_installment'    => 'Atualizar Parcela',
     'register_payment'      => 'Registrar Pagamento',

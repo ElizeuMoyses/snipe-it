@@ -33,6 +33,7 @@ return [
     // Installments
     'installments'          => 'Installments',
     'installment'           => 'Installment',
+    'installment_files'     => 'Installment Files',
     'create_installment'    => 'Create Installment',
     'update_installment'    => 'Update Installment',
     'register_payment'      => 'Register Payment',

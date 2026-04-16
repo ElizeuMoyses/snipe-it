@@ -158,6 +158,9 @@
                                            data-installment-id="{{ $installment->id }}"
                                            data-action-url="{{ url('contract_installments/' . $installment->id . '/files') }}">
                                             <i class="fas fa-paperclip"></i>
+                                            @if($installment->uploads->count() > 0)
+                                                <span class="badge" style="background-color: #337ab7; font-size: 10px;">{{ $installment->uploads->count() }}</span>
+                                            @endif
                                         </a>
                                     @endcan
                                 @endcan

@@ -14,10 +14,10 @@ trait HasUploads
             ->whereNotNull('filename')
             ->whereNotIn('filename', function ($query) {
                 $query->select('filename')
-                    ->from('action_logs')
-                    ->where('item_type', '=', self::class)
-                    ->where('action_type', '=', 'upload deleted')
-                    ->where('item_id', $this->id);
+                    ->from('action_logs as deleted_uploads')
+                    ->where('deleted_uploads.item_type', '=', self::class)
+                    ->where('deleted_uploads.action_type', '=', 'upload deleted')
+                    ->whereColumn('deleted_uploads.item_id', 'action_logs.item_id');
             });
     }
 }
