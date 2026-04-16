@@ -18,6 +18,120 @@
 @stop
 
 {{-- Page content --}}
+@push('css')
+<style>
+/* Modern Contract Dashboard Cards - matches main dashboard design */
+.contract-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.contract-stat-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+    position: relative;
+    overflow: hidden;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+
+.contract-stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    text-decoration: none;
+    color: inherit;
+}
+
+.contract-stat-card:focus {
+    outline: 2px solid var(--card-color);
+    outline-offset: 2px;
+}
+
+.contract-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--card-color);
+}
+
+.contract-stat-card.active-contracts { --card-color: #1abc9c; }
+.contract-stat-card.expiring-soon   { --card-color: #f39c12; }
+.contract-stat-card.overdue         { --card-color: #e74c3c; }
+.contract-stat-card.monthly-paid    { --card-color: #3498db; }
+
+.contract-stat-card-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.contract-stat-card-info h3 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: #2c3e50;
+    line-height: 1;
+}
+
+.contract-stat-card-info p {
+    margin: 0.5rem 0 0 0;
+    color: #7f8c8d;
+    font-weight: 500;
+    font-size: 1rem;
+}
+
+.contract-stat-card-info .sub-info {
+    margin: 0.25rem 0 0 0;
+    color: #95a5a6;
+    font-size: 0.8rem;
+    font-weight: 400;
+}
+
+.contract-stat-card-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card-color);
+    color: white;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.contract-stat-card-footer {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #ecf0f1;
+    display: flex;
+    align-items: center;
+    color: var(--card-color);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.contract-stat-card-footer i {
+    margin-left: 0.5rem;
+    transition: transform 0.3s ease;
+}
+
+.contract-stat-card:hover .contract-stat-card-footer i {
+    transform: translateX(4px);
+}
+</style>
+@endpush
+
 @section('content')
 
     {{-- Summary Cards --}}
