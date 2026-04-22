@@ -108,9 +108,6 @@
 @endsection
 
 @push('js')
-<!-- Signature Pad Library -->
-<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
-
 <script>
 $(document).ready(function() {
     const canvas = document.getElementById('signaturePad');
@@ -118,10 +115,14 @@ $(document).ready(function() {
     const statusElement = document.getElementById('signatureStatus');
     const finalizeBtn = document.getElementById('finalizeSignature');
     const undoBtn = document.getElementById('undoSignature');
-    
+
     let signaturePad;
     let signatureHistory = [];
-    let signatureMetadata = {
+    let isDrawing = false;
+    let activeStroke = null;
+    let emptyCanvasSnapshot = null;
+    let resizeTimeout;
+    const signatureMetadata = {
         startTime: null,
         endTime: null,
         strokes: [],
@@ -143,9 +144,73 @@ $(document).ready(function() {
             deviceType: /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
         }
     };
-    
-    // Capturar geolocalização ao carregar a página
-    if (navigator.geolocation) {
+
+    function isFeatureAllowed(featureName) {
+        const permissionsPolicy = document.permissionsPolicy || document.featurePolicy;
+
+        if (!permissionsPolicy || typeof permissionsPolicy.allowsFeature !== 'function') {
+            return true;
+        }
+
+        try {
+            return permissionsPolicy.allowsFeature(featureName);
+        } catch (error) {
+            console.warn('Unable to evaluate permissions policy:', featureName, error);
+            return true;
+        }
+    }
+
+    function getPointerPosition(event) {
+        if (!event) {
+            return null;
+        }
+
+        const pointer = event.changedTouches && event.changedTouches.length
+            ? event.changedTouches[0]
+            : event.targetTouches && event.targetTouches.length
+                ? event.targetTouches[0]
+                : event;
+
+        if (typeof pointer.clientX !== 'number' || typeof pointer.clientY !== 'number') {
+            return null;
+        }
+
+        const rect = canvas.getBoundingClientRect();
+
+        return {
+            x: Math.round(pointer.clientX - rect.left),
+            y: Math.round(pointer.clientY - rect.top),
+            time: new Date().toISOString()
+        };
+    }
+
+    function resetSignatureMetadata() {
+        signatureMetadata.startTime = null;
+        signatureMetadata.endTime = null;
+        signatureMetadata.strokes = [];
+        isDrawing = false;
+        activeStroke = null;
+    }
+
+    function captureSignatureSnapshot() {
+        if (!signaturePad) {
+            return null;
+        }
+
+        const snapshot = signaturePad.toDataURL('image/png', 0.9);
+
+        return snapshot === emptyCanvasSnapshot ? null : snapshot;
+    }
+
+    function restoreSignatureSnapshot(snapshot) {
+        signaturePad.clear();
+
+        if (snapshot) {
+            signaturePad.fromDataURL(snapshot);
+        }
+    }
+
+    if (navigator.geolocation && isFeatureAllowed('geolocation')) {
         console.log('Requesting geolocation...');
         navigator.geolocation.getCurrentPosition(
             function(position) {
@@ -176,11 +241,12 @@ $(document).ready(function() {
             }
         );
     } else {
-        signatureMetadata.geolocation.error = 'Geolocation not supported by browser';
-        console.warn('Geolocation not supported');
+        signatureMetadata.geolocation.error = navigator.geolocation
+            ? 'Geolocation blocked by permissions policy'
+            : 'Geolocation not supported by browser';
+        console.warn(signatureMetadata.geolocation.error);
     }
-    
-    // Setup canvas with optimal dimensions for signature
+
     function setupCanvas() {
         const container = document.getElementById('canvasContainer');
         const signatureWrapper = document.querySelector('.signature-wrapper');
@@ -190,58 +256,47 @@ $(document).ready(function() {
         const eulaContainerWidth = eulaContainer ? eulaContainer.clientWidth : 0;
         const windowWidth = window.innerWidth;
         const windowHeight = window.innerHeight;
-        
+
         console.log('Container widths:', {
             canvasContainer: containerWidth,
             signatureWrapper: wrapperWidth,
             eulaContainer: eulaContainerWidth,
             window: windowWidth
         });
-        
-        // Use wrapper width if container width is too small
+
         const effectiveWidth = Math.max(containerWidth, wrapperWidth * 0.95);
-        
-        // Determine canvas size based on screen and orientation
-        let canvasWidth, canvasHeight;
-        
-        // Check if mobile device
+        let canvasWidth;
+        let canvasHeight;
         const isMobile = windowWidth <= 768;
         const isLandscape = windowWidth > windowHeight;
-        
+
         if (isMobile) {
             if (isLandscape) {
-                // Mobile landscape - use more width, less height
                 canvasWidth = Math.min(windowWidth - 60, 700);
                 canvasHeight = Math.min(200, windowHeight * 0.3);
             } else {
-                // Mobile portrait - balanced dimensions
                 canvasWidth = Math.min(effectiveWidth - 20, windowWidth - 40);
                 canvasHeight = Math.min(300, canvasWidth * 0.7);
             }
         } else if (effectiveWidth <= 1024) {
-            // Tablet/small desktop - aumentado para melhor usabilidade
             canvasWidth = effectiveWidth - 40;
             canvasHeight = 400;
         } else if (effectiveWidth <= 1400) {
-            // Large desktop - canvas mais largo
             canvasWidth = effectiveWidth - 60;
             canvasHeight = 500;
         } else {
-            // Extra large desktop - canvas bem largo
             canvasWidth = effectiveWidth - 80;
             canvasHeight = 550;
         }
-        
-        // Ensure minimum dimensions for usability
+
         canvasWidth = Math.max(canvasWidth, 300);
         canvasHeight = Math.max(canvasHeight, 150);
-        
-        // Set canvas dimensions (both internal and display)
+
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
         canvas.style.width = canvasWidth + 'px';
         canvas.style.height = canvasHeight + 'px';
-        
+
         console.log('Canvas setup:', {
             containerWidth: containerWidth,
             effectiveWidth: effectiveWidth,
@@ -254,104 +309,105 @@ $(document).ready(function() {
             deviceType: isMobile ? (isLandscape ? 'mobile-landscape' : 'mobile-portrait') : 'desktop'
         });
     }
-    
-    // Initialize signature pad
+
+    function handleSignatureBegin(event) {
+        const pointerPosition = getPointerPosition(event);
+
+        placeholder.style.display = 'none';
+
+        if (!signatureMetadata.startTime) {
+            signatureMetadata.startTime = new Date().toISOString();
+            console.log('Signature started at:', signatureMetadata.startTime);
+        }
+
+        signatureHistory.push(captureSignatureSnapshot());
+        if (signatureHistory.length > 15) {
+            signatureHistory.shift();
+        }
+
+        activeStroke = {
+            startTime: new Date().toISOString(),
+            startPoint: pointerPosition,
+            endPoint: pointerPosition,
+            pointCount: pointerPosition ? 1 : 0
+        };
+
+        signatureMetadata.strokes.push(activeStroke);
+        isDrawing = true;
+    }
+
+    function updateActiveStroke(event) {
+        if (!isDrawing || !activeStroke) {
+            return;
+        }
+
+        const pointerPosition = getPointerPosition(event);
+
+        if (!pointerPosition) {
+            return;
+        }
+
+        activeStroke.endPoint = pointerPosition;
+        activeStroke.pointCount += 1;
+    }
+
+    function handleSignatureEnd(event) {
+        updateActiveStroke(event);
+        signatureMetadata.endTime = new Date().toISOString();
+
+        if (activeStroke) {
+            activeStroke.endTime = signatureMetadata.endTime;
+        }
+
+        updateSignatureStatus();
+        isDrawing = false;
+        activeStroke = null;
+
+        console.log('Stroke completed. Total strokes:', signatureMetadata.strokes.length);
+    }
+
     function initSignaturePad() {
         if (signaturePad) {
             signaturePad.off();
         }
-        
-        // Determine pen size based on canvas size - mais fino para melhor legibilidade
+
+        if (typeof SignaturePad !== 'function') {
+            console.error('SignaturePad library is not available in the current bundle.');
+            $('#errorMessage').text('A biblioteca de assinatura não foi carregada. Recarregue a página ou entre em contato com o suporte.');
+            $('#signatureError').show();
+            signaturePad = null;
+            return;
+        }
+
         const penScale = canvas.width / 800;
-        
+
         signaturePad = new SignaturePad(canvas, {
             backgroundColor: 'rgba(255, 255, 255, 1)',
             penColor: 'rgb(0, 0, 0)',
             velocityFilterWeight: 0.7,
             minWidth: Math.max(0.5, 0.8 * penScale),
             maxWidth: Math.max(1.5, 2.2 * penScale),
-            throttle: 16,
-            minPointDistance: 1
+            onBegin: handleSignatureBegin,
+            onEnd: handleSignatureEnd
         });
-        
-        // Event listeners
-        signaturePad.addEventListener('beginStroke', function(event) {
-            placeholder.style.display = 'none';
-            
-            // Capture start time on first stroke
-            if (!signatureMetadata.startTime) {
-                signatureMetadata.startTime = new Date().toISOString();
-                console.log('Signature started at:', signatureMetadata.startTime);
-            }
-            
-            // Save initial empty state if this is the first stroke
-            if (signatureHistory.length === 0) {
-                signatureHistory.push([]); // Empty state
-                console.log('Initial empty state saved');
-            }
-            
-            // Capture stroke start coordinates
-            const strokeData = {
-                startTime: new Date().toISOString(),
-                startPoint: null,
-                endPoint: null,
-                pointCount: 0
-            };
-            
-            signatureMetadata.strokes.push(strokeData);
-        });
-        
-        signaturePad.addEventListener('endStroke', function(event) {
-            saveSignatureState();
-            updateSignatureStatus();
-            
-            // Update end time
-            signatureMetadata.endTime = new Date().toISOString();
-            
-            // Get the last stroke data
-            const currentStroke = signaturePad.toData()[signaturePad.toData().length - 1];
-            if (currentStroke && currentStroke.points && currentStroke.points.length > 0) {
-                const lastStrokeMetadata = signatureMetadata.strokes[signatureMetadata.strokes.length - 1];
-                if (lastStrokeMetadata) {
-                    lastStrokeMetadata.startPoint = {
-                        x: Math.round(currentStroke.points[0].x),
-                        y: Math.round(currentStroke.points[0].y),
-                        time: currentStroke.points[0].time
-                    };
-                    lastStrokeMetadata.endPoint = {
-                        x: Math.round(currentStroke.points[currentStroke.points.length - 1].x),
-                        y: Math.round(currentStroke.points[currentStroke.points.length - 1].y),
-                        time: currentStroke.points[currentStroke.points.length - 1].time
-                    };
-                    lastStrokeMetadata.pointCount = currentStroke.points.length;
-                    lastStrokeMetadata.endTime = new Date().toISOString();
-                }
-            }
-            
-            console.log('Stroke completed. Total strokes:', signatureMetadata.strokes.length);
-        });
+
+        emptyCanvasSnapshot = signaturePad.toDataURL('image/png', 0.9);
     }
-    
-    // Save signature state for undo functionality
-    function saveSignatureState() {
-        const data = signaturePad.toData();
-        
-        // Always save the state, even if empty (for proper undo chain)
-        signatureHistory.push(JSON.parse(JSON.stringify(data)));
-        
-        // Keep only last 15 states for better undo experience
-        if (signatureHistory.length > 15) {
-            signatureHistory.shift();
-        }
-        
-        console.log('Signature state saved. History length:', signatureHistory.length);
-    }
-    
-    // Update signature status and button states
+
     function updateSignatureStatus() {
-        const isEmpty = signaturePad.isEmpty();
         const container = document.getElementById('canvasContainer');
-        
+
+        if (!signaturePad) {
+            statusElement.innerHTML = '<i class="fa fa-exclamation-triangle text-danger"></i> Assinatura indisponível';
+            finalizeBtn.disabled = true;
+            undoBtn.disabled = true;
+            placeholder.style.display = 'flex';
+            container.classList.remove('has-signature');
+            return;
+        }
+
+        const isEmpty = signaturePad.isEmpty();
+
         if (isEmpty) {
             statusElement.innerHTML = '<i class="fa fa-exclamation-circle text-warning"></i> Assinatura necessária';
             finalizeBtn.disabled = true;
@@ -365,114 +421,97 @@ $(document).ready(function() {
             finalizeBtn.disabled = false;
             finalizeBtn.classList.remove('btn-default');
             finalizeBtn.classList.add('btn-success');
-            // Enable undo if there's any history or current signature
-            undoBtn.disabled = signatureHistory.length === 0 && isEmpty;
+            undoBtn.disabled = signatureHistory.length === 0;
             placeholder.style.display = 'none';
             container.classList.add('has-signature');
         }
-        
+
         console.log('Status updated:', {
             isEmpty: isEmpty,
             historyLength: signatureHistory.length,
             undoDisabled: undoBtn.disabled
         });
     }
-    
-    // Clear signature completely
+
     $('#clearSignature').on('click', function() {
+        if (!signaturePad) {
+            return;
+        }
+
         signaturePad.clear();
         signatureHistory = [];
-        
-        // Reset metadata
-        signatureMetadata.startTime = null;
-        signatureMetadata.endTime = null;
-        signatureMetadata.strokes = [];
-        
+        resetSignatureMetadata();
+
         updateSignatureStatus();
         $('#signatureError').hide();
         console.log('Signature and metadata cleared');
     });
-    
-    // Undo last stroke
+
     $('#undoSignature').on('click', function() {
-        if (signatureHistory.length > 1) {
-            // Remove the current state
-            signatureHistory.pop();
-            
-            // Clear canvas
-            signaturePad.clear();
-            
-            // Get the previous state
-            const previousState = signatureHistory[signatureHistory.length - 1];
-            
-            // Restore previous state
-            if (previousState && previousState.length > 0) {
-                signaturePad.fromData(previousState);
-            }
-            
-            console.log('Undo executed. Remaining history length:', signatureHistory.length);
-            updateSignatureStatus();
-        } else if (signatureHistory.length === 1) {
-            // If only one state (the first stroke), clear everything
-            signaturePad.clear();
-            signatureHistory = [];
-            updateSignatureStatus();
+        if (!signaturePad || signatureHistory.length === 0) {
+            return;
         }
+
+        const previousState = signatureHistory.pop();
+
+        restoreSignatureSnapshot(previousState);
+
+        if (signatureMetadata.strokes.length > 0) {
+            signatureMetadata.strokes.pop();
+        }
+
+        if (signatureMetadata.strokes.length === 0) {
+            signatureMetadata.startTime = null;
+            signatureMetadata.endTime = null;
+        } else {
+            signatureMetadata.endTime = new Date().toISOString();
+        }
+
+        console.log('Undo executed. Remaining history length:', signatureHistory.length);
+        updateSignatureStatus();
     });
-    
-    // Initialize everything
+
     function initialize() {
         setupCanvas();
         initSignaturePad();
         updateSignatureStatus();
     }
-    
-    // Initialize on load with a small delay to ensure CSS is applied
+
     setTimeout(function() {
         initialize();
     }, 100);
-    
-    // Handle window resize and orientation change
-    let resizeTimeout;
+
     function handleResize() {
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(function() {
-            // Save current signature if exists
-            const wasEmpty = signaturePad.isEmpty();
-            const data = wasEmpty ? [] : signaturePad.toData();
-            
+            const signatureSnapshot = captureSignatureSnapshot();
+
             console.log('Handling resize/orientation change');
-            
-            // Reinitialize everything
+
             initialize();
-            
-            // Restore signature if it existed
-            if (!wasEmpty && data.length > 0) {
-                signaturePad.fromData(data);
-                signatureHistory = [data];
+
+            if (signaturePad && signatureSnapshot) {
+                restoreSignatureSnapshot(signatureSnapshot);
                 updateSignatureStatus();
             }
         }, 400);
     }
-    
-    // Listen to both resize and orientation change
+
     $(window).on('resize orientationchange', handleResize);
-    
-    // Additional orientation change handler for mobile
-    if (screen && screen.orientation) {
+
+    if (screen && screen.orientation && typeof screen.orientation.addEventListener === 'function') {
         screen.orientation.addEventListener('change', function() {
             console.log('Screen orientation changed to:', screen.orientation.angle);
-            setTimeout(handleResize, 500); // Extra delay for orientation change
+            setTimeout(handleResize, 500);
         });
     }
-    
-    // Form submission
+
     $('#finalizeSignature').on('click', function(e) {
         e.preventDefault();
-        
+
         $('#signatureError').hide();
-        
-        if (signaturePad.isEmpty()) {
+
+        if (!signaturePad || signaturePad.isEmpty()) {
             $('#errorMessage').text('Por favor, assine no campo acima antes de continuar.');
             $('#signatureError').show();
             $('html, body').animate({
@@ -480,29 +519,24 @@ $(document).ready(function() {
             }, 500);
             return false;
         }
-        
-        // Get signature data
+
         const signatureData = signaturePad.toDataURL('image/png', 0.9);
         $('#signatureData').val(signatureData);
-        
-        // Finalize metadata
+
         signatureMetadata.endTime = new Date().toISOString();
         signatureMetadata.totalStrokes = signatureMetadata.strokes.length;
         signatureMetadata.canvasSize = {
             width: canvas.width,
             height: canvas.height
         };
-        
-        // Convert metadata to JSON
+
         const metadataJson = JSON.stringify(signatureMetadata);
         $('#signatureMetadata').val(metadataJson);
-        
+
         console.log('Signature metadata:', signatureMetadata);
-        
-        // Show loading state
+
         $(this).prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processando...');
-        
-        // Submit via AJAX para melhor controle
+
         $.ajax({
             url: $('#signatureForm').attr('action'),
             method: 'POST',
@@ -520,47 +554,48 @@ $(document).ready(function() {
                     window.location.reload();
                 }
             },
-            error: function(xhr, status, error) {
+            error: function(xhr) {
                 console.error('Error processing signature:', xhr.responseText);
-                
+
                 let errorMessage = 'Erro ao processar assinatura.';
                 try {
                     const response = JSON.parse(xhr.responseText);
                     if (response.message) {
                         errorMessage = response.message;
                     }
-                } catch (e) {
-                    console.error('Error parsing response:', e);
+                } catch (error) {
+                    console.error('Error parsing response:', error);
                 }
-                
+
                 $('#errorMessage').text(errorMessage);
                 $('#signatureError').show();
-                
-                // Restore button state
                 $('#finalizeSignature').prop('disabled', false).html('<i class="fa fa-check"></i> Finalizar Assinatura');
             }
         });
     });
-    
-    // Prevent page scroll when drawing on mobile
+
     canvas.addEventListener('touchstart', function(e) {
         e.preventDefault();
     }, { passive: false });
-    
+
     canvas.addEventListener('touchmove', function(e) {
         e.preventDefault();
+        updateActiveStroke(e);
     }, { passive: false });
-    
+
     canvas.addEventListener('touchend', function(e) {
         e.preventDefault();
     }, { passive: false });
-    
-    // Debug click coordinates
+
+    canvas.addEventListener('mousemove', function(e) {
+        updateActiveStroke(e);
+    });
+
     canvas.addEventListener('mousedown', function(e) {
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        
+
         console.log('Mouse down:', {
             clientX: e.clientX,
             clientY: e.clientY,
