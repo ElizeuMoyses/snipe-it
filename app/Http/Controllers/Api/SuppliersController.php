@@ -57,10 +57,13 @@ class SuppliersController extends Controller
             'tag_color',
             'url',
             'notes',
+            'supplier_type',
+            'corporate_name',
+            'internal_code',
         ];
 
         $suppliers = Supplier::select(
-            ['id', 'name', 'address', 'address2', 'city', 'state', 'country', 'fax', 'phone', 'email', 'contact', 'created_at', 'created_by', 'updated_at', 'deleted_at', 'image', 'notes', 'url', 'zip', 'tag_color'])
+            ['id', 'name', 'address', 'address2', 'city', 'state', 'country', 'fax', 'phone', 'email', 'contact', 'created_at', 'created_by', 'updated_at', 'deleted_at', 'image', 'notes', 'url', 'zip', 'tag_color', 'supplier_type', 'document', 'corporate_name', 'internal_code'])
             ->withCount('assets as assets_count')
             ->withCount('licenses as licenses_count')
             ->withCount('accessories as accessories_count')

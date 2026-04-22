@@ -51,6 +51,10 @@ class SuppliersTransformer
                     'name' => e($supplier->adminuser->present()->fullName),
                 ] : null,
                 'updated_at' => Helper::getFormattedDateObject($supplier->updated_at, 'datetime'),
+                'supplier_type'  => $supplier->supplier_type,
+                'document'       => e($supplier->document),
+                'corporate_name' => e($supplier->corporate_name),
+                'internal_code'  => e($supplier->internal_code),
 
             ];
 

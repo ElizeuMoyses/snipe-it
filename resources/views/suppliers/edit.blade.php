@@ -33,6 +33,52 @@
     </div>
 </div>
 
+{{-- Dados Fiscais BR --}}
+<fieldset name="br-fiscal-data">
+    <x-form.legend>{{ trans('admin/suppliers/table.br_data') }}</x-form.legend>
+
+    {{-- Tipo de Pessoa --}}
+    <div class="form-group {{ $errors->has('supplier_type') ? ' has-error' : '' }}">
+        <label for="supplier_type" class="col-md-3 control-label">{{ trans('admin/suppliers/table.supplier_type') }}</label>
+        <div class="col-md-7">
+            <select class="form-control select2" name="supplier_type" id="supplier_type">
+                <option value="">-- {{ trans('admin/suppliers/table.supplier_type') }} --</option>
+                <option value="pj" {{ old('supplier_type', $item->supplier_type) === 'pj' ? 'selected' : '' }}>{{ trans('admin/suppliers/table.supplier_type_pj') }}</option>
+                <option value="pf" {{ old('supplier_type', $item->supplier_type) === 'pf' ? 'selected' : '' }}>{{ trans('admin/suppliers/table.supplier_type_pf') }}</option>
+                <option value="international" {{ old('supplier_type', $item->supplier_type) === 'international' ? 'selected' : '' }}>{{ trans('admin/suppliers/table.supplier_type_international') }}</option>
+            </select>
+            {!! $errors->first('supplier_type', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+        </div>
+    </div>
+
+    {{-- Documento (CNPJ/CPF) --}}
+    <div class="form-group {{ $errors->has('document') ? ' has-error' : '' }}">
+        <label for="document" class="col-md-3 control-label" id="document_label">{{ trans('admin/suppliers/table.document') }}</label>
+        <div class="col-md-7">
+            <input class="form-control" name="document" type="text" id="document" maxlength="20" value="{{ old('document', $item->document) }}">
+            {!! $errors->first('document', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+        </div>
+    </div>
+
+    {{-- Razão Social --}}
+    <div class="form-group {{ $errors->has('corporate_name') ? ' has-error' : '' }}">
+        <label for="corporate_name" class="col-md-3 control-label">{{ trans('admin/suppliers/table.corporate_name') }}</label>
+        <div class="col-md-7">
+            <input class="form-control" name="corporate_name" type="text" id="corporate_name" maxlength="255" value="{{ old('corporate_name', $item->corporate_name) }}">
+            {!! $errors->first('corporate_name', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+        </div>
+    </div>
+
+    {{-- Código Interno --}}
+    <div class="form-group {{ $errors->has('internal_code') ? ' has-error' : '' }}">
+        <label for="internal_code" class="col-md-3 control-label">{{ trans('admin/suppliers/table.internal_code') }}</label>
+        <div class="col-md-7">
+            <input class="form-control" name="internal_code" type="text" id="internal_code" maxlength="50" value="{{ old('internal_code', $item->internal_code) }}">
+            {!! $errors->first('internal_code', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+        </div>
+    </div>
+</fieldset>
+
 @include ('partials.forms.edit.notes')
 @include ('partials.forms.edit.image-upload', ['image_path' => app('suppliers_upload_path')])
 

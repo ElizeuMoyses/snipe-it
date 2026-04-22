@@ -128,6 +128,38 @@
 
                 </x-info-panel>
             </x-box>
+
+            @if($supplier->supplier_type || $supplier->document || $supplier->corporate_name || $supplier->internal_code)
+            <x-box class="side-box">
+                <x-slot:header>{{ trans('admin/suppliers/table.br_data') }}</x-slot:header>
+                <table class="table table-condensed">
+                    @if($supplier->supplier_type)
+                    <tr>
+                        <td class="col-md-5"><strong>{{ trans('admin/suppliers/table.supplier_type') }}</strong></td>
+                        <td>{{ trans('admin/suppliers/table.supplier_type_' . $supplier->supplier_type) }}</td>
+                    </tr>
+                    @endif
+                    @if($supplier->document)
+                    <tr>
+                        <td><strong>{{ trans('admin/suppliers/table.document') }}</strong></td>
+                        <td>{{ $supplier->document }}</td>
+                    </tr>
+                    @endif
+                    @if($supplier->corporate_name)
+                    <tr>
+                        <td><strong>{{ trans('admin/suppliers/table.corporate_name') }}</strong></td>
+                        <td>{{ $supplier->corporate_name }}</td>
+                    </tr>
+                    @endif
+                    @if($supplier->internal_code)
+                    <tr>
+                        <td><strong>{{ trans('admin/suppliers/table.internal_code') }}</strong></td>
+                        <td>{{ $supplier->internal_code }}</td>
+                    </tr>
+                    @endif
+                </table>
+            </x-box>
+            @endif
         </x-page-column>
 
     </x-container>

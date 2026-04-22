@@ -68,6 +68,10 @@ class SuppliersController extends Controller
         $supplier->tag_color = $request->input('tag_color');
         $supplier->notes = request('notes');
         $supplier->url = $supplier->addhttp(request('url'));
+        $supplier->supplier_type  = request('supplier_type') ?: null;
+        $supplier->document       = request('document');
+        $supplier->corporate_name = request('corporate_name') ?: null;
+        $supplier->internal_code  = request('internal_code');
         $supplier->created_by = auth()->id();
         $supplier = $request->handleImages($supplier);
 
@@ -113,6 +117,10 @@ class SuppliersController extends Controller
         $supplier->url = $supplier->addhttp(request('url'));
         $supplier->tag_color = $request->input('tag_color');
         $supplier->notes = request('notes');
+        $supplier->supplier_type  = request('supplier_type') ?: null;
+        $supplier->document       = request('document');
+        $supplier->corporate_name = request('corporate_name') ?: null;
+        $supplier->internal_code  = request('internal_code');
         $supplier = $request->handleImages($supplier);
 
         if ($supplier->save()) {
