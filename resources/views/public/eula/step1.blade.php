@@ -147,11 +147,31 @@
 @push('js')
 <script>
 $(document).ready(function() {
-    // CPF mask
-    $('#cpf').mask('000.000.000-00', {
-        reverse: false,
-        placeholder: '000.000.000-00'
+    function formatCPF(value) {
+        const digits = value.replace(/\D/g, '').slice(0, 11);
+
+        if (digits.length <= 3) {
+            return digits;
+        }
+
+        if (digits.length <= 6) {
+            return digits.replace(/^(\d{3})(\d+)/, '$1.$2');
+        }
+
+        if (digits.length <= 9) {
+            return digits.replace(/^(\d{3})(\d{3})(\d+)/, '$1.$2.$3');
+        }
+
+        return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2}).*$/, function(match, part1, part2, part3, part4) {
+            return part4 ? `${part1}.${part2}.${part3}-${part4}` : `${part1}.${part2}.${part3}`;
+        });
+    }
+
+    $('#cpf').on('input', function() {
+        this.value = formatCPF(this.value);
     });
+
+    $('#cpf').val(formatCPF($('#cpf').val()));
 
     // CPF validation function
     function validateCPF(cpf) {
