@@ -74,8 +74,17 @@
             </div>
             <div class="panel-body">
                 <div class="eula-content" id="eulaContent" style="height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 15px; background-color: #f9f9f9;">
-                    <div id="eulaMarkdown" style="display: none;">{!! $eula ?? 'Termo de uso não disponível.' !!}</div>
-                    <div id="eulaRendered">Carregando termo...</div>
+                    <div id="eulaRendered">
+                        @if(!empty($eula))
+                            @php
+                                $parsedown = new \Parsedown();
+                                $parsedown->setSafeMode(true);
+                            @endphp
+                            {!! $parsedown->text($eula) !!}
+                        @else
+                            <p>Termo de uso não disponível.</p>
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>
@@ -133,38 +142,8 @@
 @endsection
 
 @push('js')
-<!-- Marked.js for Markdown rendering -->
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
 $(document).ready(function() {
-    // Render Markdown content
-    function renderMarkdown() {
-        const markdownText = $('#eulaMarkdown').text();
-        if (markdownText && markdownText.trim() !== 'Termo de uso não disponível.') {
-            try {
-                // Configure marked for GitHub Flavored Markdown
-                marked.setOptions({
-                    gfm: true,
-                    breaks: true,
-                    sanitize: false,
-                    smartLists: true,
-                    smartypants: true
-                });
-                
-                const htmlContent = marked.parse(markdownText);
-                $('#eulaRendered').html(htmlContent);
-            } catch (error) {
-                console.error('Error rendering markdown:', error);
-                $('#eulaRendered').html('<p>Erro ao renderizar o termo. Exibindo texto original:</p><pre>' + markdownText + '</pre>');
-            }
-        } else {
-            $('#eulaRendered').html('<p>Termo de uso não disponível.</p>');
-        }
-    }
-    
-    // Render markdown on page load
-    renderMarkdown();
-
     // Enable/disable accept button based on checkbox
     $('#agreeCheckbox').on('change', function() {
         const isChecked = $(this).is(':checked');
