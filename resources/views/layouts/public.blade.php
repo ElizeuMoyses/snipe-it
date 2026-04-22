@@ -57,7 +57,6 @@
     </div>
 
     <script src="{{ url(mix('js/dist/all.js')) }}" nonce="{{ csrf_token() }}"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js" nonce="{{ csrf_token() }}"></script>
 
     @stack('js')
 </body>
