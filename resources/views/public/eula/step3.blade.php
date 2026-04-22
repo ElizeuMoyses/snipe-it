@@ -540,6 +540,7 @@ $(document).ready(function() {
         $.ajax({
             url: $('#signatureForm').attr('action'),
             method: 'POST',
+            timeout: 30000,
             data: {
                 _token: $('input[name="_token"]').val(),
                 signature_data: signatureData,
@@ -554,17 +555,22 @@ $(document).ready(function() {
                     window.location.reload();
                 }
             },
-            error: function(xhr) {
-                console.error('Error processing signature:', xhr.responseText);
+            error: function(xhr, status) {
+                console.error('Error processing signature:', status, xhr.responseText);
 
                 let errorMessage = 'Erro ao processar assinatura.';
-                try {
-                    const response = JSON.parse(xhr.responseText);
-                    if (response.message) {
-                        errorMessage = response.message;
+
+                if (status === 'timeout') {
+                    errorMessage = 'Tempo limite excedido ao enviar a assinatura. Verifique sua conexão e tente novamente.';
+                } else {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.message) {
+                            errorMessage = response.message;
+                        }
+                    } catch (error) {
+                        console.error('Error parsing response:', error);
                     }
-                } catch (error) {
-                    console.error('Error parsing response:', error);
                 }
 
                 $('#errorMessage').text(errorMessage);
