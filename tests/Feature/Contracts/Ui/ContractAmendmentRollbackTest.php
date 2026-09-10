@@ -25,16 +25,22 @@ class ContractAmendmentRollbackTest extends TestCase
         ]);
         $contract->generateInstallments();
         $before = $contract->installments()->orderBy('id')->get(['id', 'status_label_id', 'expected_value'])->toArray();
+        $input = [
+            'amendment_type' => $type, 'description' => 'Synthetic partial failure',
+            'effective_date' => '2025-12-31', 'old_end_date' => '2026-03-31', 'new_end_date' => '2026-06-30',
+        ];
+        $preview = $this->postJson(
+            route($api ? 'api.contracts.amendments.preview' : 'contracts.amendments.preview', $contract),
+            $input
+        )->assertOk();
+        $input['preview_token'] = $preview->json('preview_token');
         $dispatcher = ContractInstallment::getEventDispatcher();
         ContractInstallment::setEventDispatcher(clone $dispatcher);
         ContractInstallment::saving(fn ($installment) =>
             ($type === 'renewal' ? $installment->installment_number === 5 : $installment->id === $before[1]['id']) ? false : null);
         $failed = false;
         try {
-            $this->post(route($api ? 'api.contracts.amendments.store' : 'contracts.amendments.store', $contract), [
-                'amendment_type' => $type, 'description' => 'Synthetic partial failure',
-                'effective_date' => '2025-12-31', 'old_end_date' => '2026-03-31', 'new_end_date' => '2026-06-30',
-            ]);
+            $this->post(route($api ? 'api.contracts.amendments.store' : 'contracts.amendments.store', $contract), $input);
         } catch (\RuntimeException $exception) {
             $failed = true;
         } finally {
@@ -65,15 +71,21 @@ class ContractAmendmentRollbackTest extends TestCase
         $contract = Contract::factory()->withActiveStatus()->create(['installment_value' => '100.00']);
         $first = ContractInstallment::factory()->for($contract)->create(['expected_value' => '100.00', 'due_date' => '2026-10-01']);
         $second = ContractInstallment::factory()->for($contract)->create(['expected_value' => '100.00', 'due_date' => '2026-11-01']);
+        $input = [
+            'amendment_type' => 'readjustment', 'description' => 'Synthetic failure',
+            'old_value' => '100.00', 'new_value' => '125.00', 'effective_date' => '2026-09-01',
+        ];
+        $preview = $this->postJson(
+            route($api ? 'api.contracts.amendments.preview' : 'contracts.amendments.preview', $contract),
+            $input
+        )->assertOk();
+        $input['preview_token'] = $preview->json('preview_token');
         $dispatcher = ContractInstallment::getEventDispatcher();
         ContractInstallment::setEventDispatcher(clone $dispatcher);
         ContractInstallment::saving(fn ($installment) => $installment->id === $second->id ? false : null);
         $failed = false;
         try {
-            $this->post(route($api ? 'api.contracts.amendments.store' : 'contracts.amendments.store', $contract), [
-                'amendment_type' => 'readjustment', 'description' => 'Synthetic failure',
-                'old_value' => '100.00', 'new_value' => '125.00', 'effective_date' => '2026-09-01',
-            ]);
+            $this->post(route($api ? 'api.contracts.amendments.store' : 'contracts.amendments.store', $contract), $input);
         } catch (\RuntimeException $exception) {
             $failed = true;
         } finally {

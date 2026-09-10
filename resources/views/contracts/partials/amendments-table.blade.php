@@ -83,13 +83,21 @@
                                 <i class="fas fa-pencil-alt" aria-hidden="true"></i>
                             </a>
 
-                            <form method="POST" action="{{ route('contracts.amendments.destroy', [$contract->id, $amendment->id]) }}" style="display:inline">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('{{ trans('admin/contracts/message.amendment.delete.confirm') }}')">
-                                    <i class="fas fa-trash" aria-hidden="true"></i>
-                                </button>
-                            </form>
+                            @if ($amendment->hasAppliedEffects())
+                                <span class="btn btn-default btn-sm disabled"
+                                      title="{{ trans('admin/contracts/message.amendment.delete.applied') }}"
+                                      aria-label="{{ trans('admin/contracts/message.amendment.delete.applied') }}">
+                                    <i class="fas fa-lock" aria-hidden="true"></i>
+                                </span>
+                            @else
+                                <form method="POST" action="{{ route('contracts.amendments.destroy', [$contract->id, $amendment->id]) }}" style="display:inline">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('{{ trans('admin/contracts/message.amendment.delete.confirm') }}')">
+                                        <i class="fas fa-trash" aria-hidden="true"></i>
+                                    </button>
+                                </form>
+                            @endif
                         </nobr>
                     @endcan
                 </td>

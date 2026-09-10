@@ -73,4 +73,23 @@ class ContractAmendment extends SnipeModel implements ICompanyableChild
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    /**
+     * These amendment types already change contract/installment state when
+     * created. A simple delete would hide the document while keeping those
+     * effects, so corrections must use a tracked flow from the audit work.
+     */
+    public function hasAppliedEffects(): bool
+    {
+        return in_array($this->amendment_type, [
+            'readjustment',
+            'renewal',
+            'termination',
+        ], true);
+    }
+
+    public function isDocumentaryOnly(): bool
+    {
+        return $this->amendment_type === 'scope_change';
+    }
 }

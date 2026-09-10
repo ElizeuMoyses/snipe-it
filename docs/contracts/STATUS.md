@@ -288,3 +288,23 @@ Coordenação sugerida: #13 define mecanismo de auditoria para #10/#11/#12/#14;
 em view.blade.php e controladores; commits focados integrados no PR draft #7.
 Decisões ainda explícitas nas issues: efeito de total manual, retificação de
 aditivos aplicados, restauração e papéis. Aceite geral #1/#6 continua pendente.
+
+## Retomada central — 10/09/2026
+
+A execução foi centralizada nesta branch por solicitação do responsável. Os
+worktrees das issues #9–#15 foram preservados; mudanças de tarefas secundárias
+só entram após revisão e testes centrais. Nenhum merge ou deploy foi executado.
+
+- #11: seleção de status em modal fora da área de rolagem da tabela, com foco,
+  Escape e somente transições permitidas. Sete testes/40 asserções passaram.
+  Navegador confirmou abertura e cancelamento sem alterar registro de trabalho.
+- #12: prévia compartilhada UI/API, erros 422, valores anteriores obtidos do
+  contrato, confirmação vinculada ao estado e bloqueio de exclusão de aditivo
+  com efeitos aplicados. Parcelas excluídas não compõem o impacto operacional.
+  A prévia detecta mudanças no calendário mesmo sem alteração do timestamp.
+- Regressão central: 97 testes/425 asserções SQLite passaram. Antes dos ajustes
+  finais de calendário/interface, 89 testes/380 asserções MariaDB passaram.
+  A suíte completa do sistema e o aceite da release continuam pendentes.
+- Histórico unificado, arquivamento, configuração de tipos e revisão ampla da
+  interface ainda não estão certificados como integrados. Retificação de
+  aditivos e política de efeitos retroativos/futuros exigem fechamento próprio.

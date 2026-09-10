@@ -35,8 +35,9 @@ class ContractRenewalCalendarTest extends TestCase
         $input = ['amendment_type'=>'renewal', 'description'=>'Synthetic calendar renewal',
             'effective_date'=>\Carbon\Carbon::parse($oldEnd)->addDay()->format('Y-m-d'),
             'old_end_date'=>$oldEnd, 'new_end_date'=>$newEnd];
-        $this->postJson(route('contracts.amendments.preview', $contract), $input)
+        $preview = $this->postJson(route('contracts.amendments.preview', $contract), $input)
             ->assertOk()->assertJsonPath('estimated_count', count($expected));
+        $input['preview_token'] = $preview->json('preview_token');
         $this->post(route('contracts.amendments.store', $contract), $input)->assertSessionHasNoErrors();
         $rows = $contract->installments()->orderBy('id')->get();
         $this->assertSame($original, $rows->take(count($original))->toArray());

@@ -1107,6 +1107,10 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
     /**
      * Contract Amendments API routes
      */
+    Route::post('contracts/{contract}/amendments/preview',
+        [Api\ContractAmendmentsController::class, 'preview']
+    )->name('api.contracts.amendments.preview');
+
     Route::resource('contracts.amendments',
         Api\ContractAmendmentsController::class,
         ['names' => [

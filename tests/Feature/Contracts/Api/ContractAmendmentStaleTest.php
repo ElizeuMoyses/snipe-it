@@ -36,7 +36,9 @@ class ContractAmendmentStaleTest extends TestCase
                 'amendment_type' => 'renewal', 'description' => 'Stale renewal',
                 'effective_date' => '2026-07-01', 'old_end_date' => '2026-06-30',
                 'new_end_date' => '2026-09-30',
-            ])->assertOk()->assertStatusMessageIs('error');
+            ])->assertStatus(422)
+            ->assertJsonPath('status', 'error')
+            ->assertJsonStructure(['messages' => ['old_end_date']]);
         $this->assertSame('2026-12-31', $contract->fresh()->end_date->format('Y-m-d'));
         $this->assertDatabaseMissing('contract_amendments', ['contract_id' => $contract->id]);
     }

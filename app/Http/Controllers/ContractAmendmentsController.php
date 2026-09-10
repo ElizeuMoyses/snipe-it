@@ -3,19 +3,24 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ActionType;
+use App\Helpers\Helper;
 use App\Models\Actionlog;
 use App\Models\Contract;
 use App\Models\ContractAmendment;
-use App\Models\ContractStatusLabel;
-use Carbon\Carbon;
+use App\Services\ContractAmendmentPreviewService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ContractAmendmentsController extends Controller
 {
+    public function __construct(private ContractAmendmentPreviewService $previewService)
+    {
+    }
+
     /**
      * Show form for creating a new amendment.
      */
@@ -24,7 +29,7 @@ class ContractAmendmentsController extends Controller
         $this->authorize('update', $contract);
 
         // Guard: cannot create amendments on terminal contracts
-        if (in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled'])) {
+        if ($this->isTerminal($contract)) {
             return redirect()->route('contracts.show', $contract->id)
                 ->with('error', trans('admin/contracts/message.amendment.contract_terminal'));
         }
@@ -42,140 +47,76 @@ class ContractAmendmentsController extends Controller
     {
         $this->authorize('update', $contract);
 
-        $amendmentType = $request->input('amendment_type');
+        if ($this->isTerminal($contract)) {
+            return $this->validationResponse([
+                'amendment_type' => [trans('admin/contracts/message.amendment.contract_terminal')],
+            ]);
+        }
 
-        $preview = match ($amendmentType) {
-            'readjustment' => $this->previewReadjustment($request, $contract),
-            'renewal'      => $this->previewRenewal($request, $contract),
-            'termination'  => $this->previewTermination($request, $contract),
-            'scope_change' => ['type' => 'scope_change', 'has_side_effects' => false],
-            default        => ['type' => 'unknown', 'has_side_effects' => false],
-        };
+        $validator = $this->previewService->makeValidator($request->all(), $contract);
+        if ($validator->fails()) {
+            return $this->validationResponse($validator->errors()->toArray());
+        }
 
-        return response()->json($preview);
-    }
-
-    private function previewReadjustment(Request $request, Contract $contract): array
-    {
-        $effectiveDate = $request->input('effective_date');
-        $newValue = $request->input('new_value');
-
-        $pendingCount = $contract->installments()
-            ->pending()
-            ->where('due_date', '>=', $effectiveDate)
-            ->count();
-
-        $overdueCount = $contract->installments()->overdue()->count();
-
-        return [
-            'type'              => 'readjustment',
-            'has_side_effects'  => true,
-            'pending_affected'  => $pendingCount,
-            'overdue_unchanged' => $overdueCount,
-            'old_value'         => $contract->installment_value,
-            'new_value'         => $newValue,
-            'message'           => trans('admin/contracts/message.amendment.readjustment.preview', [
-                'count' => $pendingCount,
-                'old'   => $contract->installment_value,
-                'new'   => $newValue,
-            ]),
-        ];
-    }
-
-    private function previewRenewal(Request $request, Contract $contract): array
-    {
-        $oldEnd = Carbon::parse($request->input('old_end_date'));
-        $newEnd = Carbon::parse($request->input('new_end_date'));
-
-        $estimatedCount = count($contract->recurringInstallmentDates($oldEnd->copy()->addDay(), $newEnd));
-
-        return [
-            'type'              => 'renewal',
-            'has_side_effects'  => true,
-            'estimated_count'   => $estimatedCount,
-            'new_end_date'      => $newEnd->format('Y-m-d'),
-            'message'           => trans('admin/contracts/message.amendment.renewal.preview', [
-                'count' => $estimatedCount,
-                'date'  => $newEnd->format('d/m/Y'),
-            ]),
-        ];
-    }
-
-    private function previewTermination(Request $request, Contract $contract): array
-    {
-        $effectiveDate = $request->input('effective_date');
-
-        $pendingCancelCount = $contract->installments()
-            ->pending()
-            ->where('due_date', '>', $effectiveDate)
-            ->count();
-
-        $overdueCount = $contract->installments()->overdue()->count();
-        $paidCount = $contract->installments()->paid()->count();
-
-        return [
-            'type'              => 'termination',
-            'has_side_effects'  => true,
-            'pending_cancel'    => $pendingCancelCount,
-            'overdue_unchanged' => $overdueCount,
-            'paid_unchanged'    => $paidCount,
-            'message'           => trans('admin/contracts/message.amendment.termination.preview', [
-                'count' => $pendingCancelCount,
-                'date'  => $request->input('effective_date'),
-            ]),
-        ];
+        return response()->json($this->previewService->build($request->all(), $contract));
     }
 
     /**
      * Store a newly created amendment with side-effects.
      */
-    public function store(Request $request, Contract $contract): RedirectResponse
+    public function store(Request $request, Contract $contract): RedirectResponse|JsonResponse
     {
         $this->authorize('update', $contract);
-        return $contract->getConnection()->transaction(function () use ($request, $contract) {
-            $contract = Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
-            if ($request->input('amendment_type') === 'renewal'
-                && $request->input('old_end_date') !== $contract->end_date?->format('Y-m-d')) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'old_end_date' => trans('validation.in', ['attribute' => 'old_end_date']),
-                ]);
+
+        try {
+            return $contract->getConnection()->transaction(function () use ($request, $contract) {
+                $lockedContract = Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
+                $validator = $this->previewService->makeValidator($request->all(), $lockedContract);
+
+                if ($validator->fails()) {
+                    return $this->validationFailure($request, $validator->errors()->toArray());
+                }
+
+                $validated = $this->previewService->normalizeValidated(
+                    $validator->validated(),
+                    $lockedContract
+                );
+                $tokenErrors = $this->previewService->previewTokenErrors(
+                    $request->input('preview_token'),
+                    $lockedContract,
+                    $validated,
+                    true
+                );
+
+                if ($tokenErrors) {
+                    return $this->validationFailure($request, $tokenErrors);
+                }
+
+                return $this->storeLocked($lockedContract, $validated);
+            });
+        } catch (ValidationException $exception) {
+            // Web form submissions keep the application's normal redirect
+            // and flashed-input behavior; JSON callers receive a structured
+            // 422 instead of the legacy 200 validation envelope.
+            if ($request->expectsJson()) {
+                return $this->validationResponse($exception->errors());
             }
-            return $this->storeLocked($request, $contract);
-        });
+
+            throw $exception;
+        }
     }
 
-    private function storeLocked(Request $request, Contract $contract): RedirectResponse
+    private function storeLocked(Contract $contract, array $validated): RedirectResponse
     {
         $this->authorize('update', $contract);
 
         // Guard: cannot create amendments on terminal contracts
-        if (in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled'])) {
+        if ($this->isTerminal($contract)) {
             return redirect()->route('contracts.show', $contract->id)
                 ->with('error', trans('admin/contracts/message.amendment.contract_terminal'));
         }
 
-        $amendmentType = $request->input('amendment_type');
-
-        // Type-specific validation rules
-        $extraRules = match ($amendmentType) {
-            'readjustment' => [
-                'old_value' => 'required|numeric|min:0',
-                'new_value' => 'required|numeric|min:0.01',
-            ],
-            'renewal' => [
-                'old_end_date' => 'required|date',
-                'new_end_date' => 'required|date|after:old_end_date',
-            ],
-            default => [],
-        };
-
-        $request->validate(array_merge([
-            'amendment_type'   => 'required|in:readjustment,scope_change,renewal,termination',
-            'description'      => 'required|string',
-            'effective_date'   => 'required|date',
-            'ticket_reference' => 'nullable|string|max:100',
-            'notes'            => 'nullable|string',
-        ], $extraRules));
+        $amendmentType = $validated['amendment_type'];
 
         // Guard: readjustment requires active contract
         if ($amendmentType === 'readjustment' && $contract->statusLabel?->meta_type !== 'active') {
@@ -189,29 +130,21 @@ class ContractAmendmentsController extends Controller
                 ->with('error', trans('admin/contracts/message.amendment.not_activatable'));
         }
 
-        // Guard: renewal overlap
-        if ($amendmentType === 'renewal') {
-            if ($request->date('new_end_date') <= $request->date('old_end_date')) {
-                return redirect()->back()->withInput()
-                    ->with('error', trans('admin/contracts/message.amendment.renewal.overlap'));
-            }
-        }
-
         $amendment = null;
         $sideEffectResult = [];
 
-        DB::transaction(function () use ($request, $contract, $amendmentType, &$amendment, &$sideEffectResult) {
+        DB::transaction(function () use ($validated, $contract, $amendmentType, &$amendment, &$sideEffectResult) {
             $amendment = new ContractAmendment;
             $amendment->contract_id = $contract->id;
             $amendment->amendment_type = $amendmentType;
-            $amendment->description = $request->input('description');
-            $amendment->old_value = $request->input('old_value');
-            $amendment->new_value = $request->input('new_value');
-            $amendment->old_end_date = $request->input('old_end_date');
-            $amendment->new_end_date = $request->input('new_end_date');
-            $amendment->effective_date = $request->input('effective_date');
-            $amendment->ticket_reference = $request->input('ticket_reference');
-            $amendment->notes = $request->input('notes');
+            $amendment->description = $validated['description'];
+            $amendment->old_value = $validated['old_value'];
+            $amendment->new_value = $validated['new_value'];
+            $amendment->old_end_date = $validated['old_end_date'];
+            $amendment->new_end_date = $validated['new_end_date'];
+            $amendment->effective_date = $validated['effective_date'];
+            $amendment->ticket_reference = $validated['ticket_reference'];
+            $amendment->notes = $validated['notes'];
             $amendment->created_by = auth()->id();
 
             if (! $amendment->save()) {
@@ -303,17 +236,46 @@ class ContractAmendmentsController extends Controller
     }
 
     /**
-     * Delete the given amendment (soft-delete, side-effects NOT reverted).
+     * Delete a documentary amendment only. Applied effects require a tracked
+     * correction/retification flow owned by the history/exclusion work.
      */
     public function destroy(Contract $contract, $amendmentId): RedirectResponse
     {
         $amendment = $contract->amendments()->findOrFail($amendmentId);
         $this->authorize('update', $contract);
 
+        if ($amendment->hasAppliedEffects()) {
+            return redirect()->route('contracts.show', $contract->id)
+                ->with('error', trans('admin/contracts/message.amendment.delete.applied'))
+                ->withFragment('amendments');
+        }
+
         $amendment->delete();
 
         return redirect()->route('contracts.show', $contract->id)
             ->with('success', trans('admin/contracts/message.amendment.delete.success'))
             ->withFragment('amendments');
+    }
+
+    private function isTerminal(Contract $contract): bool
+    {
+        return in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled'], true);
+    }
+
+    private function validationFailure(Request $request, array $errors): JsonResponse
+    {
+        if ($request->expectsJson()) {
+            return $this->validationResponse($errors);
+        }
+
+        throw ValidationException::withMessages($errors);
+    }
+
+    private function validationResponse(array $errors): JsonResponse
+    {
+        return response()->json(
+            Helper::formatStandardApiResponse('error', null, $errors),
+            422
+        );
     }
 }
