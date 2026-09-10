@@ -1072,6 +1072,9 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
 
     });
 
+    Route::post('contracts/preview', [Api\ContractsController::class, 'preview'])
+        ->name('api.contracts.preview');
+
     Route::resource('contracts',
         Api\ContractsController::class,
         ['names' => [
@@ -1160,6 +1163,22 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
             'parameters' => ['contract_status_label' => 'contract_status_label_id'],
         ]
     ); // end contract status labels API routes
+
+    /**
+     * Contract Types API routes
+     */
+    Route::group(['prefix' => 'contract-types'], function () {
+        Route::get('selectlist', [Api\ContractTypesController::class, 'selectlist'])
+            ->name('api.contract-types.selectlist');
+    });
+
+    Route::resource('contract-types', Api\ContractTypesController::class, ['names' => [
+        'index' => 'api.contract-types.index',
+        'show' => 'api.contract-types.show',
+        'update' => 'api.contract-types.update',
+        'store' => 'api.contract-types.store',
+        'destroy' => 'api.contract-types.destroy',
+    ], 'except' => ['create', 'edit'], 'parameters' => ['contract_type' => 'contract_type_id']]);
 
     /**
      * Users API routes

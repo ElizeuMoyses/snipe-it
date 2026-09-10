@@ -31,6 +31,7 @@ use App\Http\Controllers\ContractsController;
 use App\Http\Controllers\ContractAmendmentsController;
 use App\Http\Controllers\ContractInstallmentsController;
 use App\Http\Controllers\ContractStatusLabelsController;
+use App\Http\Controllers\ContractTypesController;
 use App\Http\Controllers\SuppliersController;
 use App\Http\Controllers\ViewAssetsController;
 use App\Livewire\Importer;
@@ -103,6 +104,7 @@ Route::group(['middleware' => 'auth'], function () {
         ->withTrashed()
         ->name('contracts.restore');
     Route::get('contracts/{contract}/history', [ContractsController::class, 'history'])->name('contracts.history');
+    Route::post('contracts/preview', [ContractsController::class, 'preview'])->name('contracts.preview');
 
     /*
     * Contract Installments
@@ -136,6 +138,11 @@ Route::group(['middleware' => 'auth'], function () {
     * Contract Status Labels
     */
     Route::resource('contract-status-labels', ContractStatusLabelsController::class);
+
+    /*
+    * Contract Types
+    */
+    Route::resource('contract-types', ContractTypesController::class);
 
     /*
     * Depreciations

@@ -455,6 +455,26 @@ class UserFactory extends Factory
         return $this->appendPermission(['contracts.delete' => '1']);
     }
 
+    public function viewContractTypes()
+    {
+        return $this->appendPermission(['contract_types.view' => '1']);
+    }
+
+    public function createContractTypes()
+    {
+        return $this->appendPermission(['contract_types.create' => '1']);
+    }
+
+    public function editContractTypes()
+    {
+        return $this->appendPermission(['contract_types.edit' => '1']);
+    }
+
+    public function deleteContractTypes()
+    {
+        return $this->appendPermission(['contract_types.delete' => '1']);
+    }
+
     public function auditAssets()
     {
         return $this->appendPermission(['assets.audit' => '1']);

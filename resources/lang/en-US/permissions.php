@@ -452,6 +452,23 @@ return [
         'name' => 'Create Depreciation Records',
     ],
 
+    'contract-types' => [
+        'name' => 'Contract Types',
+        'note' => 'Grants access to configurable contract classifications.',
+    ],
+    'contract-types-view' => [
+        'name' => 'View Contract Types',
+    ],
+    'contract-types-create' => [
+        'name' => 'Create Contract Types',
+    ],
+    'contract-types-edit' => [
+        'name' => 'Edit Contract Types',
+    ],
+    'contract-types-delete' => [
+        'name' => 'Delete Contract Types',
+    ],
+
     'grant_all' => 'Grant all permissions for :area',
     'deny_all' => 'Deny all permissions for :area',
     'inherit_all' => 'Inherit all permissions for :area from permission groups',

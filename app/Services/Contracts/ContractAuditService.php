@@ -43,7 +43,7 @@ class ContractAuditService
 
     private const SNAPSHOT_FIELDS = [
         Contract::class => [
-            'id', 'name', 'contract_number', 'contract_type', 'status_label_id',
+            'id', 'name', 'contract_number', 'contract_type', 'contract_type_id', 'total_value_mode', 'status_label_id',
             'supplier_id', 'company_id', 'start_date', 'end_date', 'billing_cycle',
             'billing_day', 'installment_value', 'total_value', 'total_installments',
             'readjustment_index', 'readjustment_month', 'description', 'notes', 'deleted_at',

@@ -53,8 +53,17 @@ class ContractPresenter extends Presenter
                 'searchable' => false,
                 'sortable' => true,
                 'switchable' => true,
-                'title' => trans('admin/contracts/table.contract_type'),
+                'title' => trans('admin/contracts/general.billing_mode'),
                 'visible' => true,
+            ],
+            [
+                'field' => 'contract_classification',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('admin/contracts/general.contract_classification'),
+                'visible' => false,
+                'formatter' => 'genericContractClassificationFormatter',
             ],
             [
                 'field' => 'status_label',
@@ -72,6 +81,7 @@ class ContractPresenter extends Presenter
                 'switchable' => true,
                 'title' => trans('admin/contracts/table.installment_value'),
                 'visible' => true,
+                'formatter' => 'contractMoneyFormatter',
             ],
             [
                 'field' => 'start_date',

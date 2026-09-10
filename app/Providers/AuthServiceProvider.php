@@ -12,6 +12,7 @@ use App\Models\Consumable;
 use App\Models\Contract;
 use App\Models\ContractInstallment;
 use App\Models\ContractAmendment;
+use App\Models\ContractType;
 use App\Models\CustomField;
 use App\Models\CustomFieldset;
 use App\Models\Department;
@@ -40,6 +41,7 @@ use App\Policies\ManufacturerPolicy;
 use App\Policies\PredefinedKitPolicy;
 use App\Policies\StatuslabelPolicy;
 use App\Policies\ContractPolicy;
+use App\Policies\ContractTypePolicy;
 use App\Policies\SupplierPolicy;
 use App\Policies\UserPolicy;
 use Carbon\Carbon;
@@ -77,6 +79,7 @@ class AuthServiceProvider extends ServiceProvider
         Contract::class => ContractPolicy::class,
         ContractInstallment::class => ContractPolicy::class,
         ContractAmendment::class => ContractPolicy::class,
+        ContractType::class => ContractTypePolicy::class,
         Supplier::class => SupplierPolicy::class,
         User::class => UserPolicy::class,
         Manufacturer::class => ManufacturerPolicy::class,
@@ -267,7 +270,8 @@ class AuthServiceProvider extends ServiceProvider
                 || $user->can('view', Manufacturer::class)
                 || $user->can('view', CustomField::class)
                 || $user->can('view', CustomFieldset::class)
-                || $user->can('view', Depreciation::class);
+                || $user->can('view', Depreciation::class)
+                || $user->can('view', ContractType::class);
         });
 
         // This  determines whether or not an API user should be able to get the selectlists.
@@ -292,7 +296,8 @@ class AuthServiceProvider extends ServiceProvider
                 || $user->can('create', User::class)
                 || ($user->hasAccess('reports.view'))
                 || $user->can('update', Contract::class)
-                || $user->can('create', Contract::class);
+                || $user->can('create', Contract::class)
+                || $user->can('view', ContractType::class);
         });
 
         // This determines whether the user can edit their profile based on the setting in Admin > General

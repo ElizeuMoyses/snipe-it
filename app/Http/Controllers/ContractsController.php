@@ -11,6 +11,8 @@ use App\Models\Contract;
 use App\Models\ContractInstallment;
 use App\Models\ContractStatusLabel;
 use App\Services\ContractAssetLinkService;
+use App\Models\ContractType;
+use App\Services\ContractInput;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Query\Builder;
 use App\Services\Contracts\ContractAuditService;
@@ -19,6 +21,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class ContractsController extends Controller
 {
@@ -98,7 +103,29 @@ class ContractsController extends Controller
     {
         $this->authorize('create', Contract::class);
 
-        return view('contracts/edit')->with('item', new Contract);
+        return view('contracts/edit')
+            ->with('item', new Contract)
+            ->with('contractTypes', ContractType::active()->orderBy('name')->get());
+    }
+
+    /**
+     * Calculate a preview using the same calendar and cent arithmetic as
+     * persisted installment generation.
+     */
+    public function preview(Request $request): JsonResponse
+    {
+        abort_unless(
+            Gate::allows('create', Contract::class) || Gate::allows('update', Contract::class),
+            403
+        );
+
+        try {
+            $contract = ContractInput::validatePreview($request->all());
+
+            return response()->json(['data' => $contract->installmentPreview()]);
+        } catch (ValidationException $exception) {
+            return response()->json(['message' => 'The given data was invalid.', 'errors' => $exception->errors()], 422);
+        }
     }
 
     /**
@@ -108,53 +135,36 @@ class ContractsController extends Controller
     {
         $this->authorize('create', Contract::class);
 
+        try {
+            $data = ContractInput::validate($request->all(), true);
+        } catch (ValidationException $exception) {
+            return redirect()->back()->withInput()->withErrors($exception->errors());
+        }
+
         $contract = new Contract;
-        $contract->name = $request->input('name');
-        $contract->contract_number = $request->input('contract_number');
-        $contract->contract_type = $request->input('contract_type');
-        $contract->supplier_id = $request->input('supplier_id');
-        $contract->company_id = Company::getIdForCurrentUser($request->input('company_id'));
-        $contract->start_date = $request->input('start_date');
-        $contract->end_date = $request->input('end_date');
-        $contract->billing_cycle = $request->input('billing_cycle');
-        $contract->billing_day = $request->input('billing_day');
-        $contract->installment_value = $request->input('installment_value');
-        $contract->total_value = $request->input('total_value');
-        $contract->total_installments = $request->input('total_installments');
-        $contract->readjustment_index = $request->input('readjustment_index');
-        $contract->readjustment_month = $request->input('readjustment_month');
-        $contract->description = $request->input('description');
-        $contract->notes = $request->input('notes');
+        ContractInput::apply($contract, $data);
         $contract->created_by = auth()->id();
 
-        // Set default status (draft)
-        $defaultStatus = ContractStatusLabel::defaultForMetaType('contract', 'draft');
-        $contract->status_label_id = $request->input('status_label_id', $defaultStatus?->id);
-
-        return $contract->getConnection()->transaction(function () use ($request, $contract) {
-            if ($contract->save()) {
-                app(ContractAuditService::class)->record(
-                    $contract,
-                    'contract.created',
-                    $contract,
-                    [],
-                    app(ContractAuditService::class)->snapshot($contract),
-                );
-
-                // Generate installments only if checkbox is checked (default: checked)
-                if ($request->has('auto_generate_installments') && $contract->start_date) {
-                    if ($contract->contract_type === 'recurring'
-                        || ($contract->contract_type === 'one_time'
-                            && ($contract->total_value > 0 || $contract->installment_value > 0))) {
-                        $contract->generateInstallments();
-                    }
+        try {
+            DB::transaction(function () use ($contract, $request) {
+                if (! $contract->save()) {
+                    throw new \RuntimeException('Contract creation failed.');
                 }
 
-                return redirect()->route('contracts.index')->with('success', trans('admin/contracts/message.create.success'));
-            }
+                app(ContractAuditService::class)->record($contract, 'contract.created', $contract, [], app(ContractAuditService::class)->snapshot($contract));
+                if ($request->has('auto_generate_installments')) {
+                    $contract->generateInstallments();
+                }
+            });
+        } catch (Throwable $exception) {
+            report($exception);
 
-            return redirect()->back()->withInput()->withErrors($contract->getErrors());
-        });
+            return redirect()->back()->withInput()->withErrors([
+                'contract' => trans('admin/contracts/message.create.error'),
+            ]);
+        }
+
+        return redirect()->route('contracts.index')->with('success', trans('admin/contracts/message.create.success'));
     }
 
     /**
@@ -164,7 +174,15 @@ class ContractsController extends Controller
     {
         $this->authorize('update', $contract);
 
-        return view('contracts/edit')->with('item', $contract);
+        return view('contracts/edit')
+            ->with('item', $contract)
+            ->with('contractTypes', ContractType::withTrashed()
+                ->where(function ($query) use ($contract) {
+                $query->where('is_active', true)->whereNull('deleted_at')
+                        ->orWhere('id', $contract->contract_type_id);
+                })
+                ->orderBy('name')
+                ->get());
     }
 
     /**
@@ -173,46 +191,27 @@ class ContractsController extends Controller
     public function update(Request $request, Contract $contract): RedirectResponse
     {
         $this->authorize('update', $contract);
-        $before = app(ContractAuditService::class)->snapshot($contract);
-
-        $contract->name = $request->input('name');
-        $contract->contract_number = $request->input('contract_number');
-        $contract->contract_type = $request->input('contract_type');
-        $contract->supplier_id = $request->input('supplier_id');
-        $contract->company_id = Company::getIdForCurrentUser($request->input('company_id'));
-        $contract->start_date = $request->input('start_date');
-        $contract->end_date = $request->input('end_date');
-        $contract->billing_cycle = $request->input('billing_cycle');
-        $contract->billing_day = $request->input('billing_day');
-        $contract->installment_value = $request->input('installment_value');
-        $contract->total_value = $request->input('total_value');
-        $contract->total_installments = $request->input('total_installments');
-        $contract->readjustment_index = $request->input('readjustment_index');
-        $contract->readjustment_month = $request->input('readjustment_month');
-        $contract->description = $request->input('description');
-        $contract->notes = $request->input('notes');
-        $contract->status_label_id = $request->input('status_label_id');
-
-        return $contract->getConnection()->transaction(function () use ($contract, $before) {
-            $changed = $contract->isDirty();
-            if ($contract->save()) {
-                if ($changed) {
-                    app(ContractAuditService::class)->record(
-                        $contract,
-                        'contract.updated',
-                        $contract,
-                        $before,
-                        app(ContractAuditService::class)->snapshot($contract),
-                    );
+        try {
+            return DB::transaction(function () use ($request, $contract) {
+                $contract = Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
+                $this->authorize('update', $contract);
+                $audit = app(ContractAuditService::class);
+                $before = $audit->snapshot($contract);
+                $data = ContractInput::validate($request->all(), false, $contract);
+                ContractInput::apply($contract, $data);
+                $changed = $contract->isDirty();
+                if (! $contract->save()) {
+                    return redirect()->back()->withInput()->withErrors($contract->getErrors());
                 }
-
+                if ($changed) {
+                    $audit->record($contract, 'contract.updated', $contract, $before, $audit->snapshot($contract));
+                }
                 return redirect()->route('contracts.index')->with('success', trans('admin/contracts/message.update.success'));
-            }
-
-            return redirect()->back()->withInput()->withErrors($contract->getErrors());
-        });
+            });
+        } catch (ValidationException $exception) {
+            return redirect()->back()->withInput()->withErrors($exception->errors());
+        }
     }
-
     /**
      * Delete the given contract.
      */
@@ -272,10 +271,12 @@ class ContractsController extends Controller
     {
         $this->authorize('view', $contract);
 
-        $contract->load(['installments.statusLabel', 'installments.adminuser', 'installments.uploads.adminuser', 'amendments.adminuser', 'assets.model', 'assets.assetstatus']);
+        $contract->load(['contractType', 'installments.statusLabel', 'installments.adminuser', 'installments.uploads.adminuser', 'amendments.adminuser', 'assets.model', 'assets.assetstatus']);
         $auditHistoryCount = app(ContractAuditService::class)->historyFor($contract, [], 0, 1)['total'];
 
-        return view('contracts/view', compact('contract', 'auditHistoryCount'));
+        $contractPreview = null;
+        try { $contractPreview = $contract->installmentPreview(); } catch (\InvalidArgumentException) {}
+        return view('contracts/view', compact('contract', 'auditHistoryCount', 'contractPreview'));
     }
 
     /**

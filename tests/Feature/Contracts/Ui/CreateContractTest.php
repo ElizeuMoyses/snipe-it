@@ -4,6 +4,9 @@ namespace Tests\Feature\Contracts\Ui;
 
 use App\Models\Contract;
 use App\Models\ContractStatusLabel;
+use App\Models\Company;
+use App\Models\ContractType;
+use App\Models\Supplier;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -26,14 +29,24 @@ class CreateContractTest extends TestCase
     public function test_contract_create_requires_name()
     {
         $statusLabel = ContractStatusLabel::factory()->draft()->create();
+        $supplier = Supplier::factory()->create();
+        $company = Company::factory()->create();
+        $type = ContractType::where('code', 'recurring')->firstOrFail();
 
         $response = $this->actingAs(User::factory()->superuser()->create())
             ->from(route('contracts.create'))
             ->post(route('contracts.store'), [
                 'contract_type' => 'recurring',
+                'contract_type_id' => $type->id,
                 'status_label_id' => $statusLabel->id,
+                'supplier_id' => $supplier->id,
+                'company_id' => $company->id,
                 'start_date' => '2026-01-01',
+                'end_date' => '2026-01-31',
+                'billing_cycle' => 'monthly',
+                'billing_day' => 1,
                 'installment_value' => '1000.00',
+                'description' => 'Contract description',
             ]);
 
         $response->assertStatus(302);
@@ -44,6 +57,9 @@ class CreateContractTest extends TestCase
     public function test_contract_create_stores_successfully()
     {
         $statusLabel = ContractStatusLabel::factory()->draft()->create();
+        $supplier = Supplier::factory()->create();
+        $company = Company::factory()->create();
+        $type = ContractType::where('code', 'recurring')->firstOrFail();
 
         $response = $this->actingAs(User::factory()->superuser()->create())
             ->from(route('contracts.create'))
@@ -51,11 +67,16 @@ class CreateContractTest extends TestCase
                 'name' => 'Test Valid Contract',
                 'contract_number' => 'CTR-TEST-001',
                 'contract_type' => 'recurring',
+                'contract_type_id' => $type->id,
                 'status_label_id' => $statusLabel->id,
+                'supplier_id' => $supplier->id,
+                'company_id' => $company->id,
                 'start_date' => '2026-01-01',
                 'end_date' => '2026-12-31',
                 'billing_cycle' => 'monthly',
+                'billing_day' => 1,
                 'installment_value' => '1500.00',
+                'description' => 'Contract description',
             ]);
 
         $response->assertSessionHasNoErrors();
@@ -70,15 +91,25 @@ class CreateContractTest extends TestCase
     public function test_contract_create_validates_contract_type()
     {
         $statusLabel = ContractStatusLabel::factory()->draft()->create();
+        $supplier = Supplier::factory()->create();
+        $company = Company::factory()->create();
+        $type = ContractType::where('code', 'recurring')->firstOrFail();
 
         $response = $this->actingAs(User::factory()->superuser()->create())
             ->from(route('contracts.create'))
             ->post(route('contracts.store'), [
                 'name' => 'Invalid Type Contract',
                 'contract_type' => 'invalid_type',
+                'contract_type_id' => $type->id,
                 'status_label_id' => $statusLabel->id,
+                'supplier_id' => $supplier->id,
+                'company_id' => $company->id,
                 'start_date' => '2026-01-01',
+                'end_date' => '2026-01-31',
+                'billing_cycle' => 'monthly',
+                'billing_day' => 1,
                 'installment_value' => '500.00',
+                'description' => 'Contract description',
             ]);
 
         $response->assertStatus(302);
@@ -89,16 +120,25 @@ class CreateContractTest extends TestCase
     public function test_contract_create_validates_end_date_after_start_date()
     {
         $statusLabel = ContractStatusLabel::factory()->draft()->create();
+        $supplier = Supplier::factory()->create();
+        $company = Company::factory()->create();
+        $type = ContractType::where('code', 'recurring')->firstOrFail();
 
         $response = $this->actingAs(User::factory()->superuser()->create())
             ->from(route('contracts.create'))
             ->post(route('contracts.store'), [
                 'name' => 'Bad Date Contract',
                 'contract_type' => 'recurring',
+                'contract_type_id' => $type->id,
                 'status_label_id' => $statusLabel->id,
+                'supplier_id' => $supplier->id,
+                'company_id' => $company->id,
                 'start_date' => '2026-06-01',
                 'end_date' => '2026-01-01',
+                'billing_cycle' => 'monthly',
+                'billing_day' => 1,
                 'installment_value' => '500.00',
+                'description' => 'Contract description',
             ]);
 
         $response->assertStatus(302);

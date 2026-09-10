@@ -4,6 +4,7 @@ namespace App\Http\Transformers;
 
 use App\Helpers\Helper;
 use App\Models\Contract;
+use App\Services\ContractMoney;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Gate;
 
@@ -29,9 +30,18 @@ class ContractsTransformer
                 'contract_type' => $contract->contract_type
                     ? trans('admin/contracts/general.type_'.$contract->contract_type)
                     : null,
-                'status_label' => $contract->statusLabel ? [
-                    'id' => (int) $contract->statusLabel->id,
-                    'name' => e($contract->statusLabel->name),
+                // Keep contract_type as the legacy billing-modality field;
+                // classification is now independently configurable.
+                'billing_modality'  => $contract->contract_type,
+                'contract_type_id'   => $contract->contract_type_id ? (int) $contract->contract_type_id : null,
+                'contract_classification' => $contract->contractType ? [
+                    'id'   => (int) $contract->contractType->id,
+                    'name' => e($contract->contractType->name),
+                    'code' => e($contract->contractType->code),
+                ] : null,
+                'status_label'      => $contract->statusLabel ? [
+                    'id'        => (int) $contract->statusLabel->id,
+                    'name'      => e($contract->statusLabel->name),
                     'meta_type' => e($contract->statusLabel->meta_type),
                     'color' => e($contract->statusLabel->color),
                     'icon' => e($contract->statusLabel->icon),
@@ -44,12 +54,15 @@ class ContractsTransformer
                     'id' => (int) $contract->company->id,
                     'name' => e($contract->company->name),
                 ] : null,
-                'start_date' => Helper::getFormattedDateObject($contract->start_date, 'date'),
-                'end_date' => Helper::getFormattedDateObject($contract->end_date, 'date'),
-                'billing_cycle' => e($contract->billing_cycle),
-                'billing_day' => $contract->billing_day,
-                'installment_value' => $contract->installment_value ? Helper::formatCurrencyOutput($contract->installment_value) : null,
-                'total_value' => $contract->total_value ? Helper::formatCurrencyOutput($contract->total_value) : null,
+                'start_date'        => Helper::getFormattedDateObject($contract->start_date, 'date'),
+                'end_date'          => Helper::getFormattedDateObject($contract->end_date, 'date'),
+                'billing_cycle'     => e($contract->billing_cycle),
+                'billing_day'       => $contract->billing_day,
+                'installment_value' => ContractMoney::toDecimal($contract->installment_value),
+                'installment_value_formatted' => self::formatAmount($contract->installment_value),
+                'total_value'       => ContractMoney::toDecimal($contract->total_value),
+                'total_value_formatted' => self::formatAmount($contract->total_value),
+                'total_value_mode'  => $contract->total_value_mode ?: 'automatic',
                 'total_installments' => $contract->total_installments ? (int) $contract->total_installments : null,
                 'installments_count' => (int) ($contract->installments_count ?? $contract->installments()->count()),
                 'pending_installments_count' => (int) ($contract->pending_installments_count ?? $contract->installments()->withTrashed()->pending()->count()),
@@ -75,5 +88,12 @@ class ContractsTransformer
 
             return $array;
         }
+    }
+
+    private static function formatAmount(mixed $amount): ?string
+    {
+        $cents = ContractMoney::toCents($amount);
+
+        return $cents === null ? null : ContractMoney::centsToBr($cents);
     }
 }

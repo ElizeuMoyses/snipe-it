@@ -348,3 +348,12 @@ removida. Filhos, vínculos e arquivos preservados. Evento unificado referencia
 Actionlog para não duplicar a leitura. Regressão SQLite: 121/568 passou;
 verificação adicional de motivo e deduplicação: 3/27 passou. Build e QA visual
 do conjunto final ainda serão executados antes do fechamento das issues.
+
+Cadastro integrado centralmente a partir do código 68dea21691 (#16/#9), preservando
+histórico, vínculo e arquivamento. Obrigatórios, classificação configurável,
+prévia única de calendário e total automático/manual. Decisão do responsável:
+manual é negociado separado, sem redistribuição. Regra de vigência e dias 1–31
+mantém ajuste de fim de mês. Regressão SQLite contratos/tipos/moeda: 141/655;
+compatibilidade legada e regras adicionais: 9/49. Migrations 000002/000003
+aplicadas na réplica local após novo backup privado. API aceita decimal canônico;
+formulário aceita valores brasileiros. Atualização web ocorre sob lock e auditoria.

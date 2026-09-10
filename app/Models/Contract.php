@@ -10,6 +10,7 @@ use App\Models\Traits\Searchable;
 use App\Presenters\ContractPresenter;
 use App\Presenters\Presentable;
 use App\Services\Contracts\ContractAuditService;
+use App\Services\ContractMoney;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -36,6 +37,7 @@ class Contract extends SnipeModel
         'name',
         'contract_number',
         'contract_type',
+        'contract_type_id',
         'status_label_id',
         'supplier_id',
         'company_id',
@@ -45,6 +47,7 @@ class Contract extends SnipeModel
         'billing_day',
         'installment_value',
         'total_value',
+        'total_value_mode',
         'total_installments',
         'readjustment_index',
         'readjustment_month',
@@ -57,12 +60,14 @@ class Contract extends SnipeModel
         'end_date'           => 'date',
         'installment_value'  => 'decimal:2',
         'total_value'        => 'decimal:2',
+        'total_value_mode'   => 'string',
         'total_installments' => 'integer',
         'readjustment_month' => 'integer',
         'billing_day'        => 'integer',
         'supplier_id'        => 'integer',
         'company_id'         => 'integer',
         'status_label_id'    => 'integer',
+        'contract_type_id'   => 'integer',
     ];
 
     protected $rules = [
@@ -74,9 +79,11 @@ class Contract extends SnipeModel
         'start_date'         => 'required|date',
         'end_date'           => 'nullable|date|after_or_equal:start_date',
         'billing_cycle'      => 'nullable|in:monthly,quarterly,semiannual,annual,one_time',
-        'billing_day'        => 'nullable|integer|min:1|max:28',
+        'billing_day'        => 'nullable|integer|min:1|max:31',
         'installment_value'  => 'required|numeric|min:0',
         'total_value'        => 'nullable|numeric|min:0',
+        'total_value_mode'   => 'nullable|in:automatic,manual',
+        'contract_type_id'   => 'nullable|exists:contract_types,id',
         'total_installments' => 'nullable|integer|min:1',
         'readjustment_index' => 'nullable|max:50|string',
         'readjustment_month' => 'nullable|integer|min:1|max:12',
@@ -111,6 +118,11 @@ class Contract extends SnipeModel
     public function statusLabel()
     {
         return $this->belongsTo(ContractStatusLabel::class, 'status_label_id');
+    }
+
+    public function contractType()
+    {
+        return $this->belongsTo(ContractType::class, 'contract_type_id')->withTrashed();
     }
 
     public function installments()
@@ -182,6 +194,59 @@ class Contract extends SnipeModel
 
     // ── Installment generation ──────────────────────────────────────
 
+    public const BILLING_CYCLES = [
+        'monthly' => 1,
+        'quarterly' => 3,
+        'semiannual' => 6,
+        'annual' => 12,
+        'one_time' => 0,
+    ];
+
+    public function billingCycleIntervalInMonths(): int
+    {
+        return self::BILLING_CYCLES[$this->billing_cycle] ?? 1;
+    }
+
+    /**
+     * Return the dates that a new contract would plan, without considering
+     * installments already stored for an existing contract.
+     */
+    public function plannedInstallmentDates(): array
+    {
+        if ($this->contract_type === 'one_time') {
+            return $this->oneTimeInstallmentDates();
+        }
+
+        return $this->recurringInstallmentDatesForPlan();
+    }
+
+    /**
+     * Return the server-side preview used by the form and the preview API.
+     * All totals are calculated in integer cents.
+     */
+    public function installmentPreview(): array
+    {
+        $dates = $this->plannedInstallmentDates();
+        $installmentCents = ContractMoney::toCents($this->installment_value) ?? 0;
+        $plannedTotalCents = count($dates) * $installmentCents;
+        $negotiatedTotalCents = ContractMoney::toCents($this->total_value);
+
+        return [
+            'installments_count' => count($dates),
+            'first_due_date' => ($dates[0] ?? null)?->toDateString(),
+            'last_due_date' => ($dates[count($dates) - 1] ?? null)?->toDateString(),
+            'planned_total' => ContractMoney::centsToDecimal($plannedTotalCents),
+            'negotiated_total' => $negotiatedTotalCents === null
+                ? null
+                : ContractMoney::centsToDecimal($negotiatedTotalCents),
+            'difference' => $negotiatedTotalCents === null
+                ? null
+                : ContractMoney::centsToDecimal($negotiatedTotalCents - $plannedTotalCents),
+            'total_value_mode' => $this->total_value_mode ?: 'automatic',
+            'dates' => array_map(static fn (Carbon $date) => $date->toDateString(), $dates),
+        ];
+    }
+
     /**
      * Generate installments based on contract type and billing cycle.
      */
@@ -212,7 +277,7 @@ class Contract extends SnipeModel
         $generatedIds = [];
 
         if ($this->contract_type === 'one_time') {
-            if ($this->installments()->exists()) {
+            if ($this->installments()->withTrashed()->exists()) {
                 return 0;
             }
 
@@ -255,26 +320,11 @@ class Contract extends SnipeModel
 
     protected function generateOneTimeInstallments(ContractStatusLabel $defaultStatus, int $count, array &$generatedIds = []): int
     {
-        $totalInstallments = $this->total_installments ?: 1;
-        // Decimal casts provide two places; distribute integer cents so the
-        // installment sum always matches the contract, including a zero total.
-        $totalCents = $this->total_value !== null
-            ? (int) str_replace('.', '', $this->total_value)
-            : null;
-        $baseCents = $totalCents !== null ? intdiv($totalCents, $totalInstallments) : null;
+        $dates = $this->oneTimeInstallmentDates();
+        $valuePerInstallment = ContractMoney::toDecimal($this->installment_value) ?? '0.00';
 
-        for ($i = 1; $i <= $totalInstallments; $i++) {
-            $dueDate = $this->resolveInstallmentDueDate(
-                $this->start_date->copy()->addMonthsNoOverflow($i - 1)
-            );
-
-            $cents = $baseCents;
-            if ($cents !== null && $i === $totalInstallments) {
-                $cents += $totalCents % $totalInstallments;
-            }
-            $valuePerInstallment = $cents !== null
-                ? intdiv($cents, 100).'.'.str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT)
-                : $this->installment_value;
+        foreach ($dates as $index => $dueDate) {
+            $i = $index + 1;
 
             $installment = $this->installments()->create([
                 'installment_number' => $i,
@@ -296,7 +346,7 @@ class Contract extends SnipeModel
 
     protected function generateRecurringInstallments(ContractStatusLabel $defaultStatus, ?Carbon $from, int $count, array &$generatedIds = []): int
     {
-        $number = $this->installments()->count();
+        $number = (int) ($this->installments()->withTrashed()->max('installment_number') ?: 0);
         foreach ($this->recurringInstallmentDates($from) as $dueDate) {
             $installment = $this->installments()->create([
                 'installment_number' => ++$number,
@@ -319,6 +369,19 @@ class Contract extends SnipeModel
     /** Shared calendar for generation and renewal preview; from is only a lower bound. */
     public function recurringInstallmentDates(?Carbon $from = null, ?Carbon $until = null): array
     {
+        return $this->recurringInstallmentDatesForPlan($from, $until, true);
+    }
+
+    protected function recurringInstallmentDatesForPlan(
+        ?Carbon $from = null,
+        ?Carbon $until = null,
+        bool $excludeExisting = false
+    ): array
+    {
+        if (! $this->start_date) {
+            return [];
+        }
+
         $start = $this->start_date->copy();
         $end = $until ?: $this->end_date;
 
@@ -327,24 +390,27 @@ class Contract extends SnipeModel
             $end = ($from ?: $start)->copy()->addMonthsNoOverflow(11)->endOfMonth();
         }
 
-        $monthsInterval = match ($this->billing_cycle) {
-            'monthly'    => 1,
-            'quarterly'  => 3,
-            'semiannual' => 6,
-            'annual'     => 12,
-            default      => 1,
-        };
+        $monthsInterval = $this->billingCycleIntervalInMonths() ?: 1;
 
         $current = $this->billing_day ? $start->copy()->startOfMonth() : $start->copy();
         $anchor = $current->copy();
         $monthOffset = 0;
         $dates = [];
 
-        $lastInstallment = $this->installments()->latest('due_date')->first();
         $thresholdDate = $from ? $from->copy()->subDay() : null;
 
-        if ($lastInstallment?->due_date && (! $thresholdDate || $lastInstallment->due_date->gt($thresholdDate))) {
-            $thresholdDate = $lastInstallment->due_date->copy();
+        if ($excludeExisting) {
+            $lastInstallment = $this->installments()->withTrashed()->latest('due_date')->first();
+
+            if ($lastInstallment?->due_date && (! $thresholdDate || $lastInstallment->due_date->gt($thresholdDate))) {
+                $thresholdDate = $lastInstallment->due_date->copy();
+            }
+        }
+
+        // A billing day earlier than the start day belongs to the next cycle.
+        $startThreshold = $start->copy()->subDay();
+        if (! $thresholdDate || $startThreshold->gt($thresholdDate)) {
+            $thresholdDate = $startThreshold;
         }
 
         while ($thresholdDate && $this->resolveInstallmentDueDate($current)->lte($thresholdDate)) {
@@ -357,6 +423,56 @@ class Contract extends SnipeModel
             $dates[] = $dueDate;
             $monthOffset += $monthsInterval;
             $current = $anchor->copy()->addMonthsNoOverflow($monthOffset);
+        }
+
+        return $dates;
+    }
+
+    protected function oneTimeInstallmentDates(): array
+    {
+        if (! $this->start_date) {
+            return [];
+        }
+
+        $totalInstallments = (int) ($this->total_installments ?: 1);
+        $interval = $this->billingCycleIntervalInMonths();
+
+        if ($interval === 0 && $totalInstallments > 1) {
+            throw new \InvalidArgumentException(
+                'A one-time billing cycle supports only one installment.'
+            );
+        }
+
+        $start = $this->start_date->copy();
+        $end = $this->end_date;
+        $anchor = $this->billing_day ? $start->copy()->startOfMonth() : $start->copy();
+        $offset = 0;
+        $firstDate = $this->resolveInstallmentDueDate($anchor);
+
+        while ($firstDate->lt($start) && $interval > 0) {
+            $offset += $interval;
+            $firstDate = $this->resolveInstallmentDueDate(
+                $anchor->copy()->addMonthsNoOverflow($offset)
+            );
+        }
+
+        if ($firstDate->lt($start)) {
+            return [];
+        }
+
+        $dates = [];
+        for ($index = 0; $index < $totalInstallments; $index++) {
+            $dueDate = $this->resolveInstallmentDueDate(
+                $anchor->copy()->addMonthsNoOverflow($offset + ($index * $interval))
+            );
+
+            if ($end && $dueDate->gt($end)) {
+                throw new \InvalidArgumentException(
+                    'The selected installment quantity does not fit within the contract period.'
+                );
+            }
+
+            $dates[] = $dueDate;
         }
 
         return $dates;
