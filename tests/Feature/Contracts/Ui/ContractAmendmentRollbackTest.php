@@ -9,6 +9,44 @@ use Tests\TestCase;
 
 class ContractAmendmentRollbackTest extends TestCase
 {
+    public static function amendmentFailureCases(): array
+    {
+        return [['renewal', false], ['renewal', true], ['termination', false], ['termination', true]];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('amendmentFailureCases')]
+    public function test_renewal_and_termination_rollback_rejected_installments(string $type, bool $api): void
+    {
+        $this->withoutExceptionHandling();
+        $user = User::factory()->superuser()->create();
+        $api ? $this->actingAsForApi($user) : $this->actingAs($user);
+        $contract = Contract::factory()->recurring()->withActiveStatus()->create([
+            'start_date' => '2026-01-01', 'end_date' => '2026-03-31',
+        ]);
+        $contract->generateInstallments();
+        $before = $contract->installments()->orderBy('id')->get(['id', 'status_label_id', 'expected_value'])->toArray();
+        $dispatcher = ContractInstallment::getEventDispatcher();
+        ContractInstallment::setEventDispatcher(clone $dispatcher);
+        ContractInstallment::saving(fn ($installment) =>
+            ($type === 'renewal' ? $installment->installment_number === 5 : $installment->id === $before[1]['id']) ? false : null);
+        $failed = false;
+        try {
+            $this->post(route($api ? 'api.contracts.amendments.store' : 'contracts.amendments.store', $contract), [
+                'amendment_type' => $type, 'description' => 'Synthetic partial failure',
+                'effective_date' => '2025-12-31', 'old_end_date' => '2026-03-31', 'new_end_date' => '2026-06-30',
+            ]);
+        } catch (\RuntimeException $exception) {
+            $failed = true;
+        } finally {
+            ContractInstallment::setEventDispatcher($dispatcher);
+        }
+        $this->assertTrue($failed);
+        $this->assertSame('2026-03-31', $contract->fresh()->end_date->format('Y-m-d'));
+        $this->assertSame($contract->status_label_id, $contract->fresh()->status_label_id);
+        $this->assertSame($before, $contract->installments()->orderBy('id')->get(['id', 'status_label_id', 'expected_value'])->toArray());
+        $this->assertSame(0, $contract->amendments()->count());
+    }
+
     public function test_failed_installment_save_rolls_back_the_whole_readjustment(): void
     {
         $this->assertReadjustmentRollback(false);

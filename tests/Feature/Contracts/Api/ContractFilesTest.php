@@ -13,6 +13,18 @@ use Tests\TestCase;
 
 class ContractFilesTest extends TestCase
 {
+    public function test_oversized_file_is_rejected_without_persistence(): void
+    {
+        Storage::fake();
+        $contract = Contract::factory()->create();
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->postJson(route('api.files.store', ['object_type' => 'contracts', 'id' => $contract->id]), [
+                'file' => [UploadedFile::fake()->image('oversized.png')->size((int) \App\Helpers\Helper::file_upload_max_size() + 1)],
+            ])->assertStatusMessageIs('error');
+        $this->assertSame(0, $contract->uploads()->count());
+        $this->assertSame([], Storage::allFiles());
+    }
+
     public function test_authorized_user_can_upload_amendment_files(): void
     {
         Storage::fake();

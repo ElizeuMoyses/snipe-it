@@ -9,6 +9,31 @@ use Tests\TestCase;
 
 class ContractInstallmentBoundaryTest extends TestCase
 {
+    public function test_rejected_creation_rolls_back_one_time_and_recurring_generation(): void
+    {
+        $this->actingAs(User::factory()->superuser()->create());
+        foreach (['one_time', 'recurring'] as $type) {
+            $contract = Contract::factory()->create([
+                'contract_type' => $type, 'billing_cycle' => 'monthly',
+                'start_date' => '2026-01-01', 'end_date' => '2026-03-31',
+                'total_installments' => 3, 'total_value' => '300.00',
+            ]);
+            $dispatcher = ContractInstallment::getEventDispatcher();
+            ContractInstallment::setEventDispatcher(clone $dispatcher);
+            ContractInstallment::creating(fn ($installment) => $installment->installment_number === 2 ? false : null);
+            $failed = false;
+            try {
+                $contract->generateInstallments();
+            } catch (\RuntimeException $exception) {
+                $failed = true;
+            } finally {
+                ContractInstallment::setEventDispatcher($dispatcher);
+            }
+            $this->assertTrue($failed, 'Rejected creation must fail generation for '.$type);
+            $this->assertSame(0, $contract->installments()->count());
+        }
+    }
+
     public function test_recurring_cycles_preserve_month_end_and_leap_year(): void
     {
         $this->actingAs(User::factory()->superuser()->create());

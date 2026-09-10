@@ -237,7 +237,7 @@ class Contract extends SnipeModel
                 ? intdiv($cents, 100).'.'.str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT)
                 : $this->installment_value;
 
-            $this->installments()->create([
+            $installment = $this->installments()->create([
                 'installment_number' => $i,
                 'reference_date'     => $dueDate->copy()->startOfMonth(),
                 'due_date'           => $dueDate,
@@ -245,6 +245,9 @@ class Contract extends SnipeModel
                 'status_label_id'    => $defaultStatus->id,
                 'created_by'         => auth()->id(),
             ]);
+            if (! $installment->exists) {
+                throw new \RuntimeException('Installment creation failed');
+            }
             $count++;
         }
 
@@ -291,7 +294,7 @@ class Contract extends SnipeModel
             $number++;
             $dueDate = $this->resolveInstallmentDueDate($current);
 
-            $this->installments()->create([
+            $installment = $this->installments()->create([
                 'installment_number' => $number,
                 'reference_date'     => $current->copy()->startOfMonth(),
                 'due_date'           => $dueDate,
@@ -299,6 +302,9 @@ class Contract extends SnipeModel
                 'status_label_id'    => $defaultStatus->id,
                 'created_by'         => auth()->id(),
             ]);
+            if (! $installment->exists) {
+                throw new \RuntimeException('Installment creation failed');
+            }
             $count++;
             $monthOffset += $monthsInterval;
             $current = $anchor->copy()->addMonthsNoOverflow($monthOffset);

@@ -71,8 +71,8 @@ O botão de anexo apontava para ID ignorado pelo modal compartilhado. Agora o
 modal respeita ID opcional e mantém o padrão dos demais módulos; input e mensagens
 usam IDs correspondentes. A listagem passa o objeto do aditivo ao componente de
 arquivos, com identificador distinto por tabela. O modal abriu no navegador.
-Teste de renderização com envio pela rota UI passou: 1 teste / 7 asserções antes
-do ajuste final de ID da tabela; seleção de arquivos está sendo repetida.
+Seleção de renderização com envio pela rota UI e testes de arquivos passou:
+**6 testes / 28 asserções**, incluindo o ID distinto da tabela de anexos.
 
 ## Critérios ainda pendentes
 
@@ -84,15 +84,21 @@ abortar a transação do controlador. Rollback UI e API, junto aos limites de
 calendário, passou em MariaDB: **9 testes / 34 asserções**. Seleção anterior em
 SQLite: **11 testes / 41 asserções**. Concorrência real `payment-termination`
 passou com dois processos, uma rescisão, nenhum pendente restante e coerência
-entre status pago e valor pago. A cobertura de falhas específicas de renovação e
-rescisão ainda deve ser conferida; não inferir todos os casos do teste de reajuste.
+entre status pago e valor pago.
+
+Gravação recusada durante geração também foi reproduzida: `create()` retornava
+modelo não persistido e a parcela era contada como criada. Geração agora exige
+persistência e lança exceção para rollback. Reexecução MariaDB de geração,
+calendário e rollback de reajuste, renovação e rescisão UI/API: **14 testes / 58
+asserções passaram**. Os casos verificam que contrato, parcelas anteriores e
+ausência de aditivo são preservados após falha parcial. Arquivo acima do limite:
+**1 teste / 3 asserções passou**, sem arquivo nem registro persistido.
 
 - [ ] Concluir validação de anexos no fluxo real e confirmar download/listagem;
       validar dashboard e fluxo de assinatura/CSP afetado pela release.
-- [ ] Concluir auditoria da issue #3: falhas específicas de renovação/rescisão e
-      persistência recusada na geração; calendário e disputa rescisão/pagamento
-      já possuem evidência acima.
-- [ ] Auditar os critérios completos da issue #4, incluindo tamanho de arquivo e
+- [ ] Concluir auditoria da issue #3 confrontando os critérios e testes existentes;
+      calendário, falhas parciais e disputa rescisão/pagamento possuem evidência acima.
+- [ ] Auditar os critérios completos da issue #4, incluindo
       equivalência UI/API; testes existentes não dispensam essa conferência.
 - [ ] Revisar o diff completo e obter resultado local/CI do candidato final estável.
 - [ ] Consolidar runbook de liberação/recuperação e relatório GO/NO-GO; atualizar
