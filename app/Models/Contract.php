@@ -330,7 +330,9 @@ class Contract extends SnipeModel
         $oldValue = $this->installment_value;
 
         $this->installment_value = $amendment->new_value;
-        $this->save();
+        if (! $this->save()) {
+            throw new \RuntimeException('Contract amendment update failed');
+        }
 
         $pendingInstallments = $this->installments()
             ->pending()
@@ -340,7 +342,9 @@ class Contract extends SnipeModel
         $updatedCount = 0;
         foreach ($pendingInstallments as $installment) {
             $installment->expected_value = $amendment->new_value;
-            $installment->save();
+            if (! $installment->save()) {
+                throw new \RuntimeException('Installment amendment update failed');
+            }
             $updatedCount++;
         }
 
@@ -372,7 +376,9 @@ class Contract extends SnipeModel
             $this->installment_value = $amendment->new_value;
         }
 
-        $this->save();
+        if (! $this->save()) {
+            throw new \RuntimeException('Contract amendment update failed');
+        }
 
         $generationStart = $amendment->old_end_date->copy()->addDay();
 
@@ -407,14 +413,18 @@ class Contract extends SnipeModel
         $cancelledCount = 0;
         foreach ($pendingToCancel as $installment) {
             $installment->status_label_id = $defaultCancelledInstallment->id;
-            $installment->save();
+            if (! $installment->save()) {
+                throw new \RuntimeException('Installment amendment update failed');
+            }
             $cancelledCount++;
         }
 
         $keptOverdueCount = $this->installments()->overdue()->count();
 
         $this->status_label_id = $defaultCancelledContract->id;
-        $this->save();
+        if (! $this->save()) {
+            throw new \RuntimeException('Contract amendment update failed');
+        }
 
         return [
             'cancelled_count'   => $cancelledCount,

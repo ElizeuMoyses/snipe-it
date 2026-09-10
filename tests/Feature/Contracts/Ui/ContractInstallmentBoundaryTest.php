@@ -9,6 +9,25 @@ use Tests\TestCase;
 
 class ContractInstallmentBoundaryTest extends TestCase
 {
+    public function test_recurring_cycles_preserve_month_end_and_leap_year(): void
+    {
+        $this->actingAs(User::factory()->superuser()->create());
+        foreach ([
+            ['monthly', '2024-01-31', '2024-03-31', ['2024-01-31', '2024-02-29', '2024-03-31']],
+            ['quarterly', '2024-01-31', '2024-10-31', ['2024-01-31', '2024-04-30', '2024-07-31', '2024-10-31']],
+            ['semiannual', '2024-08-31', '2025-08-31', ['2024-08-31', '2025-02-28', '2025-08-31']],
+            ['annual', '2024-02-29', '2028-02-29', ['2024-02-29', '2025-02-28', '2026-02-28', '2027-02-28', '2028-02-29']],
+        ] as [$cycle, $start, $end, $expected]) {
+            $contract = Contract::factory()->recurring()->create([
+                'billing_cycle' => $cycle, 'start_date' => $start, 'end_date' => $end,
+            ]);
+            $this->assertSame(count($expected), $contract->generateInstallments());
+            $this->assertSame($expected, $contract->installments()->orderBy('installment_number')->get()
+                ->map(fn ($installment) => $installment->due_date->format('Y-m-d'))->all());
+            $this->assertSame(0, $contract->generateInstallments());
+        }
+    }
+
     public function test_failed_generation_rolls_back_all_created_installments(): void
     {
         $this->actingAs(User::factory()->superuser()->create());

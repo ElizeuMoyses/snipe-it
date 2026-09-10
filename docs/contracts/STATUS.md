@@ -76,10 +76,22 @@ do ajuste final de ID da tabela; seleção de arquivos está sendo repetida.
 
 ## Critérios ainda pendentes
 
+Atualização financeira: casos mensal bissexto, trimestral, semestral e anual
+passaram, incluindo retorno a 29/02 no próximo ano bissexto e repetição sem novas
+parcelas. Teste de gravação recusada reproduziu reajuste parcial: `save()` falso
+era ignorado. Os efeitos de aditivos agora lançam exceção nessas recusas para
+abortar a transação do controlador. Rollback UI e API, junto aos limites de
+calendário, passou em MariaDB: **9 testes / 34 asserções**. Seleção anterior em
+SQLite: **11 testes / 41 asserções**. Concorrência real `payment-termination`
+passou com dois processos, uma rescisão, nenhum pendente restante e coerência
+entre status pago e valor pago. A cobertura de falhas específicas de renovação e
+rescisão ainda deve ser conferida; não inferir todos os casos do teste de reajuste.
+
 - [ ] Concluir validação de anexos no fluxo real e confirmar download/listagem;
       validar dashboard e fluxo de assinatura/CSP afetado pela release.
-- [ ] Auditar cobertura explícita da issue #3: trimestral/anual, bissexto, aditivos
-      com rollback em falha e disputa entre aditivo e pagamento.
+- [ ] Concluir auditoria da issue #3: falhas específicas de renovação/rescisão e
+      persistência recusada na geração; calendário e disputa rescisão/pagamento
+      já possuem evidência acima.
 - [ ] Auditar os critérios completos da issue #4, incluindo tamanho de arquivo e
       equivalência UI/API; testes existentes não dispensam essa conferência.
 - [ ] Revisar o diff completo e obter resultado local/CI do candidato final estável.
@@ -95,7 +107,7 @@ Não recrie a réplica nem sobrescreva assets existentes. PHPUnit destrutivo som
 em banco descartável de testes, nunca na réplica, referência ou produção.
 `scripts/qa/contracts-concurrency.php` exige banco sintético `snipeit_concurrency`
 com migrations; modos: geração sem argumento, `payment`, `payment-ui`,
-`payment-cancel`. Preserve fonte imutável durante suítes completas.
+`payment-cancel`, `payment-termination`. Preserve fonte imutável durante suítes completas.
 
 O contrato sintético local `QA-20260910-01` contém um pagamento e um reajuste já
 persistidos; não repetir esses POSTs para resolver problema de leitura. A aba de
