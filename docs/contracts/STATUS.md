@@ -132,15 +132,12 @@ asserções passaram**. Os casos verificam que contrato, parcelas anteriores e
 ausência de aditivo são preservados após falha parcial. Arquivo acima do limite:
 **1 teste / 3 asserções passou**, sem arquivo nem registro persistido.
 
-- [ ] Concluir validação de anexos no fluxo real e confirmar download/listagem;
-      validar dashboard e fluxo de assinatura/CSP afetado pela release.
+- [x] Anexos, download/listagem, dashboard e assinatura/CSP desktop validados.
 - [ ] Concluir auditoria da issue #3 confrontando os critérios e testes existentes;
       calendário, falhas parciais e disputa rescisão/pagamento possuem evidência acima.
-- [ ] Auditar os critérios completos da issue #4, incluindo
-      equivalência UI/API; testes existentes não dispensam essa conferência.
-- [ ] Revisar o diff completo e obter resultado local/CI do candidato final estável.
-- [ ] Consolidar runbook de liberação/recuperação e relatório GO/NO-GO; atualizar
-      Project, issues e descrição do PR conforme evidência, sem fechar aceite pendente.
+- [x] Critérios da issue #4 e equivalência UI/API conferidos; geração opcional corrigida.
+- [ ] Conferir CI final de efbcf9ab7d; revisão de integração registrada em READINESS-REVIEW.md.
+- [x] Runbook e revisão NO-GO consolidados; acompanhamento atualizado sem fechar aceite pendente.
 - [ ] Aceite funcional do responsável antes de liberar produção. CI verde não é
       aceite humano nem autorização de deploy.
 
@@ -202,3 +199,16 @@ status terminal após recarregar o contrato sob lock. MariaDB: 16 testes / 46
 asserções passaram, incluindo geração e calendário; JUnit privado
 contracts-terminal-generation.xml. Essa verificação fecha a janela entre a
 checagem do controlador e a obtenção do bloqueio.
+
+
+Validação final local do código efbcf9ab7d: **81 testes / 266 asserções**,
+contratos e status em MariaDB; zero falhas. Artefato privado contracts-final-efbc.xml.
+CI MariaDB contratos e suíte completa passaram no run 34501057231. PHP 8.2,
+SQLite/PHP 8.3 e PHP 8.4 passaram; suíte herdada PHP 8.3 ainda executava no último
+check (run 34501057316, job 102951650348). Não reiniciar por demora de observação.
+
+Revisão: [READINESS-REVIEW.md](READINESS-REVIEW.md). Project conferido: #2, #4 e #5
+concluídas/Done; #1, #3 e #6 permanecem abertas/In Progress. Milestone aberta,
+PR draft. Próximo passo: resultado do job indicado, definição de calendário e
+aceite humano. Smoke de assinatura já concluído; não recriar fixture nem repetir
+seu POST. Dados e artefatos privados continuam ignorados pelo Git.
