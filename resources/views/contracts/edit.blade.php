@@ -40,10 +40,11 @@
 <div class="form-group {{ $errors->has('status_label_id') ? ' has-error' : '' }}">
     <label for="status_label_id" class="col-md-3 control-label">{{ trans('admin/contracts/general.status_label') }}</label>
     <div class="col-md-7">
-        <select class="js-data-ajax" data-endpoint="contract-status-labels" data-placeholder="{{ trans('admin/contracts/general.select_status') }}" name="status_label_id" style="width: 100%" id="status_label_id" aria-label="status_label_id">
-            @if ($item->status_label_id)
-                <option value="{{ $item->status_label_id }}" selected="selected" role="option" aria-selected="true">{{ $item->statusLabel->name ?? '' }}</option>
-            @endif
+        <select class="select2" data-placeholder="{{ trans('admin/contracts/general.select_status') }}" name="status_label_id" style="width: 100%" id="status_label_id" aria-label="status_label_id">
+            <option value="">{{ trans('admin/contracts/general.select_status') }}</option>
+            @foreach (\App\Models\ContractStatusLabel::where('scope', 'contract')->orderBy('name')->get() as $contractStatus)
+                <option value="{{ $contractStatus->id }}" @selected(old('status_label_id', $item->status_label_id) == $contractStatus->id)>{{ $contractStatus->name }}</option>
+            @endforeach
         </select>
         {!! $errors->first('status_label_id', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
     </div>
@@ -104,7 +105,7 @@
     <div class="col-md-7">
         <div class="input-group">
             <span class="input-group-addon">{{ $snipeSettings->default_currency }}</span>
-            <input class="form-control" name="installment_value" type="text" id="installment_value" value="{{ old('installment_value', $item->installment_value) }}">
+            <input class="form-control" name="installment_value" type="text" id="installment_value" required aria-required="true" value="{{ old('installment_value', $item->installment_value) }}">
         </div>
         {!! $errors->first('installment_value', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
     </div>

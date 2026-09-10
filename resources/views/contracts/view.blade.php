@@ -22,6 +22,7 @@
 
                     <x-tabs.nav-item
                         name="installments"
+                        class="active"
                         icon="fas fa-money-bill-wave"
                         label="{{ trans('admin/contracts/general.installments') }}"
                         count="{{ $contract->installments->count() }}"
@@ -56,7 +57,7 @@
                 <x-slot:tabpanes>
 
                     <!-- start installments tab pane -->
-                    <x-tabs.pane name="installments">
+                    <x-tabs.pane name="installments" class="active in">
                         @can('installments', $contract)
                             @if(! in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled']))
                                 <div class="row" style="margin-bottom: 10px;">

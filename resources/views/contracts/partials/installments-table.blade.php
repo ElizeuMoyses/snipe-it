@@ -17,7 +17,7 @@
                     <th>{{ trans('admin/contracts/general.payment_method') }}</th>
                     <th>{{ trans('admin/contracts/general.ticket_reference') }}</th>
                     <th>{{ trans('admin/contracts/general.status_label') }}</th>
-                    <th>{{ trans('general.actions') }}</th>
+                    <th>{{ trans('table.actions') }}</th>
                 </tr>
             </thead>
             @php

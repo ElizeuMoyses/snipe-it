@@ -1,6 +1,7 @@
 # Contratos v1 — validação para produção
 
-**Decisão atual: NO-GO.** Ainda há falhas de regressão e critérios pendentes.
+**Decisão atual: NO-GO.** Regressões automatizadas passaram; aceite funcional
+completo e verificação do candidato final ainda estão pendentes.
 Atualizado em 2026-09-10. Nenhum deploy realizado nesta etapa.
 
 ## Acompanhamento
@@ -49,6 +50,18 @@ em notificações/aceite e filtros por contagens. Não foram classificadas como
 preexistentes sem comparação equivalente da base.
 
 ## Próximos passos
+
+Evidência mais recente: suíte completa local imutável de `39229d1159`: **1522
+testes / 5160 asserções, zero erros e falhas, 4 ignorados e 30 incompletos**.
+JUnit privado: `.local-validation/candidate-39229-results.xml`. Seleção MariaDB
+após correção de concorrência `fd10eccc2e`: **54 testes / 142 asserções passaram**.
+No navegador local, contrato sintético foi criado com três parcelas de 33,33,
+33,33 e 33,34, vencimentos 31/01, 28/02 e 31/03/2026. Pagamento sintético da primeira
+parcela retornou sucesso. Ainda falta aditivo, anexos e revisão visual final.
+Correções de interface subsequentes preservam seleção de status após validação,
+limitam opções ao escopo contrato, indicam valor obrigatório, ativam a aba inicial
+e corrigem o título de ações. A mensagem de campo usa `aria-hidden` no padrão
+existente, portanto sua ausência na árvore acessível não comprova ausência visual.
 
 Revisão adicional de concorrência: a disputa pagamento/cancelamento UI reproduziu
 o desvio do bloqueio de contrato. Alterações de status, edição, exclusão e criação
