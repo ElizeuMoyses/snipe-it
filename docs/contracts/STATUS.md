@@ -88,7 +88,7 @@ parcela pendente e podia sobrescrever um pagamento ocorrido depois da seleção.
 Teste reproduziu a mudança incorreta; rotina agora bloqueia contrato/parcela e
 revalida status e data na transação. SQLite: **2 testes / 9 asserções passaram**,
 incluindo pagamento intercalado, preservação de vencimento hoje e repetição.
-Esta alteração posterior não está na cópia imutável `a6691ab4f1` em execução;
+Esta alteração posterior não está na cópia imutável `a6691ab4f1`; foi coberta pelo delta posterior;
 validar o delta e o CI antes de concluir a release.
 
 Isolamento UI: **2 testes / 21 asserções passaram**, bloqueando leitura,
@@ -106,10 +106,11 @@ da listagem renderizado. Dashboard abriu no navegador e exibiu 1 contrato ativo
 e 33,33 pagos no mês, correspondendo ao registro sintético. Agendamentos locais
 estão desativados; contadores de status vencido não comprovam execução do scheduler.
 
-A suíte completa local de `a6691ab4f1` está em execução na cópia imutável
-`/tmp/candidate-a669` do container local, banco descartável `snipeit_test`.
-Handle de execução na tarefa: `82787`; não reiniciar enquanto estiver ativo.
-JUnit ao concluir: `/tmp/candidate-a669-results.xml`. O
+A suíte completa local de `a6691ab4f1` terminou na cópia imutável
+`/tmp/candidate-a669`: **1532 testes / 5216 asserções, zero erros e falhas,
+4 ignorados e 30 incompletos**. JUnit privado copiado para
+`.local-validation/candidate-a669-results.xml`. Seleção MariaDB do delta `fa2c02cf5d` concluída: **16 testes / 63 asserções passaram**. JUnit privado `contracts-final-delta-fa2c.xml`. Inclui isolamento, ativos,
+scheduler, criação e edição. O
 [runbook de liberação e recuperação](RELEASE-RUNBOOK.md) está preparado e exige
 revalidação da implantação e backup atualizado numa futura janela autorizada.
 
@@ -152,9 +153,30 @@ em banco descartável de testes, nunca na réplica, referência ou produção.
 com migrations; modos: geração sem argumento, `payment`, `payment-ui`,
 `payment-cancel`, `payment-termination`. Preserve fonte imutável durante suítes completas.
 
-O contrato sintético local `QA-20260910-01` contém um pagamento e um reajuste já
-persistidos; não repetir esses POSTs para resolver problema de leitura. A aba de
-QA recuperada foi a 4 do navegador interno. O ambiente local não envia e-mails nem
+O contrato sintético local `QA-20260910-01` contém um pagamento e três aditivos (reajuste, renovação e rescisão); não repetir esses POSTs. A aba de QA atual é a 5 do navegador interno. O ambiente local não envia e-mails nem
 executa integrações externas. Backups/credenciais e detalhes de infraestrutura não
 podem ser publicados no repositório público. Issues podem ser encerradas somente
 por evidências; milestone e PR permanecem abertos enquanto houver critérios pendentes.
+
+## Verificação consolidada do candidato fa2c02cf5d
+
+Todas as suítes habilitadas no CI passaram: PHP 8.2, 8.3 e 8.4,
+SQLite e MariaDB 11.4 (contratos e suíte completa). Jobs Docker continuam
+ignorados pela regra do fork; isso não comprova build de imagem de produção.
+Execuções: 34498722376, 34498722139 e 34498722259.
+
+No navegador local, a renovação criou três parcelas e preservou o pagamento.
+A rescisão efetiva em 01/05/2026 mostrou prévia de uma parcela; após confirmar,
+cancelou somente 01/06/2026. A parcela paga de 31/01 permaneceu em 33,33;
+a parcela no próprio dia do corte e as anteriores foram preservadas.
+Histórico exibe três aditivos e a listagem real do anexo sintético contém link
+de download. Download autenticado já conferido por conteúdo e SHA-256.
+
+**Decisão de negócio pendente:** sem dia fixo, a renovação hoje reinicia no dia
+seguinte ao término. Exemplo observado: parcelas anteriores no dia 31;
+renovação após 31/03 produziu 01/04, 01/05 e 01/06. Foi solicitada definição
+entre preservar o dia original (com ajuste de fim de mês) e manter esse reinício.
+Não alterar a regra nem tratar o calendário como aceito sem essa definição.
+
+Permanecem pendentes a verificação real de assinatura/CSP, a conferência final
+UI/API e do diff da release, além do aceite funcional. Resultado atual: NO-GO.
