@@ -1,0 +1,70 @@
+name: Contracts release readiness
+
+on:
+  pull_request:
+    branches: [production]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: PHP 8.3 / MariaDB 11.4 / ${{ matrix.suite }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [contracts, full]
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: disposable-ci-only
+          MARIADB_DATABASE: snipeit_test
+        ports:
+          - 3306/tcp
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: ${{ job.services.mariadb.ports[3306] }}
+      DB_DATABASE: snipeit_test
+      DB_USERNAME: root
+      DB_PASSWORD: disposable-ci-only
+      MAIL_MAILER: array
+      CACHE_DRIVER: array
+      SESSION_DRIVER: array
+      QUEUE_DRIVER: sync
+    steps:
+      - uses: actions/checkout@v6
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, gd, intl, ldap, mbstring, pdo_mysql, zip
+          coverage: none
+      - name: Prepare synthetic test environment
+        run: |
+          cp .env.testing.example .env
+          cp .env.testing.example .env.testing
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts
+          php artisan key:generate
+          php artisan migrate --force
+          php artisan passport:keys --force
+      - name: Contracts and schema tests
+        if: matrix.suite == 'contracts'
+        run: php -d memory_limit=1G vendor/bin/phpunit tests/Feature/Contracts tests/Feature/ContractStatusLabels tests/Feature/CheckoutAcceptances/PublicEulaSchemaTest.php --log-junit results.xml
+      - name: Full regression suite
+        if: matrix.suite == 'full'
+        run: php -d memory_limit=1G vendor/bin/phpunit --log-junit results.xml
+      - name: Publish synthetic test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: readiness-${{ matrix.suite }}-${{ github.sha }}
+          path: results.xml
+          if-no-files-found: ignore
+          retention-days: 7

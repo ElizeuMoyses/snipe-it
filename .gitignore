@@ -73,3 +73,10 @@ storage/ldap_client_tls.key
 /.phpunit.cache
 snipeit-dump.sql
 dados-producao/
+
+# Private replicas and machine-specific validation files must never be published.
+/.local-production/
+/.local-validation/
+/.env.testing
+/LOCAL-DEVELOPMENT.md
+/compose.local.yaml
