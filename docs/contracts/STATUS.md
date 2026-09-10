@@ -50,6 +50,17 @@ preexistentes sem comparação equivalente da base.
 
 ## Próximos passos
 
+Regressões de aceite: a referência a DomPDF ausente foi substituída pelo TCPDF já
+instalado; teste verifica o cabeçalho do PDF persistido. Corrigidos quantidade do
+aceite, remoção das unidades recusadas e notificação específica de itens.
+Seleção local de aceite/recusa/resposta: **19 testes / 65 asserções passaram**.
+Entrega em lote: **19 testes / 74 asserções passaram**, com e-mail consolidado e
+preservação da criação de aceites/tokens. Lembretes: **9 testes passaram** após
+seleção do destinatário do aceite, tipo de item e histórico correto da licença.
+CC: verificado envio único com usuário e cópia administrativa; o teste de checkin
+foi ajustado para exigir ambos no mesmo e-mail e impedir duplicação.
+Ainda falta executar a suíte completa no novo candidato.
+
 Progresso de implementação em 2026-09-10: testes reproduziram perda de centavo,
 salto de fevereiro, deslocamento do calendário recorrente e duplicação na segunda
 geração de contrato pontual. Corrigidos cálculo por centavos, calendário ancorado

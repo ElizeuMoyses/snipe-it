@@ -8,6 +8,7 @@ use App\Models\Asset;
 use App\Models\CheckoutAcceptance;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AssetAcceptanceTest extends TestCase
@@ -65,6 +66,7 @@ class AssetAcceptanceTest extends TestCase
 
     public function test_user_can_accept_asset()
     {
+        Storage::fake();
         Event::fake([CheckoutAccepted::class]);
 
         $checkoutAcceptance = CheckoutAcceptance::factory()->pending()->create();
@@ -84,6 +86,11 @@ class AssetAcceptanceTest extends TestCase
         $this->assertFalse($checkoutAcceptance->isPending());
         $this->assertNotNull($checkoutAcceptance->accepted_at);
         $this->assertNull($checkoutAcceptance->declined_at);
+
+        $this->assertNotEmpty($checkoutAcceptance->stored_eula_file);
+        $this->assertStringStartsWith('%PDF-', Storage::get(
+            'private_uploads/eula-pdfs/'.$checkoutAcceptance->stored_eula_file
+        ));
 
         Event::assertDispatched(CheckoutAccepted::class);
     }

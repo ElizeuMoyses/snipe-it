@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Helpers\Helper;
 use App\Mail\CheckoutAssetMail;
+use App\Mail\CheckoutAccessoryMail;
+use App\Mail\CheckoutConsumableMail;
+use App\Mail\CheckoutLicenseMail;
 use App\Models\Accessory;
 use App\Models\Actionlog;
 use App\Models\Asset;
@@ -1185,13 +1188,24 @@ class ReportsController extends Controller
 
         $assetItem = $acceptance->checkoutable;
 
-        Log::debug(print_r($assetItem, true));
+        if (! $assetItem) {
+            return redirect()->route('reports/unaccepted_assets')->with('error', trans('general.bad_data'));
+        }
 
         if (is_null($acceptance->created_at)){
             Log::debug('No acceptance created_at');
             return redirect()->route('reports/unaccepted_assets')->with('error', trans('general.bad_data'));
         } else {
-            $logItem_res = $assetItem->checkouts()->where('created_at', '=', $acceptance->created_at)->get();
+            // License checkout history is recorded against the license, not
+            // the seat. Match the acceptance recipient as well as its time.
+            $logOwner = $assetItem instanceof LicenseSeat ? $assetItem->license : $assetItem;
+            $logItem_res = Actionlog::query()
+                ->where('action_type', 'checkout')
+                ->where('item_id', $logOwner->id)
+                ->where('item_type', get_class($logOwner))
+                ->where('target_id', $acceptance->assigned_to_id)
+                ->where('target_type', \App\Models\User::class)
+                ->where('created_at', '=', $acceptance->created_at)->get();
 
             if ($logItem_res->isEmpty()){
                 Log::debug('Acceptance date mismatch');
@@ -1199,14 +1213,24 @@ class ReportsController extends Controller
             }
             $logItem = $logItem_res[0];
         }
-        $email = $assetItem->assignedTo?->email;
-        $locale = $assetItem->assignedTo?->locale;
+        $email = $acceptance->assignedTo?->email;
+        $locale = $acceptance->assignedTo?->locale;
 
         if (is_null($email) || $email === '') {
             return redirect()->route('reports/unaccepted_assets')->with('error', trans('general.no_email'));
         }
 
-        Mail::to($email)->send((new CheckoutAssetMail($assetItem, $assetItem->assignedTo, $logItem->user, $acceptance, $logItem->note, firstTimeSending: false))->locale($locale));
+        $mailClass = match (true) {
+            $assetItem instanceof Asset => CheckoutAssetMail::class,
+            $assetItem instanceof Accessory => CheckoutAccessoryMail::class,
+            $assetItem instanceof Consumable => CheckoutConsumableMail::class,
+            $assetItem instanceof LicenseSeat => CheckoutLicenseMail::class,
+            default => null,
+        };
+        if (! $mailClass || ! $logItem->adminuser) {
+            return redirect()->route('reports/unaccepted_assets')->with('error', trans('general.bad_data'));
+        }
+        Mail::to($email)->send((new $mailClass($assetItem, $acceptance->assignedTo, $logItem->adminuser, $acceptance, $logItem->note, firstTimeSending: false))->locale($locale));
 
         return redirect()->route('reports/unaccepted_assets')->with('success', trans('admin/reports/general.reminder_sent'));
     }

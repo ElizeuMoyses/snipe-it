@@ -146,7 +146,11 @@ class CheckoutAcceptance extends Model
         /**
          * Update state for the checked out item
          */
-        $this->checkoutable->declinedCheckout($this->assignedTo, $signature_filename);
+        if ($this->checkoutable instanceof Accessory) {
+            $this->checkoutable->declinedCheckout($this->assignedTo, $signature_filename, (int) ($this->qty ?? 1));
+        } else {
+            $this->checkoutable->declinedCheckout($this->assignedTo, $signature_filename);
+        }
     }
 
     /**

@@ -23,6 +23,8 @@ use App\Models\Consumable;
 use App\Notifications\AcceptanceAssetAcceptedNotification;
 use App\Notifications\AcceptanceAssetAcceptedToUserNotification;
 use App\Notifications\AcceptanceAssetDeclinedNotification;
+use App\Notifications\AcceptanceItemAcceptedNotification;
+use App\Notifications\AcceptanceItemDeclinedNotification;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,7 +32,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\Http\Controllers\SettingsController;
-use Barryvdh\DomPDF\Facade\Pdf;
+use TCPDF;
 use Carbon\Carbon;
 use \Illuminate\Contracts\View\View;
 use \Illuminate\Http\RedirectResponse;
@@ -237,8 +239,7 @@ class AcceptanceController extends Controller
 
             if ($pdf_view_route!='') {
                 Log::debug($pdf_filename.' is the filename, and the route was specified.');
-                $pdf = Pdf::loadView($pdf_view_route, $data);
-                Storage::put('private_uploads/eula-pdfs/' .$pdf_filename, $pdf->output());
+                Storage::put('private_uploads/eula-pdfs/' .$pdf_filename, $this->renderAcceptancePdf($pdf_view_route, $data));
             }
 
             $acceptance->accept($sig_filename, $item->getEula(), $pdf_filename, $request->input('note'));
@@ -256,7 +257,10 @@ class AcceptanceController extends Controller
                 }
             }
             try {
-                $acceptance->notify((new AcceptanceAssetAcceptedNotification($data))->locale(Setting::getSettings()->locale));
+                $notification = $item instanceof Asset
+                    ? new AcceptanceAssetAcceptedNotification($data)
+                    : new AcceptanceItemAcceptedNotification($data + ['item_name' => $item->name, 'qty' => $acceptance->qty]);
+                $acceptance->notify($notification->locale(Setting::getSettings()->locale));
             } catch (\Exception $e) {
                 Log::warning($e);
             }
@@ -342,12 +346,14 @@ class AcceptanceController extends Controller
 
             if ($pdf_view_route!='') {
                 Log::debug($pdf_filename.' is the filename, and the route was specified.');
-                $pdf = Pdf::loadView($pdf_view_route, $data);
-                Storage::put('private_uploads/eula-pdfs/' .$pdf_filename, $pdf->output());
+                Storage::put('private_uploads/eula-pdfs/' .$pdf_filename, $this->renderAcceptancePdf($pdf_view_route, $data));
             }
 
             $acceptance->decline($sig_filename, $request->input('note'));
-            $acceptance->notify(new AcceptanceAssetDeclinedNotification($data));
+            $notification = $item instanceof Asset
+                ? new AcceptanceAssetDeclinedNotification($data)
+                : new AcceptanceItemDeclinedNotification($data + ['item_name' => $item->name, 'qty' => $acceptance->qty]);
+            $acceptance->notify($notification);
             Log::debug('New event acceptance.');
             event(new CheckoutDeclined($acceptance));
             $return_msg = trans('admin/users/message.declined');
@@ -376,4 +382,15 @@ class AcceptanceController extends Controller
 
     }
 
+    private function renderAcceptancePdf(string $view, array $data): string
+    {
+        $pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
+        $pdf->setPrintHeader(false);
+        $pdf->setPrintFooter(false);
+        $pdf->SetFont('dejavusans', '', 10);
+        $pdf->AddPage();
+        $pdf->writeHTML(view($view, $data)->render(), true, false, true, false, '');
+
+        return $pdf->Output('', 'S');
+    }
 }

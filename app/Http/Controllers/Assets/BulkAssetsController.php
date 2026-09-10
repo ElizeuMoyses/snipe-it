@@ -716,7 +716,7 @@ class BulkAssetsController extends Controller
                         $asset->status_id = $request->input('status_id');
                     }
 
-                    $checkout_success = $asset->checkOut($target, $admin, $checkout_at, $expected_checkin, e($request->input('note')), $asset->name, null);
+                    $checkout_success = $asset->checkOut($target, $admin, $checkout_at, $expected_checkin, e($request->input('note')), $asset->name, null, true);
 
                     // TODO - I think this logic is duplicated in the checkOut method?
                     if ($target->location_id != '') {
