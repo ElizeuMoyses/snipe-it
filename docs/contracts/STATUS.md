@@ -8,6 +8,7 @@ Atualizado em 2026-09-10. Nenhum deploy realizado nesta etapa.
 - [Project](https://github.com/users/ElizeuMoyses/projects/1)
 - [Milestone](https://github.com/ElizeuMoyses/snipe-it/milestone/1)
 - [Issue principal #1](https://github.com/ElizeuMoyses/snipe-it/issues/1)
+- [PR draft #7](https://github.com/ElizeuMoyses/snipe-it/pull/7)
 - [Baseline e CI #2](https://github.com/ElizeuMoyses/snipe-it/issues/2)
 - [Valores, calendário e concorrência #3](https://github.com/ElizeuMoyses/snipe-it/issues/3)
 - [Permissões, empresas, API e anexos #4](https://github.com/ElizeuMoyses/snipe-it/issues/4)
@@ -37,6 +38,11 @@ Esses resultados não são uma execução de CI do futuro SHA do PR. O smoke nã
 todos os fluxos de escrita ou permissões. A suíte desativa `SecurityHeaders` no
 TestCase, portanto CSP e captura de assinatura exigem validação real no navegador.
 Evidências detalhadas ficam em diretórios privados locais, excluídos do Git.
+
+Reexecução local da seleção contratos/status/schema em 2026-09-10: 43 testes e
+96 asserções passaram em MariaDB 11.4/PHP 8.3, com o código PHP do commit
+`0988096dacc5ff3b01b7e8366ca2e97565653d5b`. A suíte completa não foi repetida
+nesta etapa. O novo CI está em implantação e seu resultado deve ser consultado no PR.
 
 O erro da suíte ocorre em `AccessoryAcceptanceTest` ao recusar um aceite. Há falhas
 em notificações/aceite e filtros por contagens. Não foram classificadas como
