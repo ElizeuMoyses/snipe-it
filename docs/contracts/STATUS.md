@@ -50,6 +50,11 @@ preexistentes sem comparação equivalente da base.
 
 ## Próximos passos
 
+Renovação pela API: **2 testes / 8 asserções** passaram, cobrindo sucesso e
+rejeição de data anterior desatualizada sem alteração do contrato. Corrigida a
+resposta que chamava `fullName()` inexistente. Criação de aditivos na API e UI
+agora bloqueia o contrato antes de validar e gravar, na mesma transação.
+
 Efeitos de aditivos: **2 testes / 11 asserções** passaram em SQLite em memória.
 Reajuste preserva parcelas pagas e anteriores à vigência; encerramento preserva
 pagas, vencidas e a parcela na data efetiva. Falta validar conflitos de aditivos

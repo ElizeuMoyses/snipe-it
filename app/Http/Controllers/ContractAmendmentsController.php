@@ -145,6 +145,21 @@ class ContractAmendmentsController extends Controller
     public function store(Request $request, Contract $contract): RedirectResponse
     {
         $this->authorize('update', $contract);
+        return $contract->getConnection()->transaction(function () use ($request, $contract) {
+            $contract = Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
+            if ($request->input('amendment_type') === 'renewal'
+                && $request->input('old_end_date') !== $contract->end_date?->format('Y-m-d')) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'old_end_date' => trans('validation.in', ['attribute' => 'old_end_date']),
+                ]);
+            }
+            return $this->storeLocked($request, $contract);
+        });
+    }
+
+    private function storeLocked(Request $request, Contract $contract): RedirectResponse
+    {
+        $this->authorize('update', $contract);
 
         // Guard: cannot create amendments on terminal contracts
         if (in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled'])) {

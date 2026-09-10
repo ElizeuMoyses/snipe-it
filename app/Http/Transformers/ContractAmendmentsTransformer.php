@@ -43,7 +43,7 @@ class ContractAmendmentsTransformer
             'notes'             => $amendment->notes ? Helper::parseEscapedMarkedownInline($amendment->notes) : null,
             'created_by'        => $amendment->adminuser ? [
                 'id'   => (int) $amendment->adminuser->id,
-                'name' => e($amendment->adminuser->present()->fullName()),
+                'name' => e($amendment->adminuser->present()->fullName),
             ] : null,
             'created_at'        => Helper::getFormattedDateObject($amendment->created_at, 'datetime'),
             'updated_at'        => Helper::getFormattedDateObject($amendment->updated_at, 'datetime'),

@@ -80,6 +80,15 @@ class ContractAmendmentsController extends Controller
     public function store(Request $request, Contract $contract): JsonResponse
     {
         $this->authorize('update', $contract);
+        return $contract->getConnection()->transaction(function () use ($request, $contract) {
+            $contract = Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
+            return $this->storeLocked($request, $contract);
+        });
+    }
+
+    private function storeLocked(Request $request, Contract $contract): JsonResponse
+    {
+        $this->authorize('update', $contract);
 
         // Guard: block creation on terminal contracts
         if (in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled'])) {
@@ -116,6 +125,12 @@ class ContractAmendmentsController extends Controller
         };
 
         $request->validate(array_merge($baseRules, $extraRules));
+
+        if ($amendmentType === 'renewal' && $request->date('old_end_date')?->format('Y-m-d') !== $contract->end_date?->format('Y-m-d')) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'old_end_date' => trans('validation.in', ['attribute' => 'old_end_date']),
+            ]);
+        }
 
         // Guard: readjustment requires active contract
         if ($amendmentType === 'readjustment' && $contract->statusLabel?->meta_type !== 'active') {
