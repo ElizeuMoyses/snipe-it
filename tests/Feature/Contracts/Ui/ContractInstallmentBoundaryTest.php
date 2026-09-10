@@ -9,6 +9,23 @@ use Tests\TestCase;
 
 class ContractInstallmentBoundaryTest extends TestCase
 {
+    public function test_generation_rechecks_terminal_status_after_refreshing_the_contract(): void
+    {
+        $this->actingAs(User::factory()->superuser()->create());
+        $contract = Contract::factory()->create([
+            'contract_type' => 'recurring', 'billing_cycle' => 'monthly',
+            'start_date' => '2026-01-01', 'end_date' => '2026-03-31',
+        ]);
+        // Simulate a cancellation committed after the controller loaded the contract.
+        $cancelled = \App\Models\ContractStatusLabel::factory()->create([
+            'scope' => 'contract', 'meta_type' => 'cancelled',
+        ]);
+        Contract::whereKey($contract->id)->update(['status_label_id' => $cancelled->id]);
+
+        $this->assertSame(0, $contract->generateInstallments());
+        $this->assertSame(0, $contract->installments()->count());
+    }
+
     public function test_rejected_creation_rolls_back_one_time_and_recurring_generation(): void
     {
         $this->actingAs(User::factory()->superuser()->create());

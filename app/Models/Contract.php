@@ -184,6 +184,11 @@ class Contract extends SnipeModel
 
     protected function generateInstallmentsLocked(?Carbon $from): int
     {
+        // The controller may have loaded the contract before a concurrent cancellation.
+        if (in_array($this->statusLabel?->meta_type, ['expired', 'cancelled'], true)) {
+            return 0;
+        }
+
         $defaultStatus = ContractStatusLabel::defaultForMetaType('installment', 'pending');
         if (! $defaultStatus) {
             return 0;

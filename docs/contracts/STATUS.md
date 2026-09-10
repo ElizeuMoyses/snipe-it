@@ -178,7 +178,7 @@ renovação após 31/03 produziu 01/04, 01/05 e 01/06. Foi solicitada definiçã
 entre preservar o dia original (com ajuste de fim de mês) e manter esse reinício.
 Não alterar a regra nem tratar o calendário como aceito sem essa definição.
 
-Permanecem pendentes a verificação real de assinatura/CSP, a conferência final
+Assinatura/CSP desktop foi concluída na continuação abaixo. Permanecem a conferência final
 UI/API e do diff da release, além do aceite funcional. Resultado atual: NO-GO.
 ## Assinatura e equivalência de criação (continuação)
 
@@ -195,3 +195,10 @@ Agora a API respeita o booleano, mantendo geração automática quando omitido.
 MariaDB, criação UI/API: 10 testes / 26 asserções passaram; artefato privado
 contracts-create-parity.xml. Os formatos de resposta seguem as convenções próprias
 de cada interface (redirect UI e envelope JSON API).
+
+Geração após cancelamento: teste reproduziu três parcelas novas ao usar uma
+instância carregada antes do cancelamento persistido. O modelo agora verifica
+status terminal após recarregar o contrato sob lock. MariaDB: 16 testes / 46
+asserções passaram, incluindo geração e calendário; JUnit privado
+contracts-terminal-generation.xml. Essa verificação fecha a janela entre a
+checagem do controlador e a obtenção do bloqueio.
