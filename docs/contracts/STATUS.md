@@ -251,3 +251,12 @@ commit devem ser conferidos antes de concluir a issue. PR permanece draft;
 aceite da release nas issues #1/#6 segue pendente, sem merge ou deploy.
 Assets locais anteriores foram preservados; apenas bundle JS do modal e sua
 entrada de versão no manifest fazem parte desta alteração.
+
+## Correção visual do modal de fornecedores
+
+Retorno do usuário mostrou que a validação anterior por árvore de acessibilidade
+não detectou sobreposição visual. O formulário do modal não tinha `form-horizontal`,
+presente no cadastro completo; sem o clearfix de `.form-group`, colunas flutuantes
+empurravam os fieldsets fiscais para uma faixa lateral. Classe adicionada ao form.
+Screenshot local após rolagem confirmou Dados Fiscais e cor em largura completa,
+com rótulos e campos alinhados. Alteração somente de apresentação, sem build JS.
