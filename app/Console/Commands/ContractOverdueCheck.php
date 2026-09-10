@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Enums\ActionType;
 use App\Models\Actionlog;
 use App\Models\ContractInstallment;
+use App\Models\Contract;
 use App\Models\ContractStatusLabel;
 use Illuminate\Console\Command;
 
@@ -33,25 +34,38 @@ class ContractOverdueCheck extends Command
 
         foreach ($installments as $installment) {
             try {
-                $oldStatusName = $installment->statusLabel->name;
+                $installment->getConnection()->transaction(function () use ($installment, $defaultOverdue, &$updated) {
+                    $contract = Contract::whereKey($installment->contract_id)->lockForUpdate()->first();
+                    if (! $contract) {
+                        return;
+                    }
+                    $installment = $contract->installments()->lockForUpdate()->find($installment->id);
+                    if (! $installment || $installment->statusLabel?->meta_type !== 'pending'
+                        || ! $installment->due_date->lt(now()->startOfDay())) {
+                        return;
+                    }
+                    $oldStatusName = $installment->statusLabel->name;
 
-                $installment->status_label_id = $defaultOverdue->id;
-                $installment->save();
+                    $installment->status_label_id = $defaultOverdue->id;
+                    if (! $installment->save()) {
+                        throw new \RuntimeException('Overdue status update failed');
+                    }
 
-                $log = new Actionlog();
-                $log->item_type = ContractInstallment::class;
-                $log->item_id = $installment->id;
-                $log->target_type = $installment->contract ? get_class($installment->contract) : null;
-                $log->target_id = $installment->contract_id;
-                $log->created_by = null;
-                $log->company_id = $installment->contract->company_id ?? null;
-                $log->log_meta = json_encode([
-                    'status_label' => ['old' => $oldStatusName, 'new' => $defaultOverdue->name],
-                    'meta_type' => ['old' => 'pending', 'new' => 'overdue'],
-                ]);
-                $log->logaction(ActionType::Update);
+                    $log = new Actionlog();
+                    $log->item_type = ContractInstallment::class;
+                    $log->item_id = $installment->id;
+                    $log->target_type = $installment->contract ? get_class($installment->contract) : null;
+                    $log->target_id = $installment->contract_id;
+                    $log->created_by = null;
+                    $log->company_id = $installment->contract->company_id ?? null;
+                    $log->log_meta = json_encode([
+                        'status_label' => ['old' => $oldStatusName, 'new' => $defaultOverdue->name],
+                        'meta_type' => ['old' => 'pending', 'new' => 'overdue'],
+                    ]);
+                    $log->logaction(ActionType::Update);
 
-                $updated++;
+                    $updated++;
+                });
             } catch (\Exception $e) {
                 $this->error("Failed to update installment #{$installment->id}: {$e->getMessage()}");
                 $errors++;

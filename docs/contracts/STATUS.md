@@ -76,6 +76,14 @@ Seleção de renderização com envio pela rota UI e testes de arquivos passou:
 
 ## Critérios ainda pendentes
 
+Revisão do scheduler encontrou disputa com pagamento: rotina de vencidos lia a
+parcela pendente e podia sobrescrever um pagamento ocorrido depois da seleção.
+Teste reproduziu a mudança incorreta; rotina agora bloqueia contrato/parcela e
+revalida status e data na transação. SQLite: **2 testes / 9 asserções passaram**,
+incluindo pagamento intercalado, preservação de vencimento hoje e repetição.
+Esta alteração posterior não está na cópia imutável `a6691ab4f1` em execução;
+validar o delta e o CI antes de concluir a release.
+
 Isolamento UI: **2 testes / 21 asserções passaram**, bloqueando leitura,
 pagamento e aditivo entre empresas e parcela sob contrato incorreto, com dados
 preservados. A exceção do filho inexistente tentava rota inexistente e retornava
@@ -83,10 +91,13 @@ preservados. A exceção do filho inexistente tentava rota inexistente e retorna
 existente da aplicação. API mantém seu envelope de erro próprio.
 CI de `271669824b` passou em todas as suítes habilitadas. PR foi reescrito para
 refletir o conjunto final de mudanças e limites da validação.
-Verificação HTTP autenticada de anexo sintético está em execução (`47545`), script
+Verificação HTTP autenticada de anexo sintético concluída (`47545`), script
 privado `.local-validation/attachment-http.py`. O marcador
 `.local-validation/attachment-http-result.json` impede repetir envio já efetuado;
-exigir `content_matches` e listagem verificada antes de declarar o fluxo concluído.
+resultado: download HTTP 200, `content_matches=true`, SHA-256 conferido e endpoint
+da listagem renderizado. Dashboard abriu no navegador e exibiu 1 contrato ativo
+e 33,33 pagos no mês, correspondendo ao registro sintético. Agendamentos locais
+estão desativados; contadores de status vencido não comprovam execução do scheduler.
 
 A suíte completa local de `a6691ab4f1` está em execução na cópia imutável
 `/tmp/candidate-a669` do container local, banco descartável `snipeit_test`.
