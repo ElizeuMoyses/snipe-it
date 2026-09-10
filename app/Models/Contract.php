@@ -128,6 +128,14 @@ class Contract extends SnipeModel
             ->withPivot('created_at');
     }
 
+    /**
+     * Closed contracts keep their asset history immutable.
+     */
+    public function assetLinksAreLocked(): bool
+    {
+        return in_array($this->statusLabel?->meta_type, ['expired', 'cancelled'], true);
+    }
+
     // ── Scopes by meta_type ─────────────────────────────────────────
 
     public function scopeActive($query)

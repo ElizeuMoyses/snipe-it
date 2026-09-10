@@ -308,3 +308,16 @@ só entram após revisão e testes centrais. Nenhum merge ou deploy foi executad
 - Histórico unificado, arquivamento, configuração de tipos e revisão ampla da
   interface ainda não estão certificados como integrados. Retificação de
   aditivos e política de efeitos retroativos/futuros exigem fechamento próprio.
+
+### Vínculo de ativos — integração central em validação
+
+Código preservado da #10 revisado: seletor específico do contrato, mesma empresa,
+exclusão de vínculos existentes da busca, permissão de visualizar ativos,
+transações e proteção de contratos encerrados. Testes focados: 10/59 passaram
+em SQLite. O evento de vínculo está preparado; seu consumidor de histórico
+permanece dependente da integração #13. Build de produção passou. Navegador confirmou carregamento das opções e mensagem de busca sem resultado; nenhuma vinculação foi gravada no registro de trabalho.
+
+Regressão após integrar ativos: 105 testes/475 asserções SQLite passaram,
+com banco em memória. `node --check resources/assets/js/snipeit.js` e
+`git diff --check` passaram. CI MariaDB de contratos passou em 6ebf7ec72c;
+esse resultado antecede a integração dos ativos.

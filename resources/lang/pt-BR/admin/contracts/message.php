@@ -157,6 +157,16 @@ return [
             'confirm' => 'Tem certeza de que deseja desvincular este ativo do contrato?',
         ],
         'already_linked' => 'Este ativo já está vinculado ao contrato.',
+        'not_available' => 'Este ativo não está disponível para vínculo neste contrato.',
+        'not_linked' => 'Este ativo não está vinculado a este contrato.',
+        'contract_closed' => 'Contratos encerrados não permitem alterar os ativos vinculados.',
+        'no_permission' => 'Você não tem permissão para visualizar ativos; o vínculo não pode ser alterado.',
+        'selector' => [
+            'help' => 'A busca mostra somente ativos autorizados da empresa do contrato e exclui vínculos já existentes.',
+            'loading' => 'Carregando ativos autorizados...',
+            'no_results' => 'Nenhum ativo autorizado disponível para este contrato.',
+            'error' => 'Não foi possível carregar os ativos. Tente novamente.',
+        ],
     ],
 
 ];

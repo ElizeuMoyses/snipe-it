@@ -109,21 +109,49 @@
                     <!-- start assets tab pane -->
                     <x-tabs.pane name="contract-assets">
                         @can('update', $contract)
-                            <div class="row" style="margin-bottom: 10px;">
-                                <div class="col-md-12">
-                                    <form method="POST" action="{{ route('contracts.assets.attach', $contract->id) }}" class="form-inline">
-                                        @csrf
-                                        <div class="form-group" style="margin-right: 10px;">
-                                            <select name="asset_id" class="js-data-ajax" data-endpoint="hardware" data-placeholder="{{ trans('admin/contracts/general.select_asset') }}" style="min-width: 300px;">
-                                            </select>
+                            @can('view', \App\Models\Asset::class)
+                                @if(! $contract->assetLinksAreLocked())
+                                    <div class="row" style="margin-bottom: 10px;">
+                                        <div class="col-md-12">
+                                            <form method="POST" action="{{ route('contracts.assets.attach', $contract->id) }}" class="form-horizontal" id="contract-asset-link-form">
+                                                @csrf
+                                                @include('partials.forms.edit.asset-select', [
+                                                    'translated_name' => trans('admin/contracts/general.select_asset'),
+                                                    'fieldname' => 'asset_id',
+                                                    'select_id' => 'contract_asset_id',
+                                                    'asset_selector_div_id' => 'contract-asset-selector',
+                                                    'company_id' => $contract->company_id,
+                                                    'ajax_url' => route('contracts.assets.selectlist', $contract->id),
+                                                    'contract_asset_selector' => true,
+                                                    'status_id' => 'contract-asset-selector-status',
+                                                    'describedby' => 'contract-asset-selector-help',
+                                                    'placeholder' => trans('admin/contracts/general.select_asset'),
+                                                    'required' => 'true',
+                                                ])
+                                                <div class="form-group">
+                                                    <div class="col-md-7 col-md-offset-3">
+                                                        <span id="contract-asset-selector-help" class="help-block">
+                                                            {{ trans('admin/contracts/message.asset.selector.help') }}
+                                                        </span>
+                                                        <button type="submit" class="btn btn-primary btn-sm">
+                                                            <i class="fas fa-link" aria-hidden="true"></i>
+                                                            {{ trans('admin/contracts/general.link_asset') }}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </form>
                                         </div>
-                                        <button type="submit" class="btn btn-primary btn-sm">
-                                            <i class="fas fa-link"></i>
-                                            {{ trans('admin/contracts/general.link_asset') }}
-                                        </button>
-                                    </form>
+                                    </div>
+                                @else
+                                    <div class="alert alert-info" role="status">
+                                        {{ trans('admin/contracts/message.asset.contract_closed') }}
+                                    </div>
+                                @endif
+                            @else
+                                <div class="alert alert-warning" role="alert">
+                                    {{ trans('admin/contracts/message.asset.no_permission') }}
                                 </div>
-                            </div>
+                            @endcan
                         @endcan
                         @if($contract->assets->count() > 0)
                             @include('contracts.partials.assets-table', ['contract' => $contract])

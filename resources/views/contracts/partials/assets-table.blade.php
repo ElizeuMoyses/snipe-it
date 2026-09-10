@@ -1,3 +1,7 @@
+@php
+    $assetLinksLocked = $contract->assetLinksAreLocked();
+@endphp
+
 <table
     data-cookie-id-table="contractAssetsTable"
     data-id-table="contractAssetsTable"
@@ -11,7 +15,11 @@
             <th>{{ trans('admin/hardware/table.serial') }}</th>
             <th>{{ trans('admin/hardware/table.status') }}</th>
             @can('update', $contract)
-                <th>{{ trans('table.actions') }}</th>
+                @can('view', \App\Models\Asset::class)
+                    @if(! $assetLinksLocked)
+                        <th>{{ trans('table.actions') }}</th>
+                    @endif
+                @endcan
             @endcan
         </tr>
     </thead>
@@ -40,17 +48,25 @@
                     @endif
                 </td>
                 @can('update', $contract)
-                    <td>
-                        <form method="POST" action="{{ route('contracts.assets.detach', [$contract->id, $asset->id]) }}" style="display:inline">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn-danger btn-sm"
-                                    onclick="return confirm('{{ trans('admin/contracts/message.asset.detach.confirm') }}')">
-                                <i class="fas fa-unlink" aria-hidden="true"></i>
-                                <span class="hidden-xs">{{ trans('admin/contracts/general.unlink_asset') }}</span>
-                            </button>
-                        </form>
-                    </td>
+                    @can('view', \App\Models\Asset::class)
+                        @if(! $assetLinksLocked)
+                            <td>
+                                @can('view', $asset)
+                                    <form method="POST" action="{{ route('contracts.assets.detach', [$contract->id, $asset->id]) }}" style="display:inline">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-danger btn-sm"
+                                                onclick="return confirm('{{ trans('admin/contracts/message.asset.detach.confirm') }}')">
+                                            <i class="fas fa-unlink" aria-hidden="true"></i>
+                                            <span class="hidden-xs">{{ trans('admin/contracts/general.unlink_asset') }}</span>
+                                        </button>
+                                    </form>
+                                @else
+                                    &mdash;
+                                @endcan
+                            </td>
+                        @endif
+                    @endcan
                 @endcan
             </tr>
         @endforeach

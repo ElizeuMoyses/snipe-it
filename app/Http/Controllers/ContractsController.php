@@ -2,17 +2,27 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\ContractAssetLinkException;
+use App\Http\Transformers\SelectlistTransformer;
 use App\Models\Company;
 use App\Models\Asset;
 use App\Models\Contract;
 use App\Models\ContractInstallment;
 use App\Models\ContractStatusLabel;
+use App\Services\ContractAssetLinkService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class ContractsController extends Controller
 {
+    public function __construct(private readonly ContractAssetLinkService $assetLinkService)
+    {
+    }
+
     /**
      * Display the contracts dashboard.
      */
@@ -205,32 +215,109 @@ class ContractsController extends Controller
     }
 
     /**
+     * Return the assets that can be linked to this contract.
+     *
+     * This is intentionally contract-scoped instead of changing the shared
+     * hardware selectlist contract used by other screens.
+     */
+    public function assetSelectlist(Request $request, Contract $contract): array
+    {
+        $this->authorize('update', $contract);
+        $this->authorize('view', Asset::class);
+
+        $assets = Asset::query()
+            ->select([
+                'assets.id',
+                'assets.name',
+                'assets.asset_tag',
+                'assets.serial',
+                'assets.model_id',
+                'assets.assigned_to',
+                'assets.assigned_type',
+                'assets.status_id',
+                'assets.company_id',
+            ])
+            ->with('model', 'assetstatus', 'assignedTo')
+            ->NotArchived();
+
+        if ($contract->company_id === null) {
+            $assets->whereNull('assets.company_id');
+        } else {
+            $assets->where('assets.company_id', $contract->company_id);
+        }
+
+        $assets->whereNotExists(function (Builder $query) use ($contract): void {
+            $query->select(DB::raw('1'))
+                ->from('contract_asset')
+                ->whereColumn('contract_asset.asset_id', 'assets.id')
+                ->where('contract_asset.contract_id', $contract->getKey());
+        });
+
+        if ($request->filled('assetStatusType') && $request->input('assetStatusType') === 'RTD') {
+            $assets->RTD();
+        }
+
+        if ($request->filled('search')) {
+            $assets->AssignedSearch($request->input('search'));
+        }
+
+        $assets = $assets->orderBy('assets.asset_tag')->paginate(50);
+
+        foreach ($assets as $asset) {
+            $asset->use_text = $asset->present()->fullName;
+
+            if ($asset->checkedOutToUser() && $asset->assigned) {
+                $asset->use_text .= ' → '.$asset->assigned->display_name;
+            }
+
+            if ($asset->assetstatus?->getStatuslabelType() === 'pending') {
+                $asset->use_text .= ' (pending)';
+            }
+
+            $asset->use_image = $asset->getImageUrl() ?: null;
+        }
+
+        return (new SelectlistTransformer)->transformSelectlist($assets);
+    }
+
+    /**
      * Attach an asset to the contract.
      */
     public function attachAsset(Request $request, Contract $contract): RedirectResponse
     {
         $this->authorize('update', $contract);
 
-        $request->validate([
-            'asset_id' => 'required|exists:assets,id',
+        $this->authorize('view', Asset::class);
+
+        $validator = Validator::make($request->all(), [
+            'asset_id' => ['required', 'integer', 'min:1'],
         ]);
 
-        $asset = Asset::findOrFail($request->input('asset_id'));
-        $this->authorize('view', $asset);
-        $assetId = $asset->id;
-
-        // Prevent duplicate attachment
-        if ($contract->assets()->where('assets.id', $assetId)->exists()) {
-            return redirect()->route('contracts.show', $contract->id)
-                ->with('error', trans('admin/contracts/message.asset.already_linked'))
-                ->withFragment('contract-assets');
+        if ($validator->fails()) {
+            return $this->assetErrorRedirect($contract, trans('admin/contracts/message.asset.not_available'))
+                ->withErrors($validator)
+                ->withInput();
         }
 
-        $contract->assets()->attach($assetId, ['created_at' => now()]);
+        $asset = Asset::query()->whereKey((int) $request->input('asset_id'))->first();
+        if (! $asset) {
+            return $this->assetErrorRedirect($contract, trans('admin/contracts/message.asset.not_available'));
+        }
 
-        return redirect()->route('contracts.show', $contract->id)
-            ->with('success', trans('admin/contracts/message.asset.attach.success'))
-            ->withFragment('contract-assets');
+        $this->authorize('view', $asset);
+
+        try {
+            $result = $this->assetLinkService->attach($contract, $asset->id);
+        } catch (ContractAssetLinkException $exception) {
+            return $this->assetErrorRedirect($contract, $this->assetLinkErrorMessage($exception));
+        }
+
+        if ($result === ContractAssetLinkService::ALREADY_LINKED) {
+            return $this->assetErrorRedirect($contract, trans('admin/contracts/message.asset.already_linked'));
+        }
+
+        return $this->assetRedirect($contract)
+            ->with('success', trans('admin/contracts/message.asset.attach.success'));
     }
 
     /**
@@ -239,11 +326,56 @@ class ContractsController extends Controller
     public function detachAsset(Contract $contract, $assetId): RedirectResponse
     {
         $this->authorize('update', $contract);
+        $this->authorize('view', Asset::class);
 
-        $contract->assets()->detach($assetId);
+        $validator = Validator::make(['asset_id' => $assetId], [
+            'asset_id' => ['required', 'integer', 'min:1'],
+        ]);
 
-        return redirect()->route('contracts.show', $contract->id)
-            ->with('success', trans('admin/contracts/message.asset.detach.success'))
+        if ($validator->fails()) {
+            return $this->assetErrorRedirect($contract, trans('admin/contracts/message.asset.not_available'))
+                ->withErrors($validator);
+        }
+
+        $asset = Asset::query()->whereKey((int) $assetId)->first();
+        if (! $asset) {
+            return $this->assetErrorRedirect($contract, trans('admin/contracts/message.asset.not_available'));
+        }
+
+        $this->authorize('view', $asset);
+
+        try {
+            $result = $this->assetLinkService->detach($contract, $asset->id);
+        } catch (ContractAssetLinkException $exception) {
+            return $this->assetErrorRedirect($contract, $this->assetLinkErrorMessage($exception));
+        }
+
+        if ($result === ContractAssetLinkService::NOT_LINKED) {
+            return $this->assetErrorRedirect($contract, trans('admin/contracts/message.asset.not_linked'));
+        }
+
+        return $this->assetRedirect($contract)
+            ->with('success', trans('admin/contracts/message.asset.detach.success'));
+    }
+
+    private function assetRedirect(Contract $contract): RedirectResponse
+    {
+        return redirect()->route('contracts.show', $contract->getKey())
             ->withFragment('contract-assets');
+    }
+
+    private function assetErrorRedirect(Contract $contract, string $message): RedirectResponse
+    {
+        return $this->assetRedirect($contract)->with('error', $message);
+    }
+
+    private function assetLinkErrorMessage(ContractAssetLinkException $exception): string
+    {
+        return match ($exception->reason) {
+            ContractAssetLinkException::CONTRACT_CLOSED => trans('admin/contracts/message.asset.contract_closed'),
+            ContractAssetLinkException::COMPANY_MISMATCH,
+            ContractAssetLinkException::ASSET_NOT_AVAILABLE => trans('admin/contracts/message.asset.not_available'),
+            default => trans('admin/contracts/message.asset.attach.error'),
+        };
     }
 }

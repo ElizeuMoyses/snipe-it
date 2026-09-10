@@ -123,6 +123,8 @@ Route::group(['middleware' => 'auth'], function () {
     /*
     * Contract Asset Links
     */
+    Route::get('contracts/{contract}/assets/selectlist', [ContractsController::class, 'assetSelectlist'])
+        ->name('contracts.assets.selectlist');
     Route::post('contracts/{contract}/assets', [ContractsController::class, 'attachAsset'])->name('contracts.assets.attach');
     Route::delete('contracts/{contract}/assets/{asset}', [ContractsController::class, 'detachAsset'])->name('contracts.assets.detach');
 

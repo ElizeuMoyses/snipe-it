@@ -157,6 +157,16 @@ return [
             'confirm' => 'Are you sure you wish to unlink this asset from the contract?',
         ],
         'already_linked' => 'This asset is already linked to the contract.',
+        'not_available' => 'This asset is not available to link to this contract.',
+        'not_linked' => 'This asset is not linked to this contract.',
+        'contract_closed' => 'Closed contracts do not allow linked assets to be changed.',
+        'no_permission' => 'You do not have permission to view assets; the link cannot be changed.',
+        'selector' => [
+            'help' => 'Search is limited to authorized assets from the contract company and excludes existing links.',
+            'loading' => 'Loading authorized assets...',
+            'no_results' => 'No authorized assets are available for this contract.',
+            'error' => 'The assets could not be loaded. Please try again.',
+        ],
     ],
 
 ];
