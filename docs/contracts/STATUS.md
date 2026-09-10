@@ -50,6 +50,11 @@ preexistentes sem comparação equivalente da base.
 
 ## Próximos passos
 
+Efeitos de aditivos: **2 testes / 11 asserções** passaram em SQLite em memória.
+Reajuste preserva parcelas pagas e anteriores à vigência; encerramento preserva
+pagas, vencidas e a parcela na data efetiva. Falta validar conflitos de aditivos
+com pagamento/alteração de status e dados antigos enviados em renovações.
+
 Concorrência real em MariaDB: `scripts/qa/contracts-concurrency.php` passou em
 geração, pagamento API e pagamento UI, com dois processos independentes e uma
 barreira de bloqueio. Pagamentos agora bloqueiam contrato/parcela na transação e
