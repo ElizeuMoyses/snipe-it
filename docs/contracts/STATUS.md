@@ -296,6 +296,9 @@ branch `codex/contracts-issue-9`, partindo de `089ba0494e35862bd31b2c12412e9e5d6
 O destino de integração solicitado é `codex/contracts-production-readiness`; não
 houve merge, deploy, operação de VPS ou fechamento de issue.
 
+Entrega publicada no commit `68dea2169106e90dfbed18a8883e28fd3d633f7b`, PR draft
+[#16](https://github.com/ElizeuMoyses/snipe-it/pull/16), relacionado ao PR #7.
+
 Implementados: campos obrigatórios de criação/edição com compatibilidade para
 contratos legados; validação única UI/API; valores em BRL com centavos inteiros;
 total automático/manual sem redistribuição implícita; calendário mensal,
