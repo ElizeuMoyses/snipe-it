@@ -33,21 +33,47 @@ class DeleteContractsTest extends TestCase implements TestsPermissionsRequiremen
         ]);
 
         $this->actingAsForApi(User::factory()->deleteContracts()->create())
-            ->deleteJson(route('api.contracts.destroy', $contract))
+            ->deleteJson(route('api.contracts.destroy', $contract), [
+                'reason' => 'Paid obligation requires the termination flow.',
+            ])
             ->assertStatusMessageIs('error');
 
         $this->assertNotSoftDeleted($contract);
     }
 
-    public function test_can_delete_contract()
+    public function test_requires_reason_to_archive_contract()
     {
         $contract = Contract::factory()->create();
 
         $this->actingAsForApi(User::factory()->deleteContracts()->create())
             ->deleteJson(route('api.contracts.destroy', $contract))
             ->assertOk()
+            ->assertStatusMessageIs('error');
+
+        $this->assertNotSoftDeleted($contract);
+        $this->assertDatabaseMissing('action_logs', [
+            'item_type' => Contract::class,
+            'item_id' => $contract->id,
+            'action_type' => 'delete',
+        ]);
+    }
+
+    public function test_can_archive_contract_and_record_reason()
+    {
+        $contract = Contract::factory()->create();
+        $reason = 'Supplier relationship ended without paid obligations.';
+
+        $this->actingAsForApi(User::factory()->deleteContracts()->create())
+            ->deleteJson(route('api.contracts.destroy', $contract), ['reason' => $reason])
+            ->assertOk()
             ->assertStatusMessageIs('success');
 
         $this->assertSoftDeleted($contract);
+        $this->assertDatabaseHas('action_logs', [
+            'item_type' => Contract::class,
+            'item_id' => $contract->id,
+            'action_type' => 'delete',
+            'note' => $reason,
+        ]);
     }
 }

@@ -2122,6 +2122,13 @@
                             {{ csrf_field() }}
                             {{ method_field('DELETE') }}
 
+                            <div class="form-group hidden text-left" id="deleteReasonGroup">
+                                <label for="deleteReason">{{ trans('admin/contracts/general.archive_reason') }}</label>
+                                <textarea class="form-control" id="deleteReason" name="reason" rows="3"
+                                          maxlength="2000" disabled></textarea>
+                                <p class="help-block">{{ trans('admin/contracts/general.archive_reason_help') }}</p>
+                            </div>
+
                             <button type="button" class="btn btn-default pull-left"
                                     data-dismiss="modal">{{ trans('general.cancel') }}</button>
                             <button type="submit" class="btn btn-outline"

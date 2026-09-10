@@ -37,22 +37,53 @@ class DeleteContractTest extends TestCase
 
         $this->actingAs(User::factory()->superuser()->create())
             ->from(route('contracts.index'))
-            ->delete(route('contracts.destroy', $contract))
+            ->delete(route('contracts.destroy', $contract), [
+                'reason' => 'Paid obligation requires the termination flow.',
+            ])
             ->assertRedirect(route('contracts.index'));
 
         $this->assertNotSoftDeleted($contract);
+        $this->assertDatabaseMissing('action_logs', [
+            'item_type' => Contract::class,
+            'item_id' => $contract->id,
+            'action_type' => 'delete',
+        ]);
     }
 
-    public function test_can_delete_contract()
+    public function test_requires_reason_to_archive_contract()
     {
         $contract = Contract::factory()->create();
 
         $this->actingAs(User::factory()->superuser()->create())
             ->from(route('contracts.index'))
             ->delete(route('contracts.destroy', $contract))
+            ->assertSessionHasErrors('reason');
+
+        $this->assertNotSoftDeleted($contract);
+        $this->assertDatabaseMissing('action_logs', [
+            'item_type' => Contract::class,
+            'item_id' => $contract->id,
+            'action_type' => 'delete',
+        ]);
+    }
+
+    public function test_can_archive_contract_and_record_reason()
+    {
+        $contract = Contract::factory()->create();
+        $reason = 'Supplier relationship ended without paid obligations.';
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->from(route('contracts.index'))
+            ->delete(route('contracts.destroy', $contract), ['reason' => $reason])
             ->assertRedirectToRoute('contracts.index')
             ->assertSessionHas('success');
 
         $this->assertSoftDeleted($contract);
+        $this->assertDatabaseHas('action_logs', [
+            'item_type' => Contract::class,
+            'item_id' => $contract->id,
+            'action_type' => 'delete',
+            'note' => $reason,
+        ]);
     }
 }

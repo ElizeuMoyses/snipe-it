@@ -1,5 +1,16 @@
 @extends('layouts/default')
 
+@php
+    $paidInstallmentsCount = $contract->installments
+        ->filter(fn ($installment) => $installment->statusLabel?->meta_type === 'paid')
+        ->count();
+    $archiveDetail = trans('admin/contracts/message.archive.detail', [
+        'name' => $contract->name,
+        'installments' => $contract->installments->count(),
+        'amendments' => $contract->amendments->count(),
+    ]);
+@endphp
+
 {{-- Page title --}}
 @section('title')
 
@@ -17,6 +28,18 @@
 @section('content')
     <x-container columns="2">
         <x-page-column class="col-md-9 main-panel">
+            @if($contract->trashed())
+                <div class="alert alert-warning" role="status">
+                    <strong>{{ trans('admin/contracts/general.archived_notice') }}</strong>
+                    <br>
+                    {{ $archiveDetail }}
+                </div>
+            @elseif($paidInstallmentsCount > 0)
+                <div class="alert alert-warning" role="status">
+                    {{ trans('admin/contracts/message.archive.blocked_paid', ['count' => $paidInstallmentsCount]) }}
+                </div>
+            @endif
+
             <x-tabs>
                 <x-slot:tabnav>
 
@@ -58,7 +81,9 @@
                         $totalUploadsCount = $contract->uploads()->count() + $installmentUploadsCount;
                     @endphp
                     <x-tabs.files-tab :item="$contract" count="{{ $totalUploadsCount }}"/>
-                    <x-tabs.upload-tab :item="$contract"/>
+                    @if(! $contract->trashed())
+                        <x-tabs.upload-tab :item="$contract"/>
+                    @endif
 
                 </x-slot:tabnav>
 
@@ -67,7 +92,7 @@
                     <!-- start installments tab pane -->
                     <x-tabs.pane name="installments" class="active in">
                         @can('installments', $contract)
-                            @if(! in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled']))
+                            @if(! $contract->trashed() && ! in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled']))
                                 <div class="row" style="margin-bottom: 10px;">
                                     <div class="col-md-12 text-right">
                                         @if ($contract->installments->count() === 0)
@@ -94,7 +119,7 @@
                     <!-- start amendments tab pane -->
                     <x-tabs.pane name="amendments">
                         @can('update', $contract)
-                            @if(! in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled']))
+                            @if(! $contract->trashed() && ! in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled']))
                                 <div class="row" style="margin-bottom: 10px;">
                                     <div class="col-md-12 text-right">
                                         <a href="{{ route('contracts.amendments.create', $contract->id) }}" class="btn btn-primary btn-sm">
@@ -299,8 +324,41 @@
                 <x-info-panel :infoPanelObj="$contract">
 
                     <x-slot:buttons>
-                        <x-button :item="$contract" permission="update" :route="route('contracts.edit', $contract->id)" class="btn-warning"  />
-                        <x-button.delete :item="$contract" />
+                        @if($contract->trashed())
+                            @can('restore', $contract)
+                                <form method="POST" action="{{ route('contracts.restore', $contract->id) }}" style="display:inline;">
+                                    @csrf
+                                    <button type="submit" class="btn btn-warning" title="{{ trans('admin/contracts/general.restore_contract') }}">
+                                        <i class="fas fa-undo"></i>
+                                        {{ trans('admin/contracts/general.restore_contract') }}
+                                    </button>
+                                </form>
+                            @endcan
+                        @else
+                            <x-button :item="$contract" permission="update" :route="route('contracts.edit', $contract->id)" class="btn-warning"  />
+                            @can('delete', $contract)
+                                @if($contract->isDeletable())
+                                    <a href="{{ route('contracts.destroy', $contract->id) }}"
+                                       class="btn btn-danger delete-asset"
+                                       data-toggle="modal"
+                                       data-icon="fa-archive"
+                                       data-require-reason="true"
+                                       data-content="{{ $archiveDetail }} {{ trans('admin/contracts/message.archive.impact') }}"
+                                       data-title="{{ trans('admin/contracts/general.archive_contract') }}"
+                                       onClick="return false;">
+                                        <i class="fas fa-archive"></i>
+                                        {{ trans('admin/contracts/general.archive_contract') }}
+                                    </a>
+                                @else
+                                    <button type="button" class="btn btn-danger disabled"
+                                            title="{{ trans('admin/contracts/message.archive.blocked_paid', ['count' => $paidInstallmentsCount]) }}"
+                                            disabled>
+                                        <i class="fas fa-archive"></i>
+                                        {{ trans('admin/contracts/general.archive_contract') }}
+                                    </button>
+                                @endif
+                            @endcan
+                        @endif
                     </x-slot:buttons>
 
                     <x-slot:info>
@@ -438,9 +496,11 @@
 @endsection
 
 @section('moar_scripts')
-    @can('files', $contract)
-        @include ('modals.upload-file', ['item_type' => 'contracts', 'item_id' => $contract->id])
-    @endcan
+    @if(! $contract->trashed())
+        @can('files', $contract)
+            @include ('modals.upload-file', ['item_type' => 'contracts', 'item_id' => $contract->id])
+        @endcan
+    @endif
 
     @include ('partials.bootstrap-table', ['exportFile' => 'contracts-' . $contract->name . '-export', 'search' => false])
 @endsection

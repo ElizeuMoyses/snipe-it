@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\ContractAssetLinkException;
 use App\Http\Transformers\SelectlistTransformer;
 use App\Models\Company;
+use App\Actions\Contracts\ContractLifecycleAction;
 use App\Models\Asset;
 use App\Models\Contract;
 use App\Models\ContractInstallment;
@@ -215,30 +216,53 @@ class ContractsController extends Controller
     /**
      * Delete the given contract.
      */
-    public function destroy(Contract $contract): RedirectResponse
+    public function destroy(Request $request, Contract $contract): RedirectResponse
     {
         $this->authorize('delete', $contract);
 
-        return $contract->getConnection()->transaction(function () use ($contract) {
-            $contract = Contract::whereKey($contract->getKey())->lockForUpdate()->firstOrFail();
-            $this->authorize('delete', $contract);
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:3', 'max:2000'],
+        ]);
 
-            if (! $contract->isDeletable()) {
-                return redirect()->route('contracts.index')->with('error', trans('admin/contracts/message.assoc_installments'));
-            }
+        $result = app(ContractLifecycleAction::class)->archive($contract, $validated['reason']);
 
-            $before = app(ContractAuditService::class)->snapshot($contract);
-            $contract->delete();
-            app(ContractAuditService::class)->record(
-                $contract,
-                'contract.deleted',
-                $contract,
-                $before,
-                app(ContractAuditService::class)->snapshot($contract),
-            );
+        return match ($result['status']) {
+            'archived' => redirect()->route('contracts.index')
+                ->with('success', trans('admin/contracts/message.archive.success')),
+            'blocked_paid' => redirect()->route('contracts.index')
+                ->with('error', trans('admin/contracts/message.archive.blocked_paid', [
+                    'count' => $result['paid_count'],
+                ])),
+            'already_archived' => redirect()->route('contracts.show', $contract->id)
+                ->with('error', trans('admin/contracts/message.archive.already_archived')),
+            default => redirect()->route('contracts.index')
+                ->with('error', trans('admin/contracts/message.archive.error')),
+        };
+    }
 
-            return redirect()->route('contracts.index')->with('success', trans('admin/contracts/message.delete.success'));
-        });
+    /**
+     * Restore an archived contract without recreating dependent records.
+     */
+    public function restore(Request $request, Contract $contract): RedirectResponse
+    {
+        $this->authorize('restore', $contract);
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'min:3', 'max:2000'],
+        ]);
+
+        $result = app(ContractLifecycleAction::class)->restore($contract, $validated['reason'] ?? null);
+
+        return match ($result['status']) {
+            'restored' => redirect()->route('contracts.show', $contract->id)
+                ->with('success', trans('admin/contracts/message.archive.restored')),
+            'restore_conflict' => redirect()->route('contracts.show', $contract->id)
+                ->with('error', trans('admin/contracts/message.archive.restore_conflict')),
+            'not_archived' => redirect()->route('contracts.show', $contract->id)
+                ->with('error', trans('admin/contracts/message.archive.not_archived')),
+            default => redirect()->route('contracts.show', $contract->id)
+                ->with('error', trans('admin/contracts/message.archive.error')),
+        };
     }
 
     /**

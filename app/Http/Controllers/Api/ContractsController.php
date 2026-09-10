@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Contracts\ContractLifecycleAction;
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FilterRequest;
@@ -42,14 +43,22 @@ class ContractsController extends Controller
             'updated_at',
         ];
 
-        $contracts = Contract::select([
+        $contracts = ($request->boolean('archived') || $request->boolean('deleted'))
+            ? Contract::onlyTrashed()
+            : Contract::query();
+
+        $contracts = $contracts->select([
             'id', 'name', 'contract_number', 'contract_type', 'status_label_id',
             'supplier_id', 'company_id', 'start_date', 'end_date', 'billing_cycle',
             'billing_day', 'installment_value', 'total_value', 'total_installments', 'notes',
             'created_at', 'created_by', 'updated_at', 'deleted_at',
         ])
             ->with('supplier', 'company', 'statusLabel', 'adminuser')
-            ->withCount('installments');
+            ->withCount([
+                'installments',
+                'installments as pending_installments_count' => fn ($query) => $query->withTrashed()->pending(),
+                'amendments as amendments_count' => fn ($query) => $query->withTrashed(),
+            ]);
 
         if ($request->filled('filter') || $request->filled('search')) {
             $contracts->TextSearch($request->input('filter') ?: $request->input('search'));
@@ -148,8 +157,20 @@ class ContractsController extends Controller
     public function show($id): array
     {
         $this->authorize('view', Contract::class);
-        $contract = Contract::with('supplier', 'company', 'statusLabel', 'adminuser', 'installments')
-            ->withCount('installments')
+        $contract = Contract::withTrashed()
+            ->with([
+                'supplier',
+                'company',
+                'statusLabel',
+                'adminuser',
+                'installments' => fn ($query) => $query->withTrashed(),
+                'amendments' => fn ($query) => $query->withTrashed(),
+            ])
+            ->withCount([
+                'installments',
+                'installments as pending_installments_count' => fn ($query) => $query->withTrashed()->pending(),
+                'amendments as amendments_count' => fn ($query) => $query->withTrashed(),
+            ])
             ->findOrFail($id);
 
         return (new ContractsTransformer)->transformContract($contract);
@@ -191,35 +212,54 @@ class ContractsController extends Controller
     /**
      * Remove the specified contract.
      */
-    public function destroy(Contract $contract): JsonResponse
+    public function destroy(Request $request, Contract $contract): JsonResponse
     {
         $this->authorize('delete', $contract);
 
-        return $contract->getConnection()->transaction(function () use ($contract) {
-            $contract = Contract::whereKey($contract->getKey())->lockForUpdate()->firstOrFail();
-            $this->authorize('delete', $contract);
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:3', 'max:2000'],
+        ]);
 
-            if (! $contract->isDeletable()) {
-                return response()->json(Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.assoc_installments')));
-            }
+        $result = app(ContractLifecycleAction::class)->archive($contract, $validated['reason']);
 
-            $before = app(ContractAuditService::class)->snapshot($contract);
-            $contract->delete();
-            app(ContractAuditService::class)->record(
-                $contract,
-                'contract.deleted',
-                $contract,
-                $before,
-                app(ContractAuditService::class)->snapshot($contract),
-            );
+        if ($result['status'] === 'blocked_paid') {
+            return response()->json(Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.archive.blocked_paid', [
+                'count' => $result['paid_count'],
+            ])), 422);
+        }
 
-            return response()->json(Helper::formatStandardApiResponse('success', null, trans('admin/contracts/message.delete.success')));
-        });
+        if ($result['status'] !== 'archived') {
+            return response()->json(Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.archive.already_archived')), 422);
+        }
+
+        return response()->json(Helper::formatStandardApiResponse('success', null, trans('admin/contracts/message.archive.success')));
     }
 
     /**
-     * Display the unified, authorized contract audit history.
+     * Restore an archived contract without recreating dependent records.
      */
+    public function restore(Request $request, $id): JsonResponse
+    {
+        $contract = Contract::withTrashed()->findOrFail($id);
+        $this->authorize('restore', $contract);
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'min:3', 'max:2000'],
+        ]);
+
+        $result = app(ContractLifecycleAction::class)->restore($contract, $validated['reason'] ?? null);
+
+        if ($result['status'] === 'restore_conflict') {
+            return response()->json(Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.archive.restore_conflict')), 422);
+        }
+
+        if ($result['status'] !== 'restored') {
+            return response()->json(Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.archive.not_archived')), 422);
+        }
+
+        return response()->json(Helper::formatStandardApiResponse('success', null, trans('admin/contracts/message.archive.restored')));
+    }
+
     public function history(Request $request, $contractId): JsonResponse
     {
         $contract = Contract::withTrashed()->findOrFail($contractId);

@@ -29,6 +29,20 @@ return [
         'success' => 'Contrato excluído com sucesso.',
     ],
 
+    'archive' => [
+        'confirm' => 'Arquivar este registro de contrato? Isso não é uma rescisão financeira.',
+        'impact' => 'O contrato sairá da lista ativa. Suas parcelas, aditivos, ativos vinculados e histórico continuarão consultáveis. Parcelas pagas bloqueiam o arquivamento. Um motivo é obrigatório.',
+        'detail' => 'Arquivar o contrato :name preserva :installments parcela(s) e :amendments aditivo(s). Isso não cancela obrigações nem recupera arquivos excluídos separadamente.',
+        'success' => 'Contrato arquivado com sucesso. Os registros relacionados e o histórico de auditoria foram preservados.',
+        'blocked_paid' => 'Este contrato possui :count parcela(s) paga(s) e não pode ser arquivado. Use o fluxo de rescisão/aditivo do contrato.',
+        'already_archived' => 'Este contrato já está arquivado.',
+        'not_archived' => 'Este contrato não está arquivado.',
+        'restore_reason' => 'Contrato restaurado pelo fluxo autorizado de recuperação de arquivamento.',
+        'restore_conflict' => 'O contrato não pode ser restaurado porque seu número já está sendo usado por um contrato ativo.',
+        'restored' => 'Contrato restaurado com sucesso. As parcelas e os aditivos existentes foram preservados; nenhum registro ou arquivo foi recriado.',
+        'error' => 'A operação de ciclo de vida do contrato não pôde ser concluída. Nenhum arquivamento ou restauração parcial foi mantido.',
+    ],
+
     'installment' => [
         'contract_terminal' => 'Não é possível criar parcelas em um contrato encerrado (expirado ou cancelado).',
         'create' => [

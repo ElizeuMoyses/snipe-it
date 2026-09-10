@@ -341,3 +341,10 @@ rollback do vínculo diante de falha de auditoria e isolamento: 3/10 passaram.
 O erro de contrato inacessível usa envelope legado HTTP 200 com status error,
 sem linhas do histórico. Migration aplicada somente na réplica local após backup
 privado validado por gzip e SHA-256. Sem alteração em produção.
+
+Arquivamento integrado (#14): motivo obrigatório, consulta de arquivados,
+restauração autorizada e bloqueio se houver pagamento, inclusive em parcela
+removida. Filhos, vínculos e arquivos preservados. Evento unificado referencia
+Actionlog para não duplicar a leitura. Regressão SQLite: 121/568 passou;
+verificação adicional de motivo e deduplicação: 3/27 passou. Build e QA visual
+do conjunto final ainda serão executados antes do fechamento das issues.

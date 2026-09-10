@@ -771,7 +771,19 @@
 
 
     // Contract table buttons
+    @php($contractsArchived = $showArchived ?? false)
     window.contractButtons = () => ({
+        btnArchived: {
+            text: '{{ $contractsArchived ? trans('admin/contracts/general.show_current') : trans('admin/contracts/general.show_archived') }}',
+            icon: 'fa fa-archive',
+            event () {
+                window.location.href = '{{ $contractsArchived ? route('contracts.index') : route('contracts.index', ['archived' => 1]) }}';
+            },
+            attributes: {
+                class: 'btn-default',
+                title: '{{ $contractsArchived ? trans('admin/contracts/general.show_current') : trans('admin/contracts/general.show_archived') }}',
+            },
+        },
         @can('create', \App\Models\Contract::class)
         btnAdd: {
             text: '{{ trans('general.create') }}',
@@ -1190,12 +1202,19 @@
 
 
                 
+                var deleteIcon = owner_name === 'contracts' ? 'fa-archive' : 'fa-trash';
+                var deleteTitle = owner_name === 'contracts' ? '{{ trans('admin/contracts/general.archive_contract') }}' : '{{ trans('general.delete') }}';
+                var deleteContent = owner_name === 'contracts'
+                    ? '{{ trans('admin/contracts/message.archive.confirm') }} ' + name_for_box + '. {{ trans('admin/contracts/message.archive.impact') }}'
+                    : '{{ trans('general.sure_to_delete') }}: ' + name_for_box + '?';
+                var deleteReasonAttribute = owner_name === 'contracts' ? ' data-require-reason="true"' : '';
+
                 actions += '<a href="{{ config('app.url') }}/' + dest + '/' + row.id + '" '
                     + ' class="actions btn btn-danger btn-sm delete-asset hidden-print" data-tooltip="true"  '
-                    + ' data-toggle="modal" data-icon="fa-trash"'
-                    + ' data-content="{{ trans('general.sure_to_delete') }}: ' + name_for_box + '?" '
-                    + ' data-title="{{  trans('general.delete') }}" onClick="return false;">'
-                    + '<x-icon type="delete" class="fa-fw" /><span class="sr-only">{{ trans('general.delete') }}</span></a>&nbsp;';
+                    + ' data-toggle="modal" data-icon="' + deleteIcon + '"'
+                    + ' data-content="' + deleteContent + '"'
+                    + ' data-title="' + deleteTitle + '"' + deleteReasonAttribute + ' onClick="return false;">'
+                    + '<x-icon type="delete" class="fa-fw" /><span class="sr-only">' + deleteTitle + '</span></a>&nbsp;';
             } else {
                 // Do not show the delete button on things that are already deleted
                 if ((row.available_actions) && (row.available_actions.restore != true)) {

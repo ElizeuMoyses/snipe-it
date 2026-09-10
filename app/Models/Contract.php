@@ -492,7 +492,7 @@ class Contract extends SnipeModel
     public function isDeletable(): bool
     {
         return Gate::allows('delete', $this)
-            && ($this->installments()->paid()->count() === 0)
+            && ($this->installments()->withTrashed()->paid()->count() === 0)
             && ($this->deleted_at === null);
     }
 }

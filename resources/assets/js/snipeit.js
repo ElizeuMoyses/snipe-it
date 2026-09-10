@@ -145,6 +145,9 @@ $(function () {
         var message = $context.attr('data-content');
         var headericon = $context.attr('data-icon');
         var title = $context.attr('data-title');
+        var requiresReason = $context.attr('data-require-reason') === 'true';
+        var $deleteReasonGroup = $('#deleteReasonGroup');
+        var $deleteReason = $('#deleteReason');
 
         // deleteForm is the ID of the modal form itself
         $('#deleteForm').attr('action', href);
@@ -152,6 +155,10 @@ $(function () {
         $dataConfirmModal.find('.modal-title').text(title).prepend('<i class="fa ' + headericon + '"></i> ');
         $dataConfirmModal.find('.modal-body').text(message);
         $dataConfirmModal.attr('action', href);
+        $deleteReason.val('');
+        $deleteReason.prop('required', requiresReason);
+        $deleteReason.prop('disabled', !requiresReason);
+        $deleteReasonGroup.toggleClass('hidden', !requiresReason);
 
         // Fire the modal
         $dataConfirmModal.modal({

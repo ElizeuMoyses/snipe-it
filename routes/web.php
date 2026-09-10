@@ -98,7 +98,10 @@ Route::group(['middleware' => 'auth'], function () {
     * Contracts
     */
     Route::get('contracts/dashboard', [ContractsController::class, 'dashboard'])->name('contracts.dashboard');
-    Route::resource('contracts', ContractsController::class);
+    Route::resource('contracts', ContractsController::class)->withTrashed(['show', 'destroy']);
+    Route::post('contracts/{contract}/restore', [ContractsController::class, 'restore'])
+        ->withTrashed()
+        ->name('contracts.restore');
     Route::get('contracts/{contract}/history', [ContractsController::class, 'history'])->name('contracts.history');
 
     /*

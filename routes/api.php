@@ -1086,6 +1086,10 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
         ]
     ); // end contracts API routes
 
+    Route::post('contracts/{contract}/restore',
+        [Api\ContractsController::class, 'restore']
+    )->name('api.contracts.restore');
+
     /**
      * Contract Installments API routes
      */

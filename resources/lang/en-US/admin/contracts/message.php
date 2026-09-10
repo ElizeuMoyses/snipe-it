@@ -29,6 +29,20 @@ return [
         'success' => 'Contract was deleted successfully.',
     ],
 
+    'archive' => [
+        'confirm' => 'Archive this contract record? This is not a financial termination.',
+        'impact' => 'The contract will leave the active list. Its installments, amendments, linked assets and history remain consultable. Paid installments block archiving. A reason is required.',
+        'detail' => 'Archiving contract :name preserves :installments installment(s) and :amendments amendment(s). It does not cancel obligations or restore files deleted separately.',
+        'success' => 'Contract archived successfully. Its related records and audit history were preserved.',
+        'blocked_paid' => 'This contract has :count paid installment(s) and cannot be archived. Use the contract termination/amendment flow instead.',
+        'already_archived' => 'This contract is already archived.',
+        'not_archived' => 'This contract is not archived.',
+        'restore_reason' => 'Contract restored through the authorized archive recovery flow.',
+        'restore_conflict' => 'The contract cannot be restored because its contract number is already used by an active contract.',
+        'restored' => 'Contract restored successfully. Existing installments and amendments were preserved; no records or files were regenerated.',
+        'error' => 'The contract lifecycle operation could not be completed. No partial archive or restore was kept.',
+    ],
+
     'installment' => [
         'contract_terminal' => 'Cannot create installments on a terminated contract (expired or cancelled).',
         'create' => [
