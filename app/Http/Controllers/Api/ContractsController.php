@@ -114,8 +114,8 @@ class ContractsController extends Controller
         }
 
         if ($contract->save()) {
-            // Generate installments automatically
-            if ($contract->start_date) {
+            // Preserve the API default while allowing callers to defer generation, like the UI.
+            if ($request->boolean('auto_generate_installments', true) && $contract->start_date) {
                 if ($contract->contract_type === 'recurring'
                     || ($contract->contract_type === 'one_time'
                         && ($contract->total_value > 0 || $contract->installment_value > 0))) {

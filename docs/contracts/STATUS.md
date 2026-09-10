@@ -180,3 +180,18 @@ Não alterar a regra nem tratar o calendário como aceito sem essa definição.
 
 Permanecem pendentes a verificação real de assinatura/CSP, a conferência final
 UI/API e do diff da release, além do aceite funcional. Resultado atual: NO-GO.
+## Assinatura e equivalência de criação (continuação)
+
+Smoke EULA local com usuário/ativo exclusivamente sintéticos: validação de dados,
+leitura do termo, captura no canvas, desfazer (desabilita finalizar), novo traço e
+finalização passaram no navegador. Persistência confirmada: accepted_at preenchido,
+declined_at vazio, PNG privado existente e tipo de dispositivo desktop.
+Isso evidencia execução do JavaScript com middleware real nesse fluxo desktop;
+não constitui validação em celular nem teste de entrega externa de e-mail.
+
+A API ignorava auto_generate_installments=false e criava três parcelas mesmo
+quando solicitada criação sem geração. Teste reproduziu a falha (3 versus 0).
+Agora a API respeita o booleano, mantendo geração automática quando omitido.
+MariaDB, criação UI/API: 10 testes / 26 asserções passaram; artefato privado
+contracts-create-parity.xml. Os formatos de resposta seguem as convenções próprias
+de cada interface (redirect UI e envelope JSON API).
