@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Company;
+use App\Models\Asset;
 use App\Models\Contract;
 use App\Models\ContractInstallment;
 use App\Models\ContractStatusLabel;
@@ -214,7 +215,9 @@ class ContractsController extends Controller
             'asset_id' => 'required|exists:assets,id',
         ]);
 
-        $assetId = $request->input('asset_id');
+        $asset = Asset::findOrFail($request->input('asset_id'));
+        $this->authorize('view', $asset);
+        $assetId = $asset->id;
 
         // Prevent duplicate attachment
         if ($contract->assets()->where('assets.id', $assetId)->exists()) {

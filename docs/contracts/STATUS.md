@@ -76,6 +76,13 @@ Seleção de renderização com envio pela rota UI e testes de arquivos passou:
 
 ## Critérios ainda pendentes
 
+Vínculo de ativos: teste reproduziu associação de ativo de outra empresa por ID.
+Controlador agora busca o ativo com o escopo de empresa e exige permissão de
+visualização antes de associar. Seleção de ativos/scheduler em SQLite: **5 testes
+/ 20 asserções passaram**, incluindo vínculo válido único, desvinculação e recusa
+sem `assets.view`. Project atualizado: issues #1–#6 em andamento; nenhuma marcada
+concluída enquanto a revisão final está pendente.
+
 Revisão do scheduler encontrou disputa com pagamento: rotina de vencidos lia a
 parcela pendente e podia sobrescrever um pagamento ocorrido depois da seleção.
 Teste reproduziu a mudança incorreta; rotina agora bloqueia contrato/parcela e
