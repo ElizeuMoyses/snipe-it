@@ -50,6 +50,25 @@ preexistentes sem comparação equivalente da base.
 
 ## Próximos passos
 
+Revisão adicional de concorrência: a disputa pagamento/cancelamento UI reproduziu
+o desvio do bloqueio de contrato. Alterações de status, edição, exclusão e criação
+de parcelas agora usam transação com bloqueio do contrato (e parcela existente).
+O modo `payment-cancel` do script passou após a correção, validando também a
+consistência entre status pago e valor pago. Seleção local atual de contratos em
+SQLite: **54 testes / 142 asserções passaram**. CI completo de `39229d1159` passou.
+Smoke de escrita no navegador iniciado com contrato sintético: o formulário exige
+valor da parcela mesmo para contrato único com total informado; a mensagem de
+erro não detalha o campo e o status selecionado não é preservado. Investigar essa
+experiência antes de concluir o aceite funcional. Nenhum contrato real foi editado.
+
+Recuperação de arquivos concluída: arquivo original de backup extraído para pasta
+privada nova, com validação de caminhos e rejeição de links/arquivos especiais.
+**1182 arquivos restaurados; zero divergências SHA-256** entre conteúdo do backup
+e arquivos recuperados. Nenhum upload de trabalho foi sobrescrito.
+Suíte completa do commit `39229d1159` iniciada em cópia imutável separada no Docker;
+o resultado anterior permanece apenas diagnóstico. CI de contratos nesse commit
+passou; suíte completa remota ainda em execução na última consulta.
+
 Ensaio de banco concluído localmente: backup da referência preservada restaurado
 em banco separado, migrations aplicadas e conteúdo dos campos originais de **53
 tabelas comparado por SHA-256 sem divergências** (migrations excluída). O backup

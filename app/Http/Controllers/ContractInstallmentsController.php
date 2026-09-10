@@ -35,38 +35,41 @@ class ContractInstallmentsController extends Controller
      */
     public function store(Request $request, Contract $contract): RedirectResponse
     {
-        $this->authorize('installments', $contract);
+        return $contract->getConnection()->transaction(function () use ($request, $contract) {
+            $contract = Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
+            $this->authorize('installments', $contract);
 
-        // Guard: cannot create installments on terminal contracts
-        if (in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled'])) {
-            return redirect()->route('contracts.show', $contract->id)
-                ->with('error', trans('admin/contracts/message.installment.contract_terminal'));
-        }
+            // Guard: cannot create installments on terminal contracts
+            if (in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled'])) {
+                return redirect()->route('contracts.show', $contract->id)
+                    ->with('error', trans('admin/contracts/message.installment.contract_terminal'));
+            }
 
-        $installment = new ContractInstallment;
-        $installment->contract_id = $contract->id;
-        $installment->installment_number = $request->input('installment_number');
-        $installment->reference_date = $request->input('reference_date');
-        $installment->due_date = $request->input('due_date');
-        $installment->expected_value = $request->input('expected_value');
-        $installment->notes = $request->input('notes');
-        $installment->created_by = auth()->id();
+            $installment = new ContractInstallment;
+            $installment->contract_id = $contract->id;
+            $installment->installment_number = $request->input('installment_number');
+            $installment->reference_date = $request->input('reference_date');
+            $installment->due_date = $request->input('due_date');
+            $installment->expected_value = $request->input('expected_value');
+            $installment->notes = $request->input('notes');
+            $installment->created_by = auth()->id();
 
-        // Force default pending status — never accept from request
-        $defaultPending = ContractStatusLabel::defaultForMetaType('installment', 'pending');
-        if (! $defaultPending) {
-            return redirect()->back()->withInput()
-                ->with('error', trans('admin/contracts/message.installment.create.missing_default_status'));
-        }
-        $installment->status_label_id = $defaultPending->id;
+            // Force default pending status — never accept from request
+            $defaultPending = ContractStatusLabel::defaultForMetaType('installment', 'pending');
+            if (! $defaultPending) {
+                return redirect()->back()->withInput()
+                    ->with('error', trans('admin/contracts/message.installment.create.missing_default_status'));
+            }
+            $installment->status_label_id = $defaultPending->id;
 
-        if ($installment->save()) {
-            return redirect()->route('contracts.show', $contract->id)
-                ->with('success', trans('admin/contracts/message.installment.create.success'))
-                ->withFragment('installments');
-        }
+            if ($installment->save()) {
+                return redirect()->route('contracts.show', $contract->id)
+                    ->with('success', trans('admin/contracts/message.installment.create.success'))
+                    ->withFragment('installments');
+            }
 
-        return redirect()->back()->withInput()->withErrors($installment->getErrors());
+            return redirect()->back()->withInput()->withErrors($installment->getErrors());
+        });
     }
 
     /**
@@ -127,29 +130,32 @@ class ContractInstallmentsController extends Controller
      */
     public function update(Request $request, Contract $contract, $installmentId): RedirectResponse
     {
-        $installment = $contract->installments()->findOrFail($installmentId);
-        $this->authorize('installments', $contract);
+        return $contract->getConnection()->transaction(function () use ($request, $contract, $installmentId) {
+            $contract = Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
+            $installment = $contract->installments()->lockForUpdate()->findOrFail($installmentId);
+            $this->authorize('installments', $contract);
 
-        // Guard: terminal installments are not editable
-        if ($installment->statusLabel?->isTerminal()) {
-            return redirect()->route('contracts.show', $contract->id)
-                ->with('error', trans('admin/contracts/message.installment.terminal_locked'));
-        }
+            // Guard: terminal installments are not editable
+            if ($installment->statusLabel?->isTerminal()) {
+                return redirect()->route('contracts.show', $contract->id)
+                    ->with('error', trans('admin/contracts/message.installment.terminal_locked'));
+            }
 
-        // Only allow editing basic fields — payment fields are exclusive to payment flow
-        $installment->installment_number = $request->input('installment_number');
-        $installment->reference_date = $request->input('reference_date');
-        $installment->due_date = $request->input('due_date');
-        $installment->expected_value = $request->input('expected_value');
-        $installment->notes = $request->input('notes');
+            // Only allow editing basic fields — payment fields are exclusive to payment flow
+            $installment->installment_number = $request->input('installment_number');
+            $installment->reference_date = $request->input('reference_date');
+            $installment->due_date = $request->input('due_date');
+            $installment->expected_value = $request->input('expected_value');
+            $installment->notes = $request->input('notes');
 
-        if ($installment->save()) {
-            return redirect()->route('contracts.show', $contract->id)
-                ->with('success', trans('admin/contracts/message.installment.update.success'))
-                ->withFragment('installments');
-        }
+            if ($installment->save()) {
+                return redirect()->route('contracts.show', $contract->id)
+                    ->with('success', trans('admin/contracts/message.installment.update.success'))
+                    ->withFragment('installments');
+            }
 
-        return redirect()->back()->withInput()->withErrors($installment->getErrors());
+            return redirect()->back()->withInput()->withErrors($installment->getErrors());
+        });
     }
 
     /**
@@ -157,20 +163,23 @@ class ContractInstallmentsController extends Controller
      */
     public function destroy(Contract $contract, $installmentId): RedirectResponse
     {
-        $installment = $contract->installments()->findOrFail($installmentId);
-        $this->authorize('installments', $contract);
+        return $contract->getConnection()->transaction(function () use ($contract, $installmentId) {
+            $contract = Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
+            $installment = $contract->installments()->lockForUpdate()->findOrFail($installmentId);
+            $this->authorize('installments', $contract);
 
-        // Guard: terminal installments cannot be deleted
-        if ($installment->statusLabel?->isTerminal()) {
+            // Guard: terminal installments cannot be deleted
+            if ($installment->statusLabel?->isTerminal()) {
+                return redirect()->route('contracts.show', $contract->id)
+                    ->with('error', trans('admin/contracts/message.installment.terminal_locked'));
+            }
+
+            $installment->delete();
+
             return redirect()->route('contracts.show', $contract->id)
-                ->with('error', trans('admin/contracts/message.installment.terminal_locked'));
-        }
-
-        $installment->delete();
-
-        return redirect()->route('contracts.show', $contract->id)
-            ->with('success', trans('admin/contracts/message.installment.delete.success'))
-            ->withFragment('installments');
+                ->with('success', trans('admin/contracts/message.installment.delete.success'))
+                ->withFragment('installments');
+        });
     }
 
     /**
@@ -258,51 +267,54 @@ class ContractInstallmentsController extends Controller
      */
     public function updateStatus(Request $request, Contract $contract, $installmentId): RedirectResponse
     {
-        $installment = $contract->installments()->findOrFail($installmentId);
-        $this->authorize('installments', $contract);
+        return $contract->getConnection()->transaction(function () use ($request, $contract, $installmentId) {
+            $contract = Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
+            $installment = $contract->installments()->lockForUpdate()->findOrFail($installmentId);
+            $this->authorize('installments', $contract);
 
-        $request->validate([
-            'status_label_id' => 'required|exists:contract_status_labels,id',
-        ]);
+            $request->validate([
+                'status_label_id' => 'required|exists:contract_status_labels,id',
+            ]);
 
-        $newStatusLabel = ContractStatusLabel::findOrFail($request->input('status_label_id'));
-        $currentStatusLabel = $installment->statusLabel;
+            $newStatusLabel = ContractStatusLabel::findOrFail($request->input('status_label_id'));
+            $currentStatusLabel = $installment->statusLabel;
 
-        // 1. Scope check: must be installment scope
-        if ($newStatusLabel->scope !== 'installment') {
-            return redirect()->back()
-                ->with('error', trans('admin/contracts/message.installment.status.invalid_scope'));
-        }
-
-        // 2. Terminal check: cannot change from terminal status
-        if ($currentStatusLabel?->isTerminal()) {
-            return redirect()->back()
-                ->with('error', trans('admin/contracts/message.installment.status.terminal_locked'));
-        }
-
-        // 3. Same meta_type: allow unconditionally (free transition)
-        $currentMeta = $currentStatusLabel?->meta_type;
-        $newMeta = $newStatusLabel->meta_type;
-
-        if ($currentMeta !== $newMeta) {
-            // 4. Cross meta_type: validate against allowed transitions
-            // Note: paid is NOT reachable via updateStatus — only via storePayment
-            $allowedTransitions = [
-                'pending' => ['cancelled'],
-                'overdue' => [],
-            ];
-
-            if (! in_array($newMeta, $allowedTransitions[$currentMeta] ?? [])) {
+            // 1. Scope check: must be installment scope
+            if ($newStatusLabel->scope !== 'installment') {
                 return redirect()->back()
-                    ->with('error', trans('admin/contracts/message.installment.status.transition_blocked'));
+                    ->with('error', trans('admin/contracts/message.installment.status.invalid_scope'));
             }
-        }
 
-        $installment->status_label_id = $newStatusLabel->id;
-        $installment->save();
+            // 2. Terminal check: cannot change from terminal status
+            if ($currentStatusLabel?->isTerminal()) {
+                return redirect()->back()
+                    ->with('error', trans('admin/contracts/message.installment.status.terminal_locked'));
+            }
 
-        return redirect()->route('contracts.show', $contract->id)
-            ->with('success', trans('admin/contracts/message.installment.status.success'))
-            ->withFragment('installments');
+            // 3. Same meta_type: allow unconditionally (free transition)
+            $currentMeta = $currentStatusLabel?->meta_type;
+            $newMeta = $newStatusLabel->meta_type;
+
+            if ($currentMeta !== $newMeta) {
+                // 4. Cross meta_type: validate against allowed transitions
+                // Note: paid is NOT reachable via updateStatus — only via storePayment
+                $allowedTransitions = [
+                    'pending' => ['cancelled'],
+                    'overdue' => [],
+                ];
+
+                if (! in_array($newMeta, $allowedTransitions[$currentMeta] ?? [])) {
+                    return redirect()->back()
+                        ->with('error', trans('admin/contracts/message.installment.status.transition_blocked'));
+                }
+            }
+
+            $installment->status_label_id = $newStatusLabel->id;
+            $installment->save();
+
+            return redirect()->route('contracts.show', $contract->id)
+                ->with('success', trans('admin/contracts/message.installment.status.success'))
+                ->withFragment('installments');
+        });
     }
 }

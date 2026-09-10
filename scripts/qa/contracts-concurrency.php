@@ -18,7 +18,13 @@ if (($argv[1] ?? '') === 'worker') {
     auth()->login(User::findOrFail((int) $argv[3]));
     file_put_contents($argv[4], 'ready');
     $contract = Contract::findOrFail((int) $argv[2]);
-    if (in_array($argv[5] ?? '', ['payment', 'payment-ui'], true)) {
+    if (($argv[5] ?? '') === 'cancel-ui') {
+        $status = App\Models\ContractStatusLabel::defaultForMetaType('installment', 'cancelled');
+        $request = Illuminate\Http\Request::create('/synthetic-status', 'PATCH', ['status_label_id' => $status->id]);
+        app(App\Http\Controllers\ContractInstallmentsController::class)
+            ->updateStatus($request, $contract, $contract->installments()->firstOrFail()->id);
+        echo session()->has('error') ? 422 : 200;
+    } elseif (in_array($argv[5] ?? '', ['payment', 'payment-ui'], true)) {
         $request = Illuminate\Http\Request::create('/synthetic-payment', 'POST', [
             'paid_value' => '10.00', 'payment_date' => '2026-09-10',
         ]);
@@ -43,7 +49,7 @@ $contract = Contract::factory()->oneTime()->create([
     'start_date' => '2026-01-31', 'total_value' => '100.00', 'total_installments' => 3,
 ]);
 $workers = [];
-$mode = in_array($argv[1] ?? '', ['payment', 'payment-ui'], true) ? $argv[1] : 'generation';
+$mode = in_array($argv[1] ?? '', ['payment', 'payment-ui', 'payment-cancel'], true) ? $argv[1] : 'generation';
 if ($mode !== 'generation') {
     $contract->generateInstallments();
 }
@@ -54,7 +60,8 @@ try {
     for ($i = 0; $i < 2; $i++) {
         $signal = tempnam(sys_get_temp_dir(), 'contract-worker-');
         $signals[] = $signal;
-        $process = proc_open([PHP_BINARY, __FILE__, 'worker', (string) $contract->id, (string) $user->id, $signal, $mode],
+        $workerMode = $mode === 'payment-cancel' ? ($i === 0 ? 'payment-ui' : 'cancel-ui') : $mode;
+        $process = proc_open([PHP_BINARY, __FILE__, 'worker', (string) $contract->id, (string) $user->id, $signal, $workerMode],
             [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
         if (! is_resource($process)) {
             throw new RuntimeException('Could not launch worker');
@@ -91,6 +98,12 @@ try {
         $counts[] = (int) trim($output);
     }
     sort($counts);
+    if ($mode === 'payment-cancel') {
+        $installment = $contract->installments()->firstOrFail();
+        if (($installment->statusLabel->meta_type === 'paid') !== ($installment->paid_value !== null)) {
+            throw new RuntimeException('Payment and installment status became inconsistent');
+        }
+    }
     $expected = $mode !== 'generation' ? [200, 422] : [0, 3];
     if ($counts !== $expected || $contract->installments()->count() !== 3
         || (int) round($contract->installments()->sum('expected_value') * 100) !== 10000) {

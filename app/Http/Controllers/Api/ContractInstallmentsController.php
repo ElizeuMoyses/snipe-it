@@ -84,43 +84,46 @@ class ContractInstallmentsController extends Controller
      */
     public function store(Request $request, Contract $contract): JsonResponse
     {
-        $this->authorize('installments', $contract);
+        return $contract->getConnection()->transaction(function () use ($request, $contract) {
+            $contract = Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
+            $this->authorize('installments', $contract);
 
-        // Guard: block creation on terminal contracts
-        if (in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled'])) {
+            // Guard: block creation on terminal contracts
+            if (in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled'])) {
+                return response()->json(
+                    Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.installment.contract_terminal')),
+                    422
+                );
+            }
+
+            $installment = new ContractInstallment;
+            $installment->contract_id = $contract->id;
+            $installment->fill($request->only([
+                'installment_number', 'reference_date', 'due_date',
+                'expected_value', 'notes',
+            ]));
+            $installment->created_by = auth()->id();
+
+            // Force default pending status — never accept status_label_id from request
+            $defaultPending = ContractStatusLabel::defaultForMetaType('installment', 'pending');
+            if (! $defaultPending) {
+                return response()->json(
+                    Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.installment.create.missing_default_status')),
+                    500
+                );
+            }
+            $installment->status_label_id = $defaultPending->id;
+
+            if ($installment->save()) {
+                return response()->json(
+                    Helper::formatStandardApiResponse('success', $installment, trans('admin/contracts/message.installment.create.success'))
+                );
+            }
+
             return response()->json(
-                Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.installment.contract_terminal')),
-                422
+                Helper::formatStandardApiResponse('error', null, $installment->getErrors())
             );
-        }
-
-        $installment = new ContractInstallment;
-        $installment->contract_id = $contract->id;
-        $installment->fill($request->only([
-            'installment_number', 'reference_date', 'due_date',
-            'expected_value', 'notes',
-        ]));
-        $installment->created_by = auth()->id();
-
-        // Force default pending status — never accept status_label_id from request
-        $defaultPending = ContractStatusLabel::defaultForMetaType('installment', 'pending');
-        if (! $defaultPending) {
-            return response()->json(
-                Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.installment.create.missing_default_status')),
-                500
-            );
-        }
-        $installment->status_label_id = $defaultPending->id;
-
-        if ($installment->save()) {
-            return response()->json(
-                Helper::formatStandardApiResponse('success', $installment, trans('admin/contracts/message.installment.create.success'))
-            );
-        }
-
-        return response()->json(
-            Helper::formatStandardApiResponse('error', null, $installment->getErrors())
-        );
+        });
     }
 
     /**
@@ -128,31 +131,34 @@ class ContractInstallmentsController extends Controller
      */
     public function update(Request $request, Contract $contract, $installmentId): JsonResponse
     {
-        $this->authorize('installments', $contract);
-        $installment = $contract->installments()->findOrFail($installmentId);
+        return $contract->getConnection()->transaction(function () use ($request, $contract, $installmentId) {
+            $contract = Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
+            $this->authorize('installments', $contract);
+            $installment = $contract->installments()->lockForUpdate()->findOrFail($installmentId);
 
-        if ($installment->statusLabel?->isTerminal()) {
+            if ($installment->statusLabel?->isTerminal()) {
+                return response()->json(
+                    Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.installment.terminal_locked')),
+                    422
+                );
+            }
+
+            // Only allow editing basic fields — payment fields exclusive to payment flow
+            $installment->fill($request->only([
+                'installment_number', 'reference_date', 'due_date',
+                'expected_value', 'notes',
+            ]));
+
+            if ($installment->save()) {
+                return response()->json(
+                    Helper::formatStandardApiResponse('success', $installment, trans('admin/contracts/message.installment.update.success'))
+                );
+            }
+
             return response()->json(
-                Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.installment.terminal_locked')),
-                422
+                Helper::formatStandardApiResponse('error', null, $installment->getErrors())
             );
-        }
-
-        // Only allow editing basic fields — payment fields exclusive to payment flow
-        $installment->fill($request->only([
-            'installment_number', 'reference_date', 'due_date',
-            'expected_value', 'notes',
-        ]));
-
-        if ($installment->save()) {
-            return response()->json(
-                Helper::formatStandardApiResponse('success', $installment, trans('admin/contracts/message.installment.update.success'))
-            );
-        }
-
-        return response()->json(
-            Helper::formatStandardApiResponse('error', null, $installment->getErrors())
-        );
+        });
     }
 
     /**
@@ -222,20 +228,23 @@ class ContractInstallmentsController extends Controller
      */
     public function destroy(Contract $contract, $installmentId): JsonResponse
     {
-        $this->authorize('installments', $contract);
-        $installment = $contract->installments()->findOrFail($installmentId);
+        return $contract->getConnection()->transaction(function () use ($contract, $installmentId) {
+            $contract = Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
+            $this->authorize('installments', $contract);
+            $installment = $contract->installments()->lockForUpdate()->findOrFail($installmentId);
 
-        if ($installment->statusLabel?->isTerminal()) {
+            if ($installment->statusLabel?->isTerminal()) {
+                return response()->json(
+                    Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.installment.terminal_locked')),
+                    422
+                );
+            }
+
+            $installment->delete();
+
             return response()->json(
-                Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.installment.terminal_locked')),
-                422
+                Helper::formatStandardApiResponse('success', null, trans('admin/contracts/message.installment.delete.success'))
             );
-        }
-
-        $installment->delete();
-
-        return response()->json(
-            Helper::formatStandardApiResponse('success', null, trans('admin/contracts/message.installment.delete.success'))
-        );
+        });
     }
 }
