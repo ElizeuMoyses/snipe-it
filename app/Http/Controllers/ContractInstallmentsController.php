@@ -204,50 +204,53 @@ class ContractInstallmentsController extends Controller
      */
     public function storePayment(Request $request, Contract $contract, $installmentId): RedirectResponse
     {
-        $installment = $contract->installments()->findOrFail($installmentId);
-        $this->authorize('installments', $contract);
+        return $contract->getConnection()->transaction(function () use ($request, $contract, $installmentId) {
+            $contract = Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
+            $installment = $contract->installments()->lockForUpdate()->findOrFail($installmentId);
+            $this->authorize('installments', $contract);
 
-        // Guard: only pending and overdue can receive payment
-        if ($installment->statusLabel?->isTerminal()) {
-            return redirect()->route('contracts.show', $contract->id)
-                ->with('error', trans('admin/contracts/message.installment.payment.already_terminal'));
-        }
+            // Guard: only pending and overdue can receive payment
+            if ($installment->statusLabel?->isTerminal()) {
+                return redirect()->route('contracts.show', $contract->id)
+                    ->with('error', trans('admin/contracts/message.installment.payment.already_terminal'));
+            }
 
-        $allowedMeta = ['pending', 'overdue'];
-        if (! in_array($installment->statusLabel?->meta_type, $allowedMeta)) {
-            return redirect()->route('contracts.show', $contract->id)
-                ->with('error', trans('admin/contracts/message.installment.payment.already_terminal'));
-        }
+            $allowedMeta = ['pending', 'overdue'];
+            if (! in_array($installment->statusLabel?->meta_type, $allowedMeta)) {
+                return redirect()->route('contracts.show', $contract->id)
+                    ->with('error', trans('admin/contracts/message.installment.payment.already_terminal'));
+            }
 
-        $request->validate([
-            'paid_value'       => 'required|numeric|min:0.01',
-            'payment_date'     => 'required|date',
-            'payment_method'   => 'nullable|string|max:100',
-            'ticket_reference' => 'nullable|string|max:100',
-            'notes'            => 'nullable|string',
-        ]);
+            $request->validate([
+                'paid_value'       => 'required|numeric|min:0.01',
+                'payment_date'     => 'required|date',
+                'payment_method'   => 'nullable|string|max:100',
+                'ticket_reference' => 'nullable|string|max:100',
+                'notes'            => 'nullable|string',
+            ]);
 
-        $defaultPaid = ContractStatusLabel::defaultForMetaType('installment', 'paid');
-        if (! $defaultPaid) {
-            return redirect()->back()->withInput()
-                ->with('error', trans('admin/contracts/message.installment.payment.missing_default_status'));
-        }
-        $installment->paid_value = $request->input('paid_value');
-        $installment->payment_date = $request->input('payment_date');
-        $installment->payment_method = $request->input('payment_method');
-        $installment->ticket_reference = $request->input('ticket_reference');
-        if ($request->filled('notes')) {
-            $installment->notes = $request->input('notes');
-        }
-        $installment->status_label_id = $defaultPaid->id;
+            $defaultPaid = ContractStatusLabel::defaultForMetaType('installment', 'paid');
+            if (! $defaultPaid) {
+                return redirect()->back()->withInput()
+                    ->with('error', trans('admin/contracts/message.installment.payment.missing_default_status'));
+            }
+            $installment->paid_value = $request->input('paid_value');
+            $installment->payment_date = $request->input('payment_date');
+            $installment->payment_method = $request->input('payment_method');
+            $installment->ticket_reference = $request->input('ticket_reference');
+            if ($request->filled('notes')) {
+                $installment->notes = $request->input('notes');
+            }
+            $installment->status_label_id = $defaultPaid->id;
 
-        if ($installment->save()) {
-            return redirect()->route('contracts.show', $contract->id)
-                ->with('success', trans('admin/contracts/message.installment.payment.success'))
-                ->withFragment('installments');
-        }
+            if ($installment->save()) {
+                return redirect()->route('contracts.show', $contract->id)
+                    ->with('success', trans('admin/contracts/message.installment.payment.success'))
+                    ->withFragment('installments');
+            }
 
-        return redirect()->back()->withInput()->withErrors($installment->getErrors());
+            return redirect()->back()->withInput()->withErrors($installment->getErrors());
+        });
     }
 
     /**

@@ -160,58 +160,61 @@ class ContractInstallmentsController extends Controller
      */
     public function storePayment(Request $request, Contract $contract, $installmentId): JsonResponse
     {
-        $this->authorize('installments', $contract);
-        $installment = $contract->installments()->findOrFail($installmentId);
+        return $contract->getConnection()->transaction(function () use ($request, $contract, $installmentId) {
+            $this->authorize('installments', $contract);
+            $contract = Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
+            $installment = $contract->installments()->lockForUpdate()->findOrFail($installmentId);
 
-        // Guard: only pending and overdue can receive payment
-        if ($installment->statusLabel?->isTerminal()) {
+            // Guard: only pending and overdue can receive payment
+            if ($installment->statusLabel?->isTerminal()) {
+                return response()->json(
+                    Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.installment.payment.already_terminal')),
+                    422
+                );
+            }
+
+            $allowedMeta = ['pending', 'overdue'];
+            if (! in_array($installment->statusLabel?->meta_type, $allowedMeta)) {
+                return response()->json(
+                    Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.installment.payment.already_terminal')),
+                    422
+                );
+            }
+
+            $request->validate([
+                'paid_value'       => 'required|numeric|min:0.01',
+                'payment_date'     => 'required|date',
+                'payment_method'   => 'nullable|string|max:100',
+                'ticket_reference' => 'nullable|string|max:100',
+                'notes'            => 'nullable|string',
+            ]);
+
+            $defaultPaid = ContractStatusLabel::defaultForMetaType('installment', 'paid');
+            if (! $defaultPaid) {
+                return response()->json(
+                    Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.installment.payment.missing_default_status')),
+                    500
+                );
+            }
+            $installment->paid_value = $request->input('paid_value');
+            $installment->payment_date = $request->input('payment_date');
+            $installment->payment_method = $request->input('payment_method');
+            $installment->ticket_reference = $request->input('ticket_reference');
+            if ($request->filled('notes')) {
+                $installment->notes = $request->input('notes');
+            }
+            $installment->status_label_id = $defaultPaid->id;
+
+            if ($installment->save()) {
+                return response()->json(
+                    Helper::formatStandardApiResponse('success', $installment, trans('admin/contracts/message.installment.payment.success'))
+                );
+            }
+
             return response()->json(
-                Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.installment.payment.already_terminal')),
-                422
+                Helper::formatStandardApiResponse('error', null, $installment->getErrors())
             );
-        }
-
-        $allowedMeta = ['pending', 'overdue'];
-        if (! in_array($installment->statusLabel?->meta_type, $allowedMeta)) {
-            return response()->json(
-                Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.installment.payment.already_terminal')),
-                422
-            );
-        }
-
-        $request->validate([
-            'paid_value'       => 'required|numeric|min:0.01',
-            'payment_date'     => 'required|date',
-            'payment_method'   => 'nullable|string|max:100',
-            'ticket_reference' => 'nullable|string|max:100',
-            'notes'            => 'nullable|string',
-        ]);
-
-        $defaultPaid = ContractStatusLabel::defaultForMetaType('installment', 'paid');
-        if (! $defaultPaid) {
-            return response()->json(
-                Helper::formatStandardApiResponse('error', null, trans('admin/contracts/message.installment.payment.missing_default_status')),
-                500
-            );
-        }
-        $installment->paid_value = $request->input('paid_value');
-        $installment->payment_date = $request->input('payment_date');
-        $installment->payment_method = $request->input('payment_method');
-        $installment->ticket_reference = $request->input('ticket_reference');
-        if ($request->filled('notes')) {
-            $installment->notes = $request->input('notes');
-        }
-        $installment->status_label_id = $defaultPaid->id;
-
-        if ($installment->save()) {
-            return response()->json(
-                Helper::formatStandardApiResponse('success', $installment, trans('admin/contracts/message.installment.payment.success'))
-            );
-        }
-
-        return response()->json(
-            Helper::formatStandardApiResponse('error', null, $installment->getErrors())
-        );
+        });
     }
 
     /**

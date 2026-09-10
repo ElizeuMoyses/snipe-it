@@ -50,6 +50,21 @@ preexistentes sem comparação equivalente da base.
 
 ## Próximos passos
 
+Concorrência real em MariaDB: `scripts/qa/contracts-concurrency.php` passou em
+geração, pagamento API e pagamento UI, com dois processos independentes e uma
+barreira de bloqueio. Pagamentos agora bloqueiam contrato/parcela na transação e
+revalidam a situação antes de gravar. A segunda tentativa é rejeitada. Rodar o
+script somente após migrations no banco sintético `snipeit_concurrency`; argumentos
+`payment` e `payment-ui` selecionam os caminhos de pagamento; sem argumento testa
+geração. Concorrência com aditivos/alteração de status ainda precisa de revisão.
+
+Suíte completa local terminou: **1509 testes / 5112 asserções, zero erros/falhas,
+4 ignorados e 30 incompletos**. A cópia começou em `3fa2f88891`, mas o controlador
+API foi atualizado durante a execução para o ensaio concorrente; esse resultado é
+diagnóstico e não certifica um SHA imutável. Repetir no candidato final sem editar
+a cópia em execução. Casos incompletos/ignorados incluem testes legados de campos
+customizados, limites, login e relatórios; não são cobertura de contratos concluída.
+
 Anexos: **5 testes / 21 asserções** passaram em SQLite em memória, cobrindo
 permissão de envio, persistência privada, download, exclusão, vínculo ao contrato,
 rejeição de PHP, isolamento por empresa de anexos de parcelas e envio autorizado
