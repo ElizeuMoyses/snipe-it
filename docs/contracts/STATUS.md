@@ -288,3 +288,39 @@ Coordenação sugerida: #13 define mecanismo de auditoria para #10/#11/#12/#14;
 em view.blade.php e controladores; commits focados integrados no PR draft #7.
 Decisões ainda explícitas nas issues: efeito de total manual, retificação de
 aditivos aplicados, restauração e papéis. Aceite geral #1/#6 continua pendente.
+
+## Issue #9 — implementação isolada
+
+Execução de 2026-09-10 no worktree `D:\Projetos\Snipe-IT-Worktrees\issue-9`,
+branch `codex/contracts-issue-9`, partindo de `089ba0494e35862bd31b2c12412e9e5d650d9ff0`.
+O destino de integração solicitado é `codex/contracts-production-readiness`; não
+houve merge, deploy, operação de VPS ou fechamento de issue.
+
+Implementados: campos obrigatórios de criação/edição com compatibilidade para
+contratos legados; validação única UI/API; valores em BRL com centavos inteiros;
+total automático/manual sem redistribuição implícita; calendário mensal,
+trimestral, semestral, anual e único com dia 1–31 e ajuste ao fim do mês; prévia
+servidor/cliente compartilhada com a geração; persistência idempotente sem
+reescrever parcelas históricas; e CRUD de classificações configuráveis com
+permissão, inativação e bloqueio de exclusão quando houver histórico.
+
+Evidências reais no worktree: `96 testes / 363 asserções` passaram em
+`tests/Feature/Contracts`, `tests/Feature/ContractTypes` e o teste unitário de
+moeda, em SQLite descartável/em memória com Passport efêmero somente no processo;
+54 arquivos PHP alterados passaram em lint; `artisan view:cache --no-ansi`
+passou. O `route:list` standalone não foi certificado porque a inicialização sem
+settings semeadas acessou `saml_enabled`; as rotas foram exercitadas pelos testes
+HTTP. Não houve ainda CI nem validação visual em navegador/celular nesta issue.
+
+Integração: #12 pode reutilizar `Contract::plannedInstallmentDates()`,
+`installmentPreview()` e o contrato de valores em centavos; #13 permanece a
+fonte do mecanismo de auditoria para #10/#11/#12/#14; não foram copiados commits
+não revisados dessas issues nem alterados seus write sets.
+
+Decisões de negócio ainda pendentes para aceite: quando o total negociado manual
+diverge da soma das parcelas, este candidato registra a divergência visível e
+mantém a parcela informada, sem redistribuir; a regra final de redistribuição ou
+de lançamento separado deve ser confirmada pelo responsável. Também permanecem
+pendentes a revisão humana da nomenclatura/classificações iniciais e a aprovação
+da integração no PR #7. Nenhum dado privado, segredo ou arquivo `.env.testing`
+faz parte do commit.

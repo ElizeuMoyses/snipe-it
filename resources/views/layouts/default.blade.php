@@ -1799,6 +1799,14 @@
                                         </li>
                                     @endcan
 
+                                    @can('view', \App\Models\ContractType::class)
+                                        <li {!! (request()->is('contract-types*') ? ' class="active"' : '') !!}>
+                                            <a href="{{ route('contract-types.index') }}">
+                                                {{ trans('admin/contract_types/general.title') }}
+                                            </a>
+                                        </li>
+                                    @endcan
+
                                     @can('view', \App\Models\AssetModel::class)
                                         <li {{!! (request()->is('models*') ? ' class="active"' : '') !!}}>
                                             <a href="{{ route('models.index') }}">

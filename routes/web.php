@@ -31,6 +31,7 @@ use App\Http\Controllers\ContractsController;
 use App\Http\Controllers\ContractAmendmentsController;
 use App\Http\Controllers\ContractInstallmentsController;
 use App\Http\Controllers\ContractStatusLabelsController;
+use App\Http\Controllers\ContractTypesController;
 use App\Http\Controllers\SuppliersController;
 use App\Http\Controllers\ViewAssetsController;
 use App\Livewire\Importer;
@@ -98,6 +99,7 @@ Route::group(['middleware' => 'auth'], function () {
     * Contracts
     */
     Route::get('contracts/dashboard', [ContractsController::class, 'dashboard'])->name('contracts.dashboard');
+    Route::post('contracts/preview', [ContractsController::class, 'preview'])->name('contracts.preview');
     Route::resource('contracts', ContractsController::class);
 
     /*
@@ -130,6 +132,11 @@ Route::group(['middleware' => 'auth'], function () {
     * Contract Status Labels
     */
     Route::resource('contract-status-labels', ContractStatusLabelsController::class);
+
+    /*
+    * Contract Types
+    */
+    Route::resource('contract-types', ContractTypesController::class);
 
     /*
     * Depreciations

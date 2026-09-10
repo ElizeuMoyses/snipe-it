@@ -412,6 +412,25 @@ return [
         ],
     ],
 
+    'Contract Types' => [
+        [
+            'permission' => 'contract_types.view',
+            'display' => true,
+        ],
+        [
+            'permission' => 'contract_types.create',
+            'display' => true,
+        ],
+        [
+            'permission' => 'contract_types.edit',
+            'display' => true,
+        ],
+        [
+            'permission' => 'contract_types.delete',
+            'display' => true,
+        ],
+    ],
+
     'Manufacturers' => [
         [
             'permission' => 'manufacturers.view',

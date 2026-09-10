@@ -810,6 +810,26 @@
         @endcan
     });
 
+    // Configurable contract type table buttons
+    window.contractTypeButtons = () => ({
+        @can('create', \App\Models\ContractType::class)
+        btnAdd: {
+            text: '{{ trans('general.create') }}',
+            icon: 'fa fa-plus',
+            event () {
+                window.location.href = '{{ route('contract-types.create') }}';
+            },
+            attributes: {
+                class: 'btn-info',
+                title: '{{ trans('general.create') }}',
+                @if ($snipeSettings->shortcuts_enabled == 1)
+                accesskey: 'n'
+                @endif
+            },
+        },
+        @endcan
+    });
+
     // License table buttons
     window.licenseButtons = () => ({
         @can('create', \App\Models\License::class)
@@ -1433,6 +1453,35 @@
     window.contractStatusLabelsLinkFormatter = genericRowLinkFormatter('contract-status-labels');
     window.contractStatusLabelsLinkObjFormatter = genericColumnObjLinkFormatter('contract-status-labels');
     window.contractStatusLabelsActionsFormatter = genericActionsFormatter('contract-status-labels');
+
+    // Contract classifications use a separate resource from the legacy
+    // recurring/one-time billing modality.
+    window.contractTypesLinkFormatter = genericRowLinkFormatter('contract-types');
+    window.contractTypesActionsFormatter = genericActionsFormatter('contract-types');
+
+    function contractMoneyFormatter(value) {
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        const amount = Number(value);
+        if (!Number.isFinite(amount)) {
+            return value;
+        }
+
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+        }).format(amount);
+    }
+
+    function genericContractClassificationFormatter(value) {
+        if (value && value.name) {
+            return '<a href="{{ config('app.url') }}/contract-types/' + value.id + '">' + value.name + '</a>';
+        }
+
+        return '';
+    }
 
     // Contract status badge formatter (colored badge with icon)
     function contractStatusFormatter(value, row) {

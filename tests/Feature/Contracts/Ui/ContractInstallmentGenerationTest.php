@@ -53,8 +53,11 @@ class ContractInstallmentGenerationTest extends TestCase
 
         $contract = Contract::factory()->create([
             'contract_type' => 'one_time',
+            'billing_cycle' => 'monthly',
             'total_installments' => 3,
+            'installment_value' => 3000.00,
             'total_value' => 9000.00,
+            'total_value_mode' => 'manual',
             'start_date' => '2026-01-01',
         ]);
 

@@ -2,14 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Company;
 use App\Models\Asset;
 use App\Models\Contract;
 use App\Models\ContractInstallment;
-use App\Models\ContractStatusLabel;
+use App\Models\ContractType;
+use App\Services\ContractInput;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class ContractsController extends Controller
 {
@@ -85,7 +90,29 @@ class ContractsController extends Controller
     {
         $this->authorize('create', Contract::class);
 
-        return view('contracts/edit')->with('item', new Contract);
+        return view('contracts/edit')
+            ->with('item', new Contract)
+            ->with('contractTypes', ContractType::active()->orderBy('name')->get());
+    }
+
+    /**
+     * Calculate a preview using the same calendar and cent arithmetic as
+     * persisted installment generation.
+     */
+    public function preview(Request $request): JsonResponse
+    {
+        abort_unless(
+            Gate::allows('create', Contract::class) || Gate::allows('update', Contract::class),
+            403
+        );
+
+        try {
+            $contract = ContractInput::validatePreview($request->all());
+
+            return response()->json(['data' => $contract->installmentPreview()]);
+        } catch (ValidationException $exception) {
+            return response()->json(['message' => 'The given data was invalid.', 'errors' => $exception->errors()], 422);
+        }
     }
 
     /**
@@ -95,43 +122,35 @@ class ContractsController extends Controller
     {
         $this->authorize('create', Contract::class);
 
-        $contract = new Contract;
-        $contract->name = $request->input('name');
-        $contract->contract_number = $request->input('contract_number');
-        $contract->contract_type = $request->input('contract_type');
-        $contract->supplier_id = $request->input('supplier_id');
-        $contract->company_id = Company::getIdForCurrentUser($request->input('company_id'));
-        $contract->start_date = $request->input('start_date');
-        $contract->end_date = $request->input('end_date');
-        $contract->billing_cycle = $request->input('billing_cycle');
-        $contract->billing_day = $request->input('billing_day');
-        $contract->installment_value = $request->input('installment_value');
-        $contract->total_value = $request->input('total_value');
-        $contract->total_installments = $request->input('total_installments');
-        $contract->readjustment_index = $request->input('readjustment_index');
-        $contract->readjustment_month = $request->input('readjustment_month');
-        $contract->description = $request->input('description');
-        $contract->notes = $request->input('notes');
-        $contract->created_by = auth()->id();
-
-        // Set default status (draft)
-        $defaultStatus = ContractStatusLabel::defaultForMetaType('contract', 'draft');
-        $contract->status_label_id = $request->input('status_label_id', $defaultStatus?->id);
-
-        if ($contract->save()) {
-            // Generate installments only if checkbox is checked (default: checked)
-            if ($request->has('auto_generate_installments') && $contract->start_date) {
-                if ($contract->contract_type === 'recurring'
-                    || ($contract->contract_type === 'one_time'
-                        && ($contract->total_value > 0 || $contract->installment_value > 0))) {
-                    $contract->generateInstallments();
-                }
-            }
-
-            return redirect()->route('contracts.index')->with('success', trans('admin/contracts/message.create.success'));
+        try {
+            $data = ContractInput::validate($request->all(), true);
+        } catch (ValidationException $exception) {
+            return redirect()->back()->withInput()->withErrors($exception->errors());
         }
 
-        return redirect()->back()->withInput()->withErrors($contract->getErrors());
+        $contract = new Contract;
+        ContractInput::apply($contract, $data);
+        $contract->created_by = auth()->id();
+
+        try {
+            DB::transaction(function () use ($contract, $request) {
+                if (! $contract->save()) {
+                    throw new \RuntimeException('Contract creation failed.');
+                }
+
+                if ($request->has('auto_generate_installments')) {
+                    $contract->generateInstallments();
+                }
+            });
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return redirect()->back()->withInput()->withErrors([
+                'contract' => trans('admin/contracts/message.create.error'),
+            ]);
+        }
+
+        return redirect()->route('contracts.index')->with('success', trans('admin/contracts/message.create.success'));
     }
 
     /**
@@ -141,7 +160,15 @@ class ContractsController extends Controller
     {
         $this->authorize('update', $contract);
 
-        return view('contracts/edit')->with('item', $contract);
+        return view('contracts/edit')
+            ->with('item', $contract)
+            ->with('contractTypes', ContractType::withTrashed()
+                ->where(function ($query) use ($contract) {
+                $query->where('is_active', true)->whereNull('deleted_at')
+                        ->orWhere('id', $contract->contract_type_id);
+                })
+                ->orderBy('name')
+                ->get());
     }
 
     /**
@@ -151,29 +178,27 @@ class ContractsController extends Controller
     {
         $this->authorize('update', $contract);
 
-        $contract->name = $request->input('name');
-        $contract->contract_number = $request->input('contract_number');
-        $contract->contract_type = $request->input('contract_type');
-        $contract->supplier_id = $request->input('supplier_id');
-        $contract->company_id = Company::getIdForCurrentUser($request->input('company_id'));
-        $contract->start_date = $request->input('start_date');
-        $contract->end_date = $request->input('end_date');
-        $contract->billing_cycle = $request->input('billing_cycle');
-        $contract->billing_day = $request->input('billing_day');
-        $contract->installment_value = $request->input('installment_value');
-        $contract->total_value = $request->input('total_value');
-        $contract->total_installments = $request->input('total_installments');
-        $contract->readjustment_index = $request->input('readjustment_index');
-        $contract->readjustment_month = $request->input('readjustment_month');
-        $contract->description = $request->input('description');
-        $contract->notes = $request->input('notes');
-        $contract->status_label_id = $request->input('status_label_id');
-
-        if ($contract->save()) {
-            return redirect()->route('contracts.index')->with('success', trans('admin/contracts/message.update.success'));
+        try {
+            $data = ContractInput::validate($request->all(), false, $contract);
+        } catch (ValidationException $exception) {
+            return redirect()->back()->withInput()->withErrors($exception->errors());
         }
 
-        return redirect()->back()->withInput()->withErrors($contract->getErrors());
+        ContractInput::apply($contract, $data);
+
+        try {
+            if (! $contract->save()) {
+                return redirect()->back()->withInput()->withErrors($contract->getErrors());
+            }
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return redirect()->back()->withInput()->withErrors([
+                'contract' => trans('admin/contracts/message.update.error'),
+            ]);
+        }
+
+        return redirect()->route('contracts.index')->with('success', trans('admin/contracts/message.update.success'));
     }
 
     /**
@@ -199,9 +224,16 @@ class ContractsController extends Controller
     {
         $this->authorize('view', $contract);
 
-        $contract->load(['installments.statusLabel', 'installments.adminuser', 'installments.uploads.adminuser', 'amendments.adminuser', 'assets.model', 'assets.assetstatus']);
+        $contract->load(['contractType', 'installments.statusLabel', 'installments.adminuser', 'installments.uploads.adminuser', 'amendments.adminuser', 'assets.model', 'assets.assetstatus']);
+        $contractPreview = null;
+        try {
+            $contractPreview = $contract->installmentPreview();
+        } catch (\InvalidArgumentException) {
+            // Preserve display of legacy records with combinations that are
+            // no longer valid for new contracts.
+        }
 
-        return view('contracts/view', compact('contract'));
+        return view('contracts/view', compact('contract', 'contractPreview'));
     }
 
     /**

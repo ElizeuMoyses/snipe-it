@@ -74,7 +74,8 @@ class ContractInstallmentBoundaryTest extends TestCase
     {
         $this->actingAs(User::factory()->superuser()->create());
         $contract = Contract::factory()->oneTime()->create([
-            'total_installments' => 3, 'total_value' => '100.00', 'start_date' => '2026-01-01',
+            'billing_cycle' => 'monthly', 'total_installments' => 3, 'total_value' => '100.00',
+            'installment_value' => '33.33', 'total_value_mode' => 'manual', 'start_date' => '2026-01-01',
         ]);
         $dispatcher = ContractInstallment::getEventDispatcher();
         ContractInstallment::setEventDispatcher(clone $dispatcher);
@@ -94,19 +95,21 @@ class ContractInstallmentBoundaryTest extends TestCase
         $this->assertSame(0, $contract->installments()->count());
     }
 
-    public function test_rounding_up_and_zero_totals_do_not_overcharge(): void
+    public function test_negotiated_total_is_kept_separate_from_planned_installments(): void
     {
         $this->actingAs(User::factory()->superuser()->create());
         foreach (['100.01', '100.02', '0.00', '0.01'] as $total) {
             $contract = Contract::factory()->oneTime()->create([
+                'billing_cycle' => 'monthly',
                 'total_installments' => 3,
                 'total_value' => $total,
                 'installment_value' => '50.00',
+                'total_value_mode' => 'manual',
                 'start_date' => '2026-01-01',
             ]);
             $contract->generateInstallments();
-            $this->assertSame((int) str_replace('.', '', $total),
-                (int) round($contract->installments()->sum('expected_value') * 100));
+            $this->assertSame(15000, (int) round($contract->installments()->sum('expected_value') * 100));
+            $this->assertSame($total, $contract->fresh()->total_value);
         }
     }
 
@@ -114,8 +117,11 @@ class ContractInstallmentBoundaryTest extends TestCase
     {
         $this->actingAs(User::factory()->superuser()->create());
         $contract = Contract::factory()->oneTime()->create([
+            'billing_cycle' => 'monthly',
             'total_installments' => 3,
             'total_value' => '100.00',
+            'installment_value' => '33.33',
+            'total_value_mode' => 'manual',
             'start_date' => '2026-01-01',
         ]);
         $this->assertSame(3, $contract->generateInstallments());
@@ -127,21 +133,27 @@ class ContractInstallmentBoundaryTest extends TestCase
     {
         $this->actingAs(User::factory()->superuser()->create());
         $contract = Contract::factory()->oneTime()->create([
+            'billing_cycle' => 'monthly',
             'total_installments' => 3,
             'total_value' => '100.00',
+            'installment_value' => '33.33',
+            'total_value_mode' => 'manual',
             'start_date' => '2026-01-01',
         ]);
         $contract->generateInstallments();
 
-        $this->assertSame(10000, (int) round($contract->installments()->sum('expected_value') * 100));
+        $this->assertSame(9999, (int) round($contract->installments()->sum('expected_value') * 100));
+        $this->assertSame('100.00', $contract->fresh()->total_value);
     }
 
     public function test_one_time_month_end_does_not_skip_february(): void
     {
         $this->actingAs(User::factory()->superuser()->create());
         $contract = Contract::factory()->oneTime()->create([
+            'billing_cycle' => 'monthly',
             'total_installments' => 3,
             'total_value' => '300.00',
+            'installment_value' => '100.00',
             'start_date' => '2026-01-31',
         ]);
         $contract->generateInstallments();

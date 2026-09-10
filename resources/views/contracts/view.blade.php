@@ -226,8 +226,15 @@
 
                         @if ($contract->contract_type)
                             <div class="col-md-12">
-                                <strong>{{ trans('admin/contracts/general.contract_type') }}: </strong>
+                                <strong>{{ trans('admin/contracts/general.billing_mode') }}: </strong>
                                 {{ trans('admin/contracts/general.type_' . $contract->contract_type) }}
+                            </div>
+                        @endif
+
+                        @if ($contract->contractType)
+                            <div class="col-md-12">
+                                <strong>{{ trans('admin/contracts/general.contract_classification') }}: </strong>
+                                {{ $contract->contractType->name }}
                             </div>
                         @endif
 
@@ -283,18 +290,38 @@
                             </div>
                         @endif
 
-                        @if ($contract->installment_value)
+                        @if ($contract->installment_value !== null)
                             <div class="col-md-12">
                                 <strong>{{ trans('admin/contracts/general.installment_value') }}: </strong>
-                                {{ $snipeSettings->default_currency }}{{ Helper::formatCurrencyOutput($contract->installment_value) }}
+                                {{ \App\Services\ContractMoney::centsToBr(\App\Services\ContractMoney::toCents($contract->installment_value) ?? 0) }}
                             </div>
                         @endif
 
-                        @if ($contract->total_value)
+                        @if ($contract->total_value !== null)
                             <div class="col-md-12">
                                 <strong>{{ trans('admin/contracts/general.total_value') }}: </strong>
-                                {{ $snipeSettings->default_currency }}{{ Helper::formatCurrencyOutput($contract->total_value) }}
+                                {{ \App\Services\ContractMoney::centsToBr(\App\Services\ContractMoney::toCents($contract->total_value) ?? 0) }}
                             </div>
+                        @endif
+
+                        @if ($contract->total_value !== null && $contract->total_value_mode)
+                            <div class="col-md-12">
+                                <strong>{{ trans('admin/contracts/general.total_value_mode') }}: </strong>
+                                {{ $contract->total_value_mode === 'manual' ? trans('admin/contracts/general.total_mode_manual') : trans('admin/contracts/general.total_mode_automatic') }}
+                            </div>
+                        @endif
+
+                        @if (isset($contractPreview))
+                            <div class="col-md-12">
+                                <strong>{{ trans('admin/contracts/general.preview_planned_total') }}: </strong>
+                                {{ \App\Services\ContractMoney::centsToBr(\App\Services\ContractMoney::toCents($contractPreview['planned_total']) ?? 0) }}
+                            </div>
+                            @if ($contractPreview['difference'] !== null)
+                                <div class="col-md-12">
+                                    <strong>{{ trans('admin/contracts/general.preview_difference') }}: </strong>
+                                    {{ \App\Services\ContractMoney::signedCentsToBr(\App\Services\ContractMoney::signedToCents($contractPreview['difference']) ?? 0) }}
+                                </div>
+                            @endif
                         @endif
 
                         @if ($contract->total_installments)
