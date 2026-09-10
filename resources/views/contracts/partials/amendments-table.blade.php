@@ -26,7 +26,7 @@
                         {{ trans('admin/contracts/general.amendment_type_' . $amendment->amendment_type) }}
                     </span>
                 </td>
-                <td>{{ Str::limit($amendment->description, 80) }}</td>
+                <td>{{ \Illuminate\Support\Str::limit($amendment->description, 80) }}</td>
                 <td>{{ Helper::getFormattedDateObject($amendment->effective_date, 'date', false) }}</td>
                 <td>
                     @if ($amendment->old_value)
@@ -75,7 +75,7 @@
                         </button>
                     @endcan
                 </td>
-                <td>{{ $amendment->adminuser?->present()->fullName() ?? '—' }}</td>
+                <td>{{ $amendment->adminuser?->present()->fullName ?? '—' }}</td>
                 <td>
                     @can('update', $contract)
                         <nobr>
@@ -122,7 +122,7 @@
         @endphp
         @if ($fileCount > 0)
             <h5>{{ trans('admin/contracts/general.amendment_type_' . $amendment->amendment_type) }} &mdash; {{ $amendment->effective_date?->format('d/m/Y') }}</h5>
-            <x-table.files :object_type="'contract_amendments'" :object_id="$amendment->id" />
+            <x-table.files :object_type="'contract_amendments'" :object="$amendment" :table_id="'amendment-'.$amendment->id.'-files'" />
         @endif
     @endforeach
 @endif

@@ -1,8 +1,8 @@
 # Contratos v1 — validação para produção
 
-**Decisão atual: NO-GO.** Regressões automatizadas passaram; aceite funcional
-completo e verificação do candidato final ainda estão pendentes.
-Atualizado em 2026-09-10. Nenhum deploy realizado nesta etapa.
+**Decisão atual: NO-GO enquanto os critérios abaixo estiverem pendentes.**
+Atualizado em 2026-09-10. Etapa autorizada: implementação e validação local/CI,
+sem merge ou deploy. O goal permanece ativo.
 
 ## Acompanhamento
 
@@ -16,157 +16,90 @@ Atualizado em 2026-09-10. Nenhum deploy realizado nesta etapa.
 - [Regressões #5](https://github.com/ElizeuMoyses/snipe-it/issues/5)
 - [Migração, recuperação e aceite #6](https://github.com/ElizeuMoyses/snipe-it/issues/6)
 
-## Referências de código
+## Referências
 
+- Branch: `codex/contracts-production-readiness`.
 - Base de produção observada: `5642b986afdcecdf6aedd34df092527d680987de`.
 - Ponto inicial local: `e48adc30534f7da684fbbf1f81098bc8e8b6822b`.
-- Branch de validação: `codex/contracts-production-readiness`.
-- A diferença inclui contratos, fornecedores e alterações de aceite/EULA e exclusão
-  em lote. O PR precisa revisar esse conjunto; o título da iniciativa não limita o diff.
+- O diff inclui contratos, fornecedores, aceite/EULA e exclusão em lote. A revisão
+  da release deve considerar o conjunto, não apenas o título da iniciativa.
+- Trabalhar em `D:\Projetos\Snipe-IT-Fork`. Preservar alterações locais de assets.
+  Dados e evidências privadas ficam em `.local-production/` e `.local-validation/`.
 
-## Evidências locais já obtidas
+## Evidências verificadas
 
-Baseline anterior ao primeiro commit desta branch, incluindo a reconciliação de
-schema EULA agora versionada:
-
-| Verificação | Resultado |
+| Verificação | Evidência e limite |
 | --- | --- |
-| Contratos, status e reconciliação de schema em MariaDB 11.4 / PHP 8.3 | 43 testes, 96 asserções, passaram |
-| Suíte completa | 1501 testes, 5145 asserções, 1 erro, 23 falhas, 4 ignorados e 11 incompletos |
-| Smoke autenticado local | 10 endpoints retornaram 200, PDF com cabeçalho válido |
+| Suíte completa local, fonte imutável `39229d1159` | 1522 testes, 5160 asserções, zero erros/falhas, 4 ignorados e 30 incompletos; JUnit privado `candidate-39229-results.xml` |
+| CI `39680bf8ef` | Contratos e suíte completa MariaDB 11.4/PHP 8.3 passaram; suites herdadas PHP 8.2/8.3/8.4 e SQLite passaram; Docker ignorado pelo workflow do fork |
+| Contratos após bloqueio de mutações `fd10eccc2e` | MariaDB e SQLite: 54 testes, 142 asserções passaram |
+| Criação após ajustes de formulário `39680bf8ef` | SQLite: 6 testes, 16 asserções passaram |
+| Concorrência real | Dois processos MariaDB passaram em geração, pagamento API, pagamento UI e disputa pagamento/cancelamento; segunda operação incompatível rejeitada |
+| Recuperação do banco | Migrations sobre cópia isolada: 53 tabelas com campos originais preservados; restauração anterior em outro banco vazio: 54 tabelas, incluindo migrations, sem divergências de conteúdo |
+| Recuperação de arquivos | 1182 arquivos extraídos em pasta privada nova, zero diferenças SHA-256; origem e uploads de trabalho preservados |
+| Browser: criação e pagamento | Contrato sintético, 3 parcelas: 33,33 + 33,33 + 33,34; vencimentos 31/01, 28/02 e 31/03/2026; primeira parcela paga com valor 33,33 e ações de pagamento/edição removidas |
+| Browser: reajuste | Prévia mostrou duas parcelas; gravação única conferida: primeira paga preservada, duas pendentes passaram para 40,00 |
 
-Esses resultados não são uma execução de CI do futuro SHA do PR. O smoke não cobre
-todos os fluxos de escrita ou permissões. A suíte desativa `SecurityHeaders` no
-TestCase, portanto CSP e captura de assinatura exigem validação real no navegador.
-Evidências detalhadas ficam em diretórios privados locais, excluídos do Git.
+As execuções acima têm escopos e SHAs específicos. Não certificam automaticamente
+um commit posterior. Os testes ignorados/incompletos legados não representam
+cobertura concluída. A suíte desativa SecurityHeaders; navegador real é necessário
+para evidenciar CSP e assinatura. O resultado antigo 1509/5112 foi diagnóstico,
+pois a cópia foi alterada durante a execução; não usar como certificação de SHA.
 
-Reexecução local da seleção contratos/status/schema em 2026-09-10: 43 testes e
-96 asserções passaram em MariaDB 11.4/PHP 8.3, com o código PHP do commit
-`0988096dacc5ff3b01b7e8366ca2e97565653d5b`. A suíte completa não foi repetida
-nesta etapa. O novo CI está em implantação e seu resultado deve ser consultado no PR.
+## Correções implementadas
 
-O erro da suíte ocorre em `AccessoryAcceptanceTest` ao recusar um aceite. Há falhas
-em notificações/aceite e filtros por contagens. Não foram classificadas como
-preexistentes sem comparação equivalente da base.
+- Centavos inteiros, saldo na última parcela, calendário ancorado com fim de mês,
+  geração idempotente e transação com bloqueio do contrato.
+- Pagamento, criação, edição, exclusão e status das parcelas usam bloqueio comum;
+  geração parcial com falha tem teste de rollback.
+- Criação de aditivos UI/API bloqueia contrato; renovação rejeita data anterior
+  desatualizada. Reajuste/rescisão preservam parcelas pagas e limites de vigência.
+- Política de anexos para aditivos; testes de permissão, vínculo ao pai, isolamento
+  por empresa, upload/download/exclusão e rejeição de executável.
+- Cache estático de status removido para não ignorar alterações e rollbacks.
+- Aceite/PDF usa TCPDF existente; corrigidos quantidade, recusa, destinatários,
+  consolidação em lote, CC e lembretes. Migration reconcilia schema EULA.
+- Formulário preserva status e limita opções ao escopo contrato, sinaliza valor
+  obrigatório; aba de parcelas ativa inicialmente e tradução de ações corrigida.
 
-## Próximos passos
+## Descobertas do smoke de aditivos nesta etapa
 
-Evidência mais recente: suíte completa local imutável de `39229d1159`: **1522
-testes / 5160 asserções, zero erros e falhas, 4 ignorados e 30 incompletos**.
-JUnit privado: `.local-validation/candidate-39229-results.xml`. Seleção MariaDB
-após correção de concorrência `fd10eccc2e`: **54 testes / 142 asserções passaram**.
-No navegador local, contrato sintético foi criado com três parcelas de 33,33,
-33,33 e 33,34, vencimentos 31/01, 28/02 e 31/03/2026. Pagamento sintético da primeira
-parcela retornou sucesso. Ainda falta aditivo, anexos e revisão visual final.
-Correções de interface subsequentes preservam seleção de status após validação,
-limitam opções ao escopo contrato, indicam valor obrigatório, ativam a aba inicial
-e corrigem o título de ações. A mensagem de campo usa `aria-hidden` no padrão
-existente, portanto sua ausência na árvore acessível não comprova ausência visual.
+O POST gravou corretamente, mas o GET do contrato retornou 500: a tabela chamava
+`Str` sem namespace e `fullName()` inexistente. Teste reproduziu 500 antes da
+correção; depois, histórico abriu no navegador com autor, descrição e valores.
+O botão de anexo apontava para ID ignorado pelo modal compartilhado. Agora o
+modal respeita ID opcional e mantém o padrão dos demais módulos; input e mensagens
+usam IDs correspondentes. A listagem passa o objeto do aditivo ao componente de
+arquivos, com identificador distinto por tabela. O modal abriu no navegador.
+Teste de renderização com envio pela rota UI passou: 1 teste / 7 asserções antes
+do ajuste final de ID da tabela; seleção de arquivos está sendo repetida.
 
-Revisão adicional de concorrência: a disputa pagamento/cancelamento UI reproduziu
-o desvio do bloqueio de contrato. Alterações de status, edição, exclusão e criação
-de parcelas agora usam transação com bloqueio do contrato (e parcela existente).
-O modo `payment-cancel` do script passou após a correção, validando também a
-consistência entre status pago e valor pago. Seleção local atual de contratos em
-SQLite: **54 testes / 142 asserções passaram**. CI completo de `39229d1159` passou.
-Smoke de escrita no navegador iniciado com contrato sintético: o formulário exige
-valor da parcela mesmo para contrato único com total informado; a mensagem de
-erro não detalha o campo e o status selecionado não é preservado. Investigar essa
-experiência antes de concluir o aceite funcional. Nenhum contrato real foi editado.
+## Critérios ainda pendentes
 
-Recuperação de arquivos concluída: arquivo original de backup extraído para pasta
-privada nova, com validação de caminhos e rejeição de links/arquivos especiais.
-**1182 arquivos restaurados; zero divergências SHA-256** entre conteúdo do backup
-e arquivos recuperados. Nenhum upload de trabalho foi sobrescrito.
-Suíte completa do commit `39229d1159` iniciada em cópia imutável separada no Docker;
-o resultado anterior permanece apenas diagnóstico. CI de contratos nesse commit
-passou; suíte completa remota ainda em execução na última consulta.
+- [ ] Concluir validação de anexos no fluxo real e confirmar download/listagem;
+      validar dashboard e fluxo de assinatura/CSP afetado pela release.
+- [ ] Auditar cobertura explícita da issue #3: trimestral/anual, bissexto, aditivos
+      com rollback em falha e disputa entre aditivo e pagamento.
+- [ ] Auditar os critérios completos da issue #4, incluindo tamanho de arquivo e
+      equivalência UI/API; testes existentes não dispensam essa conferência.
+- [ ] Revisar o diff completo e obter resultado local/CI do candidato final estável.
+- [ ] Consolidar runbook de liberação/recuperação e relatório GO/NO-GO; atualizar
+      Project, issues e descrição do PR conforme evidência, sem fechar aceite pendente.
+- [ ] Aceite funcional do responsável antes de liberar produção. CI verde não é
+      aceite humano nem autorização de deploy.
 
-Ensaio de banco concluído localmente: backup da referência preservada restaurado
-em banco separado, migrations aplicadas e conteúdo dos campos originais de **53
-tabelas comparado por SHA-256 sem divergências** (migrations excluída). O backup
-anterior também foi restaurado em outro banco vazio: **54 tabelas, incluindo
-migrations, sem divergências**. Não houve alteração na referência nem produção.
-Isso valida recuperação do banco; restauração de arquivos e smoke do candidato
-final ainda precisam ser concluídos. Evidências e scripts com nomes de ambientes
-privados ficam somente em `.local-validation/`.
+## Como retomar
 
-Falha do CI reproduzida: cache estático de IDs ignorava status criados após a
-primeira consulta. Lookup agora usa o banco atual, inclusive após rollback.
-Revalidação MariaDB de status e aditivos: **5 testes / 20 asserções passaram**.
+Leia este arquivo e AGENTS.md; verifique branch, HEAD, diff local, PR e issues.
+Não recrie a réplica nem sobrescreva assets existentes. PHPUnit destrutivo somente
+em banco descartável de testes, nunca na réplica, referência ou produção.
+`scripts/qa/contracts-concurrency.php` exige banco sintético `snipeit_concurrency`
+com migrations; modos: geração sem argumento, `payment`, `payment-ui`,
+`payment-cancel`. Preserve fonte imutável durante suítes completas.
 
-Renovação pela API: **2 testes / 8 asserções** passaram, cobrindo sucesso e
-rejeição de data anterior desatualizada sem alteração do contrato. Corrigida a
-resposta que chamava `fullName()` inexistente. Criação de aditivos na API e UI
-agora bloqueia o contrato antes de validar e gravar, na mesma transação.
-
-Efeitos de aditivos: **2 testes / 11 asserções** passaram em SQLite em memória.
-Reajuste preserva parcelas pagas e anteriores à vigência; encerramento preserva
-pagas, vencidas e a parcela na data efetiva. Falta validar conflitos de aditivos
-com pagamento/alteração de status e dados antigos enviados em renovações.
-
-Concorrência real em MariaDB: `scripts/qa/contracts-concurrency.php` passou em
-geração, pagamento API e pagamento UI, com dois processos independentes e uma
-barreira de bloqueio. Pagamentos agora bloqueiam contrato/parcela na transação e
-revalidam a situação antes de gravar. A segunda tentativa é rejeitada. Rodar o
-script somente após migrations no banco sintético `snipeit_concurrency`; argumentos
-`payment` e `payment-ui` selecionam os caminhos de pagamento; sem argumento testa
-geração. Concorrência com aditivos/alteração de status ainda precisa de revisão.
-
-Suíte completa local terminou: **1509 testes / 5112 asserções, zero erros/falhas,
-4 ignorados e 30 incompletos**. A cópia começou em `3fa2f88891`, mas o controlador
-API foi atualizado durante a execução para o ensaio concorrente; esse resultado é
-diagnóstico e não certifica um SHA imutável. Repetir no candidato final sem editar
-a cópia em execução. Casos incompletos/ignorados incluem testes legados de campos
-customizados, limites, login e relatórios; não são cobertura de contratos concluída.
-
-Anexos: **5 testes / 21 asserções** passaram em SQLite em memória, cobrindo
-permissão de envio, persistência privada, download, exclusão, vínculo ao contrato,
-rejeição de PHP, isolamento por empresa de anexos de parcelas e envio autorizado
-em aditivos. Corrigido o registro ausente de política para `ContractAmendment`.
-
-Contratos: testes de acesso a parcelas **3 / 12 asserções** aprovados em MariaDB;
-pagamento negativo, parcela já paga e rollback da geração parcial, junto aos
-limites financeiros/calendário: **8 testes / 17 asserções** aprovados em SQLite
-em memória. Isso comprova rollback e validações sequenciais, não concorrência
-entre processos. Suíte completa local do candidato `3fa2f88891` em execução
-isolada no Docker, com banco `snipeit_test` (sem uso da réplica de trabalho).
-
-Regressões de aceite: a referência a DomPDF ausente foi substituída pelo TCPDF já
-instalado; teste verifica o cabeçalho do PDF persistido. Corrigidos quantidade do
-aceite, remoção das unidades recusadas e notificação específica de itens.
-Seleção local de aceite/recusa/resposta: **19 testes / 65 asserções passaram**.
-Entrega em lote: **19 testes / 74 asserções passaram**, com e-mail consolidado e
-preservação da criação de aceites/tokens. Lembretes: **9 testes passaram** após
-seleção do destinatário do aceite, tipo de item e histórico correto da licença.
-CC: verificado envio único com usuário e cópia administrativa; o teste de checkin
-foi ajustado para exigir ambos no mesmo e-mail e impedir duplicação.
-Ainda falta executar a suíte completa no novo candidato.
-
-Progresso de implementação em 2026-09-10: testes reproduziram perda de centavo,
-salto de fevereiro, deslocamento do calendário recorrente e duplicação na segunda
-geração de contrato pontual. Corrigidos cálculo por centavos, calendário ancorado
-com ajuste de fim de mês e geração transacional com bloqueio do contrato e guarda
-de repetição. Seleção local de geração e limites: **12 testes / 26 asserções passaram**.
-O bloqueio ainda requer teste com processos concorrentes; não considerar a issue #3
-concluída. CI do candidato anterior: contratos passou e suíte completa falhou.
-
-1. Estabelecer execução reproduzível no banco descartável e CI MariaDB 11.4/PHP 8.3.
-2. Acrescentar casos de centavos, fim de mês e geração concorrente/idempotente.
-   A leitura inicial indica risco em divisão arredondada e `addMonths`; confirmar
-   por testes antes de corrigir ou declarar defeito comprovado.
-3. Validar permissões e isolamento entre empresas, anexos, API e fluxos financeiros.
-4. Corrigir e repetir as regressões da suíte completa, registrando os testes pelo SHA.
-5. Ensaiar migração e restauração em ambiente isolado, revisar diff completo e obter
-   aceite funcional. Emitir GO/NO-GO com evidências antes de propor deploy.
-
-## Retomada em outra sessão
-
-Verifique branch, HEAD, alterações locais, PR e issues antes de trabalhar. Use a
-cópia em disco local, preserve os arquivos não commitados e não recrie a réplica
-automaticamente. O ambiente de trabalho e o banco descartável têm finalidades
-distintas. Dados reais permanecem somente no ambiente privado.
-
-Ao terminar uma etapa, atualize este arquivo e a issue correspondente com resultado,
-limitações e próximo passo. Use PR draft enquanto houver bloqueios; não use `Closes`
-para encerrar critérios ainda não atendidos.
+O contrato sintético local `QA-20260910-01` contém um pagamento e um reajuste já
+persistidos; não repetir esses POSTs para resolver problema de leitura. A aba de
+QA recuperada foi a 4 do navegador interno. O ambiente local não envia e-mails nem
+executa integrações externas. Backups/credenciais e detalhes de infraestrutura não
+podem ser publicados no repositório público. Issues podem ser encerradas somente
+por evidências; milestone e PR permanecem abertos enquanto houver critérios pendentes.
