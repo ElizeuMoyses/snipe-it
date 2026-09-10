@@ -33,7 +33,7 @@ editáveis nem removíveis pelo modelo.
 
 Ações v1: `contract.created|updated|deleted|restored`,
 `installment.created|updated|deleted|paid|status_changed`,
-`installments.generated`, `amendment.created|updated|deleted|applied|retified`,
+`installments.generated`, `amendment.created|updated|deleted|applied`,
 `file.uploaded|deleted` e `asset.attached|detached`.
 
 ## Leitura e legado

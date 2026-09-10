@@ -12,6 +12,8 @@ return [
     'remove' => 'Remover',
     'request' => 'Solicitação',
     'submit' => 'Enviar',
+    'apply' => 'Aplicar',
+    'clear' => 'Limpar',
     'upload' => 'Carregar',
     'select_file' => 'Selecionar arquivo...',
     'select_files' => 'Selecionar arquivos...',

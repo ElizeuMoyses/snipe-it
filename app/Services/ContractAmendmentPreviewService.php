@@ -43,9 +43,9 @@ class ContractAmendmentPreviewService
         $rules = [
             'amendment_type'   => ['required', 'in:'.implode(',', self::TYPES)],
             'description'      => ['required', 'string'],
-            // No past/future restriction is introduced here. The existing
-            // effect semantics remain the explicit business behavior until
-            // a separate decision approves scheduling or retroactive rules.
+            'rectifies_amendment_id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('contract_amendments', 'id')->where('contract_id', $contract->id)->whereNull('deleted_at')],
+            // Approved v1 rule: confirmation applies effects immediately,
+            // regardless of effective date; this is not a scheduler.
             'effective_date'   => ['required', 'date_format:Y-m-d'],
             'old_value'        => $moneyRules,
             'new_value'        => $moneyRules,
@@ -144,6 +144,7 @@ class ContractAmendmentPreviewService
         $normalized = [
             'amendment_type' => $type,
             'description' => $validated['description'],
+            'rectifies_amendment_id' => isset($validated['rectifies_amendment_id']) ? (int) $validated['rectifies_amendment_id'] : null,
             'effective_date' => $this->dateString($validated['effective_date']),
             'ticket_reference' => $validated['ticket_reference'] ?? null,
             'notes' => $validated['notes'] ?? null,
@@ -204,6 +205,7 @@ class ContractAmendmentPreviewService
         $preview = [
             'type' => $type,
             'preview_valid' => true,
+            'rectifies_amendment_id' => $normalized['rectifies_amendment_id'] ?? null,
             'has_side_effects' => $type !== 'scope_change',
             'preview_token' => $token,
             'effective_date' => $normalized['effective_date'],
@@ -225,6 +227,7 @@ class ContractAmendmentPreviewService
             'message' => trans('admin/contracts/message.amendment.no_side_effects'),
             'impact' => [
                 'description' => $normalized['description'],
+            'rectifies_amendment_id' => $normalized['rectifies_amendment_id'] ?? null,
                 'effective_date' => $normalized['effective_date'],
                 'documentary_only' => true,
                 'financial_effect' => 'none',
@@ -580,6 +583,7 @@ class ContractAmendmentPreviewService
         return hash('sha256', json_encode([
             'amendment_type' => $normalized['amendment_type'],
             'description' => $normalized['description'],
+            'rectifies_amendment_id' => $normalized['rectifies_amendment_id'] ?? null,
             'effective_date' => $normalized['effective_date'],
             'old_value' => $normalized['old_value'],
             'new_value' => $normalized['new_value'],

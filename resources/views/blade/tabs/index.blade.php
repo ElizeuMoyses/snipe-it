@@ -4,7 +4,7 @@
 ])
 
 <!-- start tab container -->
-<div class="nav-tabs-custom">
+<div {{ $attributes->merge(['class' => 'nav-tabs-custom']) }}>
 
     <ul class="nav nav-tabs hidden-print nav-tabs-dropdown" role="tablist">
         @if (!$tabnav->isEmpty())

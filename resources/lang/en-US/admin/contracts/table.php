@@ -7,6 +7,8 @@ return [
     'installment_value' => 'Installment Value',
     'start_date'        => 'Start Date',
     'end_date'          => 'End Date',
+    'validity'          => 'Validity',
+    'next_due'          => 'Next Due',
 
     // Installment columns
     'installment_number' => 'Installment #',

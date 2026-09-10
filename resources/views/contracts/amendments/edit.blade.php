@@ -39,6 +39,23 @@
 
                 <div class="box-body">
 
+                    <p class="alert alert-info">{{ trans('admin/contracts/general.immediate_effects_help') }}</p>
+                    <div class="form-group">
+                        <label for="rectifies_amendment_id" class="col-md-3 control-label">{{ trans('admin/contracts/general.rectification_of') }}</label>
+                        <div class="col-md-7">
+                            <select name="rectifies_amendment_id" id="rectifies_amendment_id" class="form-control" {{ $item->id ? 'disabled' : '' }}>
+                                <option value="">{{ trans('admin/contracts/general.rectification_none') }}</option>
+                                @foreach($contract->amendments()->orderByDesc('id')->get() as $previousAmendment)
+                                    @if($previousAmendment->id !== $item->id)
+                                        <option value="{{ $previousAmendment->id }}" {{ (string) old('rectifies_amendment_id', $item->rectifies_amendment_id) === (string) $previousAmendment->id ? 'selected' : '' }}>#{{ $previousAmendment->id }} — {{ \Illuminate\Support\Str::limit($previousAmendment->description, 70) }}</option>
+                                    @endif
+                                @endforeach
+                            </select>
+                            {!! $errors->first('rectifies_amendment_id', '<span class="alert-msg">:message</span>') !!}
+                            <span id="preview-error-rectifies_amendment_id" class="alert-msg preview-field-error" role="alert"></span>
+                        </div>
+                    </div>
+
                     {{-- Amendment Type --}}
                     <div class="form-group {{ $errors->has('amendment_type') ? 'error' : '' }}">
                         <label for="amendment_type" class="col-md-3 control-label">

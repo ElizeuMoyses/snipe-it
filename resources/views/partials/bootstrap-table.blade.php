@@ -1514,6 +1514,35 @@
         return '';
     }
 
+    // Contract actions keep their text visible so the action remains
+    // recognizable on narrow screens and to assistive technology.
+    function contractActionsFormatter(value, row) {
+        var labels = {
+            view: @json(trans('admin/contracts/general.view')),
+            update: @json(trans('general.update')),
+            delete: @json(trans('general.delete')),
+            deleteConfirm: @json(trans('admin/contracts/message.delete.confirm')),
+        };
+        var baseUrl = '{{ config('app.url') }}/contracts/' + row.id;
+        var actions = '<div class="contract-list-actions">';
+
+        actions += '<a href="' + baseUrl + '" class="btn btn-sm btn-default" title="' + labels.view + '" aria-label="' + labels.view + '">' +
+            '<i class="fas fa-eye" aria-hidden="true"></i> <span>' + labels.view + '</span></a>';
+
+        if (row.available_actions && row.available_actions.update === true) {
+            actions += '<a href="' + baseUrl + '/edit" class="btn btn-sm btn-warning" title="' + labels.update + '" aria-label="' + labels.update + '">' +
+                '<i class="fas fa-pencil-alt" aria-hidden="true"></i> <span>' + labels.update + '</span></a>';
+        }
+
+        if (row.available_actions && row.available_actions.delete === true) {
+            actions += '<a href="' + baseUrl + '" class="btn btn-sm btn-danger delete-asset" data-toggle="modal" data-icon="fa-trash"' +
+                ' data-content="' + labels.deleteConfirm + '" data-title="' + labels.delete + '" title="' + labels.delete + '" aria-label="' + labels.delete + '" onClick="return false;">' +
+                '<i class="fas fa-trash" aria-hidden="true"></i> <span>' + labels.delete + '</span></a>';
+        }
+
+        return actions + '</div>';
+    }
+
 
 
     // This is  gross, but necessary so that we can package the API response

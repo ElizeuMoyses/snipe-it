@@ -357,3 +357,24 @@ mantém ajuste de fim de mês. Regressão SQLite contratos/tipos/moeda: 141/655;
 compatibilidade legada e regras adicionais: 9/49. Migrations 000002/000003
 aplicadas na réplica local após novo backup privado. API aceita decimal canônico;
 formulário aceita valores brasileiros. Atualização web ocorre sob lock e auditoria.
+
+## Integração gerencial e retificação — validação em andamento
+
+- #15: resumo financeiro de valores persistidos, vigência e próximo vencimento;
+  filtros de lista; abas com rótulos e navegação por teclado; datas/moeda pt-BR.
+  Mantidos campos decimais canônicos da API e campos formatados separados.
+- #12: referência imutável `rectifies_amendment_id`, limitada ao mesmo contrato,
+  validada na prévia/confirmação e incluída na auditoria. Efeitos imediatos;
+  edição posterior documental. Original e total negociado manual preservados.
+- #13/#14: vínculo registrado também no histórico do ativo, com referência
+  cruzada e deduplicação no contrato; formato de log legado compatível; histórico
+  aceita a paginação de 200 linhas usada pela aplicação. Ações com rótulos.
+- Testes: MariaDB 159/756 passou antes do ajuste final do histórico cruzado;
+  delta final de auditoria/arquivamento/retificação SQLite 12/78 passou.
+  Lint PHP de 41 arquivos e build JavaScript de produção passaram.
+- Navegador isolado: resumo sem erros JS; geração sintética 31/01/2028,
+  29/02/2028 e 31/03/2028, R$ 100,05; vínculo pelo seletor persistido.
+  QA estreito, ciclo completo e regressão geral ainda em execução.
+- Migrations locais aplicadas após backups privados validados. A regressão geral
+  roda sobre cópia isolada Linux/MariaDB; tentativas com ambiente incompleto não
+  contam como aprovação. Produção não foi alterada; sem merge/deploy.

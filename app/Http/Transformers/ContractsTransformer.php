@@ -5,6 +5,8 @@ namespace App\Http\Transformers;
 use App\Helpers\Helper;
 use App\Models\Contract;
 use App\Services\ContractMoney;
+use App\Services\ContractFinancialSummary;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Gate;
 
@@ -23,6 +25,11 @@ class ContractsTransformer
     public function transformContract(?Contract $contract = null)
     {
         if ($contract) {
+            $nextDueDate = $contract->getAttribute('next_due_date');
+            if ($nextDueDate === null && $contract->relationLoaded('installments')) {
+                $nextDueDate = (new ContractFinancialSummary)->summarize($contract)['next_due_date'];
+            }
+
             $array = [
                 'id' => (int) $contract->id,
                 'name' => e($contract->name),
@@ -54,8 +61,10 @@ class ContractsTransformer
                     'id' => (int) $contract->company->id,
                     'name' => e($contract->company->name),
                 ] : null,
-                'start_date'        => Helper::getFormattedDateObject($contract->start_date, 'date'),
-                'end_date'          => Helper::getFormattedDateObject($contract->end_date, 'date'),
+                'start_date'        => self::formatDate($contract->start_date),
+                'end_date'          => self::formatDate($contract->end_date),
+                'validity'          => trans('admin/contracts/general.validity_' . self::validityMeta($contract)),
+                'next_due_date'     => self::formatDate($nextDueDate),
                 'billing_cycle'     => e($contract->billing_cycle),
                 'billing_day'       => $contract->billing_day,
                 'installment_value' => ContractMoney::toDecimal($contract->installment_value),
@@ -95,5 +104,51 @@ class ContractsTransformer
         $cents = ContractMoney::toCents($amount);
 
         return $cents === null ? null : ContractMoney::centsToBr($cents);
+    }
+
+    private static function formatDate($date): ?array
+    {
+        $formatted = Helper::getFormattedDateObject($date, 'date');
+
+        if (is_array($formatted)
+            && in_array(app()->getLocale(), ['pt-BR', 'pt_BR'], true)
+            && isset($formatted['date'])) {
+            $formatted['formatted'] = Carbon::parse($formatted['date'])->format('d/m/Y');
+        }
+
+        return is_array($formatted) ? $formatted : null;
+    }
+
+    private static function formatMoney(mixed $value): string
+    {
+        if (in_array(app()->getLocale(), ['pt-BR', 'pt_BR'], true)) {
+            return ContractFinancialSummary::formatCents(
+                ContractFinancialSummary::toCents($value),
+                trans('general.currency')
+            );
+        }
+
+        return Helper::formatCurrencyOutput($value);
+    }
+
+    private static function validityMeta(Contract $contract): string
+    {
+        $today = Carbon::today();
+        $startDate = $contract->start_date ? Carbon::parse($contract->start_date) : null;
+        $endDate = $contract->end_date ? Carbon::parse($contract->end_date) : null;
+
+        if ($endDate === null) {
+            return 'indefinite';
+        }
+
+        if ($endDate->lt($today)) {
+            return 'expired';
+        }
+
+        if ($startDate && $startDate->gt($today)) {
+            return 'future';
+        }
+
+        return $endDate->lte($today->copy()->addDays(30)) ? 'expiring' : 'current';
     }
 }

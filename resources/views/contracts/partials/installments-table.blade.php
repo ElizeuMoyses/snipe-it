@@ -1,4 +1,21 @@
 {{-- Installments table partial for contract view --}}
+@php
+    $isBrazilian = in_array(app()->getLocale(), ['pt-BR', 'pt_BR'], true);
+    $contractCurrency = $isBrazilian ? trans('general.currency') : $snipeSettings->default_currency;
+    $formatInstallmentDate = function ($date) use ($isBrazilian) {
+        if (! $date) {
+            return '—';
+        }
+
+        return $isBrazilian
+            ? $date->format('d/m/Y')
+            : $date->format('Y-m-d');
+    };
+    $formatInstallmentMoney = fn ($value) => \App\Services\ContractFinancialSummary::formatCents(
+        \App\Services\ContractFinancialSummary::toCents($value),
+        $contractCurrency
+    );
+@endphp
 @if ($contract->installments->count() > 0)
     <div class="table-responsive">
         <table
@@ -31,10 +48,10 @@
                     <tr>
                         <td>{{ $installment->installment_number }}</td>
                         <td>{{ $installment->reference_date ? $installment->reference_date->format('m/Y') : '—' }}</td>
-                        <td>{{ $installment->due_date ? $installment->due_date->format('Y-m-d') : '—' }}</td>
-                        <td>{{ $snipeSettings->default_currency }}{{ Helper::formatCurrencyOutput($installment->expected_value) }}</td>
-                        <td>{{ $installment->paid_value !== null ? $snipeSettings->default_currency . Helper::formatCurrencyOutput($installment->paid_value) : '—' }}</td>
-                        <td>{{ $installment->payment_date ? $installment->payment_date->format('Y-m-d') : '—' }}</td>
+                        <td>{{ $formatInstallmentDate($installment->due_date) }}</td>
+                        <td>{{ $formatInstallmentMoney($installment->expected_value) }}</td>
+                        <td>{{ $installment->paid_value !== null ? $formatInstallmentMoney($installment->paid_value) : '—' }}</td>
+                        <td>{{ $formatInstallmentDate($installment->payment_date) }}</td>
                         <td>{{ $installment->payment_method ?? '—' }}</td>
                         <td>{{ $installment->ticket_reference ?? '—' }}</td>
                         <td>
@@ -55,28 +72,27 @@
                                         $isTerminal = $installment->statusLabel?->isTerminal();
                                     @endphp
 
-                                    {{-- Register Payment button (only for pending/overdue) --}}
                                     @if(in_array($currentMeta, ['pending', 'overdue']))
                                         <a href="{{ route('contracts.installments.pay', [$contract->id, $installment->id]) }}"
                                            class="btn btn-sm btn-success" data-tooltip="true"
-                                           title="{{ trans('admin/contracts/general.register_payment') }}">
-                                            <i class="fas fa-money-bill-wave"></i>
+                                           title="{{ trans('admin/contracts/general.register_payment') }}"
+                                           aria-label="{{ trans('admin/contracts/general.register_payment') }}">
+                                            <i class="fas fa-money-bill-wave" aria-hidden="true"></i>
+                                            <span class="sr-only">{{ trans('admin/contracts/general.register_payment') }}</span>
                                         </a>
                                     @endif
 
-                                    {{-- Edit button (only for non-terminal) --}}
                                     @if(! $isTerminal)
                                         <a href="{{ route('contracts.installments.edit', [$contract->id, $installment->id]) }}"
                                            class="btn btn-sm btn-warning" data-tooltip="true"
-                                           title="{{ trans('button.edit') }}">
-                                            <i class="fas fa-pencil-alt"></i>
+                                           title="{{ trans('button.edit') }}"
+                                           aria-label="{{ trans('button.edit') }}">
+                                            <i class="fas fa-pencil-alt" aria-hidden="true"></i>
+                                            <span class="sr-only">{{ trans('button.edit') }}</span>
                                         </a>
-                                    @endif
 
-                                    {{-- Status change dropdown (only for non-terminal) --}}
-                                    @if(! $isTerminal)
                                         @php
-                                            // Allowed destination meta_types (excluding paid — only via payment)
+                                            // The menu transition remains owned by #11; this adds only labels for assistive technology.
                                             $allowedDestinationMetaTypes = match($currentMeta) {
                                                 'pending'  => ['pending', 'cancelled'],
                                                 'overdue'  => ['overdue'],
@@ -100,27 +116,29 @@
                                         @endif
                                     @endif
 
-                                    {{-- Delete button (only for non-terminal) --}}
                                     @if(! $isTerminal)
                                         <form method="POST" action="{{ route('contracts.installments.destroy', [$contract->id, $installment->id]) }}" style="display:inline;">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-sm btn-danger" data-tooltip="true"
                                                     title="{{ trans('button.delete') }}"
+                                                    aria-label="{{ trans('button.delete') }}"
                                                     onclick="return confirm('{{ trans('general.are_you_sure') }}')">
-                                                <i class="fas fa-trash"></i>
+                                                <i class="fas fa-trash" aria-hidden="true"></i>
+                                                <span class="sr-only">{{ trans('button.delete') }}</span>
                                             </button>
                                         </form>
                                     @endif
 
-                                    {{-- Attach file (for all installments) --}}
                                     @can('files', App\Models\Contract::class)
                                         <a href="#" data-toggle="modal" data-target="#uploadFileModalInstallment"
                                            class="btn btn-sm btn-default js-installment-upload-btn" data-tooltip="true"
                                            title="{{ trans('button.upload') }}"
+                                           aria-label="{{ trans('button.upload') }}"
                                            data-installment-id="{{ $installment->id }}"
                                            data-action-url="{{ url('contract_installments/' . $installment->id . '/files') }}">
-                                            <i class="fas fa-paperclip"></i>
+                                            <i class="fas fa-paperclip" aria-hidden="true"></i>
+                                            <span class="sr-only">{{ trans('button.upload') }}</span>
                                             @if($installment->uploads->count() > 0)
                                                 <span class="badge" style="background-color: #337ab7; font-size: 10px;">{{ $installment->uploads->count() }}</span>
                                             @endif
@@ -135,8 +153,8 @@
             <tfoot>
                 <tr>
                     <td colspan="3"><strong>{{ trans('admin/contracts/general.totals') }}</strong></td>
-                    <td><strong>{{ $snipeSettings->default_currency }}{{ Helper::formatCurrencyOutput($contract->installments->sum('expected_value')) }}</strong></td>
-                    <td><strong>{{ $contract->installments->whereNotNull('paid_value')->sum('paid_value') > 0 ? $snipeSettings->default_currency . Helper::formatCurrencyOutput($contract->installments->whereNotNull('paid_value')->sum('paid_value')) : '—' }}</strong></td>
+                    <td><strong>{{ $formatInstallmentMoney($financialSummary['planned_total_cents']) }}</strong></td>
+                    <td><strong>{{ $financialSummary['paid_count'] > 0 ? $formatInstallmentMoney($financialSummary['paid_total_cents']) : '—' }}</strong></td>
                     <td colspan="5"></td>
                 </tr>
             </tfoot>
@@ -266,7 +284,8 @@
         </script>
     @endcan
 @else
-    <div class="col-md-12">
-        <p>{{ trans('general.no_results') }}</p>
+    <div class="alert alert-info">
+        <strong>{{ trans('admin/contracts/message.installment.no_installments') }}</strong>
+        <p>{{ trans('admin/contracts/message.installment.no_installments_help') }}</p>
     </div>
 @endif

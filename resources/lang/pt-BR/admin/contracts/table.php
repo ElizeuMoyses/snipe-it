@@ -7,6 +7,8 @@ return [
     'installment_value' => 'Valor da Parcela',
     'start_date'        => 'Data de Início',
     'end_date'          => 'Data de Término',
+    'validity'          => 'Vigência',
+    'next_due'          => 'Próximo Vencimento',
 
     // Installment columns
     'installment_number' => 'Parcela Nº',

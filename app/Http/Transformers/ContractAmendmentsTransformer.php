@@ -34,6 +34,7 @@ class ContractAmendmentsTransformer
             ] : null,
             'amendment_type'    => e($amendment->amendment_type),
             'description'       => e($amendment->description),
+            'rectifies_amendment_id' => $amendment->rectifies_amendment_id,
             'old_value'         => $amendment->old_value ? Helper::formatCurrencyOutput($amendment->old_value) : null,
             'new_value'         => $amendment->new_value ? Helper::formatCurrencyOutput($amendment->new_value) : null,
             'old_end_date'      => $amendment->old_end_date ? Helper::getFormattedDateObject($amendment->old_end_date, 'date') : null,

@@ -28,7 +28,7 @@ class ContractAmendmentsController extends Controller
         $this->authorize('view', $contract);
 
         $allowed_columns = [
-            'id', 'amendment_type', 'description', 'old_value', 'new_value',
+            'id', 'amendment_type', 'description', 'rectifies_amendment_id', 'old_value', 'new_value',
             'old_end_date', 'new_end_date', 'effective_date', 'ticket_reference',
             'notes', 'created_at',
         ];
@@ -171,6 +171,7 @@ class ContractAmendmentsController extends Controller
             $amendment->amendment_type = $amendmentType;
             $amendment->fill([
                 'description' => $validated['description'],
+                'rectifies_amendment_id' => $validated['rectifies_amendment_id'],
                 'old_value' => $validated['old_value'],
                 'new_value' => $validated['new_value'],
                 'old_end_date' => $validated['old_end_date'],

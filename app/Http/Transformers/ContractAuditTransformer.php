@@ -31,6 +31,7 @@ class ContractAuditTransformer
             'id' => $entry['id'],
             'icon' => $this->icon($entry['action']),
             'action' => $entry['action'],
+            'action_label' => trans('admin/contracts/general.history_actions.'.str_replace('.', '_', $entry['action'])),
             'action_type' => $entry['action'],
             'entity' => [
                 'type' => $entityType,
@@ -105,12 +106,14 @@ class ContractAuditTransformer
 
         $changes = [];
         foreach ($parts as $field => $change) {
+            if (array_key_exists('old', $change) && array_key_exists('new', $change) && $change['old'] === $change['new']) { continue; }
             $changes[] = $field.': '.($change['old'] ?? '').' → '.($change['new'] ?? '');
         }
 
         foreach ($entry['metadata'] as $field => $value) {
             if (is_scalar($value)) {
-                $changes[] = $field.': '.$value;
+                if (array_key_exists('old', $change) && array_key_exists('new', $change) && $change['old'] === $change['new']) { continue; }
+            $changes[] = $field.': '.$value;
             }
         }
 

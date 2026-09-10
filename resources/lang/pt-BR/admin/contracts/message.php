@@ -44,6 +44,8 @@ return [
     ],
 
     'installment' => [
+        'no_installments' => 'Nenhuma parcela registrada para este contrato.',
+        'no_installments_help' => 'Use Criar Parcela ou Gerar Parcelas quando o contrato estiver em estado permitido.',
         'contract_terminal' => 'Não é possível criar parcelas em um contrato encerrado (expirado ou cancelado).',
         'create' => [
             'success' => 'Parcela criada com sucesso.',

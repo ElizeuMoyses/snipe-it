@@ -4,7 +4,11 @@
 
 <!-- tab-pane -->
 
-<div id="{{ $name }}" {{ $attributes->merge(['class' => 'snipetab-pane tab-pane fade']) }}>
+<div id="{{ $name }}"
+     role="tabpanel"
+     aria-labelledby="tab-{{ $name }}"
+     tabindex="0"
+     {{ $attributes->merge(['class' => 'snipetab-pane tab-pane fade']) }}>
 
     <div class="row">
         <div class="col-md-12">

@@ -9,25 +9,25 @@ class ContractAuditPresenter
         return json_encode([
             [
                 'field' => 'occurred_at',
-                'sortable' => true,
+                'sortable' => false,
                 'title' => trans('general.created_at'),
                 'formatter' => 'dateDisplayFormatter',
             ],
             [
                 'field' => 'actor_name',
-                'sortable' => true,
+                'sortable' => false,
                 'searchable' => true,
                 'title' => trans('general.created_by'),
             ],
             [
-                'field' => 'action',
-                'sortable' => true,
+                'field' => 'action_label',
+                'sortable' => false,
                 'searchable' => true,
                 'title' => trans('general.action'),
             ],
             [
                 'field' => 'entity_label',
-                'sortable' => true,
+                'sortable' => false,
                 'searchable' => true,
                 'title' => trans('general.item'),
             ],
@@ -39,7 +39,7 @@ class ContractAuditPresenter
             ],
             [
                 'field' => 'source',
-                'sortable' => true,
+                'sortable' => false,
                 'searchable' => true,
                 'title' => trans('general.action_source'),
             ],

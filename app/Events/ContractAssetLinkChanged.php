@@ -10,11 +10,8 @@ use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * Integration event for the unified contract history.
- *
- * The contract asset flow does not write an Actionlog directly. The history
- * implementation coordinated in issue #13 can consume this event and record
- * the pivot change exactly once after the transaction commits.
+ * Post-commit integration notification. The service records the asset and
+ * contract audit trails atomically before dispatching this event.
  */
 final class ContractAssetLinkChanged implements ShouldDispatchAfterCommit
 {

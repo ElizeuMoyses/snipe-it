@@ -42,7 +42,7 @@ class ContractPresenter extends Presenter
             [
                 'field' => 'supplier',
                 'searchable' => false,
-                'sortable' => true,
+                'sortable' => false,
                 'switchable' => true,
                 'title' => trans('general.supplier'),
                 'visible' => true,
@@ -68,7 +68,7 @@ class ContractPresenter extends Presenter
             [
                 'field' => 'status_label',
                 'searchable' => false,
-                'sortable' => true,
+                'sortable' => false,
                 'switchable' => true,
                 'title' => trans('admin/contracts/table.status'),
                 'visible' => true,
@@ -93,6 +93,23 @@ class ContractPresenter extends Presenter
                 'formatter' => 'dateDisplayFormatter',
             ],
             [
+                'field' => 'validity',
+                'searchable' => false,
+                'sortable' => false,
+                'switchable' => true,
+                'title' => trans('admin/contracts/table.validity'),
+                'visible' => true,
+            ],
+            [
+                'field' => 'next_due_date',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('admin/contracts/table.next_due'),
+                'visible' => true,
+                'formatter' => 'dateDisplayFormatter',
+            ],
+            [
                 'field' => 'end_date',
                 'searchable' => false,
                 'sortable' => true,
@@ -104,7 +121,7 @@ class ContractPresenter extends Presenter
             [
                 'field' => 'company',
                 'searchable' => false,
-                'sortable' => true,
+                'sortable' => false,
                 'switchable' => true,
                 'title' => trans('general.company'),
                 'visible' => false,

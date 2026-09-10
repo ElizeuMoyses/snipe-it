@@ -44,6 +44,8 @@ return [
     ],
 
     'installment' => [
+        'no_installments' => 'No installments are registered for this contract.',
+        'no_installments_help' => 'Use Create Installment or Generate Installments when the contract state allows it.',
         'contract_terminal' => 'Cannot create installments on a terminated contract (expired or cancelled).',
         'create' => [
             'success' => 'Installment created successfully.',

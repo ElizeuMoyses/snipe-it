@@ -1,3 +1,21 @@
+@php
+    $isBrazilian = in_array(app()->getLocale(), ['pt-BR', 'pt_BR'], true);
+    $contractCurrency = $isBrazilian ? trans('general.currency') : $snipeSettings->default_currency;
+    $formatAmendmentDate = function ($date) use ($isBrazilian) {
+        if (! $date) {
+            return '—';
+        }
+
+        return $isBrazilian
+            ? $date->format('d/m/Y')
+            : Helper::getFormattedDateObject($date, 'date', false);
+    };
+    $formatAmendmentMoney = fn ($value) => \App\Services\ContractFinancialSummary::formatCents(
+        \App\Services\ContractFinancialSummary::toCents($value),
+        $contractCurrency
+    );
+@endphp
+
 <table
     data-cookie-id-table="contractAmendmentsTable"
     data-id-table="contractAmendmentsTable"
@@ -26,32 +44,37 @@
                         {{ trans('admin/contracts/general.amendment_type_' . $amendment->amendment_type) }}
                     </span>
                 </td>
-                <td>{{ \Illuminate\Support\Str::limit($amendment->description, 80) }}</td>
-                <td>{{ Helper::getFormattedDateObject($amendment->effective_date, 'date', false) }}</td>
                 <td>
-                    @if ($amendment->old_value)
-                        {{ $snipeSettings->default_currency }}{{ Helper::formatCurrencyOutput($amendment->old_value) }}
+                    {{ \Illuminate\Support\Str::limit($amendment->description, 80) }}
+                    @if($amendment->rectifies_amendment_id)
+                        <br><small>{{ trans('admin/contracts/general.rectification_of') }} #{{ $amendment->rectifies_amendment_id }}</small>
+                    @endif
+                </td>
+                <td>{{ $formatAmendmentDate($amendment->effective_date) }}</td>
+                <td>
+                    @if ($amendment->old_value !== null)
+                        {{ $formatAmendmentMoney($amendment->old_value) }}
                     @else
                         &mdash;
                     @endif
                 </td>
                 <td>
-                    @if ($amendment->new_value)
-                        {{ $snipeSettings->default_currency }}{{ Helper::formatCurrencyOutput($amendment->new_value) }}
+                    @if ($amendment->new_value !== null)
+                        {{ $formatAmendmentMoney($amendment->new_value) }}
                     @else
                         &mdash;
                     @endif
                 </td>
                 <td>
                     @if ($amendment->old_end_date)
-                        {{ Helper::getFormattedDateObject($amendment->old_end_date, 'date', false) }}
+                        {{ $formatAmendmentDate($amendment->old_end_date) }}
                     @else
                         &mdash;
                     @endif
                 </td>
                 <td>
                     @if ($amendment->new_end_date)
-                        {{ Helper::getFormattedDateObject($amendment->new_end_date, 'date', false) }}
+                        {{ $formatAmendmentDate($amendment->new_end_date) }}
                     @else
                         &mdash;
                     @endif
@@ -59,10 +82,7 @@
                 <td>{{ $amendment->ticket_reference ?? '—' }}</td>
                 <td>
                     @php
-                        $uploadCount = \App\Models\Actionlog::where('item_type', \App\Models\ContractAmendment::class)
-                            ->where('item_id', $amendment->id)
-                            ->where('action_type', 'uploaded')
-                            ->count();
+                        $uploadCount = $amendment->uploads->count();
                     @endphp
                     @if ($uploadCount > 0)
                         <span class="badge badge-info">{{ $uploadCount }}</span>
@@ -70,8 +90,11 @@
                     @can('files', $contract)
                         <button type="button" class="btn btn-sm btn-default"
                                 data-toggle="modal"
-                                data-target="#uploadModal-{{ $amendment->id }}">
-                            <i class="fas fa-paperclip"></i>
+                                data-target="#uploadModal-{{ $amendment->id }}"
+                                title="{{ trans('admin/contracts/general.attach_file') }}"
+                                aria-label="{{ trans('admin/contracts/general.attach_file') }}">
+                            <i class="fas fa-paperclip" aria-hidden="true"></i>
+                            <span class="visible-xs">{{ trans('admin/contracts/general.attach_file') }}</span>
                         </button>
                     @endcan
                 </td>
@@ -79,8 +102,9 @@
                 <td>
                     @can('update', $contract)
                         <nobr>
-                            <a href="{{ route('contracts.amendments.edit', [$contract->id, $amendment->id]) }}" class="btn btn-warning btn-sm">
+                            <a href="{{ route('contracts.amendments.edit', [$contract->id, $amendment->id]) }}" class="btn btn-warning btn-sm" title="{{ trans('button.edit') }}" aria-label="{{ trans('button.edit') }}">
                                 <i class="fas fa-pencil-alt" aria-hidden="true"></i>
+                                <span class="visible-xs">{{ trans('button.edit') }}</span>
                             </a>
 
                             @if ($amendment->hasAppliedEffects())
@@ -106,8 +130,8 @@
     </tbody>
 </table>
 
+{{-- Upload modals for each amendment. The file inventory itself lives in the Files tab. --}}
 @if ($contract->amendments->count() > 0)
-    {{-- Upload modals for each amendment --}}
     @foreach ($contract->amendments as $amendment)
         @can('files', $contract)
             @include('modals.upload-file', [
@@ -116,21 +140,5 @@
                 'modal_id'  => 'uploadModal-' . $amendment->id,
             ])
         @endcan
-    @endforeach
-
-    {{-- Files listing per amendment --}}
-    <hr>
-    <h4>{{ trans('general.file_uploads') }}</h4>
-    @foreach ($contract->amendments as $amendment)
-        @php
-            $fileCount = \App\Models\Actionlog::where('item_type', \App\Models\ContractAmendment::class)
-                ->where('item_id', $amendment->id)
-                ->where('action_type', 'uploaded')
-                ->count();
-        @endphp
-        @if ($fileCount > 0)
-            <h5>{{ trans('admin/contracts/general.amendment_type_' . $amendment->amendment_type) }} &mdash; {{ $amendment->effective_date?->format('d/m/Y') }}</h5>
-            <x-table.files :object_type="'contract_amendments'" :object="$amendment" :table_id="'amendment-'.$amendment->id.'-files'" />
-        @endif
     @endforeach
 @endif

@@ -24,6 +24,24 @@
     <i class="fa-regular fa-2x fa-square-caret-right pull-right" id="expand-info-panel-button" data-tooltip="true" title="{{ trans('button.show_hide_info') }}"></i>
 @endsection
 
+@php
+    $isBrazilian = in_array(app()->getLocale(), ['pt-BR', 'pt_BR'], true);
+    $contractCurrency = $isBrazilian ? trans('general.currency') : $snipeSettings->default_currency;
+    $contractDate = function ($date) use ($isBrazilian) {
+        if (! $date) {
+            return trans('admin/contracts/general.not_informed');
+        }
+
+        return $isBrazilian
+            ? $date->format('d/m/Y')
+            : Helper::getFormattedDateObject($date, 'date', false);
+    };
+    $contractMoney = fn ($value) => \App\Services\ContractFinancialSummary::formatCents(
+        \App\Services\ContractFinancialSummary::toCents($value),
+        $contractCurrency
+    );
+@endphp
+
 {{-- Page content --}}
 @section('content')
     <x-container columns="2">
@@ -40,7 +58,8 @@
                 </div>
             @endif
 
-            <x-tabs>
+            @include('contracts.partials.summary')
+            <x-tabs class="contract-detail-tabs">
                 <x-slot:tabnav>
 
                     <x-tabs.nav-item
@@ -50,6 +69,8 @@
                         label="{{ trans('admin/contracts/general.installments') }}"
                         count="{{ $contract->installments->count() }}"
                         tooltip="{{ trans('admin/contracts/general.installments') }}"
+                        show_label="true"
+                        show_count="true"
                     />
 
                     <x-tabs.nav-item
@@ -58,6 +79,8 @@
                         label="{{ trans('admin/contracts/general.amendments') }}"
                         count="{{ $contract->amendments->count() }}"
                         tooltip="{{ trans('admin/contracts/general.amendments') }}"
+                        show_label="true"
+                        show_count="true"
                     />
 
                     <x-tabs.nav-item
@@ -66,21 +89,34 @@
                         label="{{ trans('admin/contracts/general.linked_assets') }}"
                         count="{{ $contract->assets->count() }}"
                         tooltip="{{ trans('admin/contracts/general.linked_assets') }}"
+                        show_label="true"
+                        show_count="true"
                     />
 
-                    <x-tabs.nav-item
-                        name="history"
-                        icon="fas fa-clock-rotate-left"
-                        label="{{ trans('admin/contracts/general.history') }}"
-                        count="{{ $auditHistoryCount }}"
-                        tooltip="{{ trans('admin/contracts/general.history') }}"
-                    />
+                    @can('view', $contract)
+                        <x-tabs.nav-item
+                            name="files"
+                            icon_type="files"
+                            label="{{ trans('general.files') }}"
+                            count="{{ $totalUploadsCount }}"
+                            tooltip="{{ trans('general.files') }}"
+                            show_label="true"
+                            show_count="true"
+                        />
+                    @endcan
 
-                    @php
-                        $installmentUploadsCount = $contract->installments->sum(fn ($i) => $i->uploads->count());
-                        $totalUploadsCount = $contract->uploads()->count() + $installmentUploadsCount;
-                    @endphp
-                    <x-tabs.files-tab :item="$contract" count="{{ $totalUploadsCount }}"/>
+                    @can('history', $contract)
+                        <x-tabs.nav-item
+                            name="history"
+                            icon_type="history"
+                            label="{{ trans('general.history') }}"
+                            count="{{ $auditHistoryCount }}"
+                            tooltip="{{ trans('general.history') }}"
+                            show_label="true"
+                            show_count="true"
+                        />
+                    @endcan
+
                     @if(! $contract->trashed())
                         <x-tabs.upload-tab :item="$contract"/>
                     @endif
@@ -239,6 +275,8 @@
 
                             <x-table
                                 name="contractAudit"
+                                sort_order="desc"
+                                sort_field="occurred_at"
                                 :presenter="\App\Presenters\ContractAuditPresenter::dataTableLayout()"
                                 :api_url="route('contracts.history', array_merge(['contract' => $contract->id], $historyQuery))"
                                 show_advanced_search="false"
@@ -251,6 +289,11 @@
                     <!-- start files tab pane -->
                     <x-tabs.pane name="files" class="{{ $totalUploadsCount == 0 ? 'hidden-print' : '' }}">
                         <x-table.files object_type="contracts" :object="$contract"/>
+                        @if($totalUploadsCount === 0)
+                            <div class="alert alert-info">
+                                {{ trans('admin/contracts/general.no_files') }}
+                            </div>
+                        @endif
 
                         {{-- Installment files --}}
                         @if($installmentUploadsCount > 0)
@@ -289,17 +332,19 @@
                                                             {{ $upload->adminuser->display_name }}
                                                         @endif
                                                     </td>
-                                                    <td>{{ $upload->created_at->format('Y-m-d H:i') }}</td>
+                                                    <td>{{ $isBrazilian ? $upload->created_at->format('d/m/Y H:i') : $upload->created_at->format('Y-m-d H:i') }}</td>
                                                     <td>
-                                                        <a href="{{ route('ui.files.show', ['object_type' => 'contract_installments', 'id' => $installment->id, 'file_id' => $upload->id]) }}" class="btn btn-sm btn-default" data-tooltip="true" title="{{ trans('general.download') }}">
+                                                        <a href="{{ route('ui.files.show', ['object_type' => 'contract_installments', 'id' => $installment->id, 'file_id' => $upload->id]) }}" class="btn btn-sm btn-default" data-tooltip="true" title="{{ trans('general.download') }}" aria-label="{{ trans('general.download') }}">
                                                             <i class="fas fa-download"></i>
+                                                            <span class="sr-only">{{ trans('general.download') }}</span>
                                                         </a>
                                                         @can('files', $contract)
                                                             <form method="POST" action="{{ route('ui.files.destroy', ['object_type' => 'contract_installments', 'id' => $installment->id, 'file_id' => $upload->id]) }}" style="display:inline;">
                                                                 @csrf
                                                                 @method('DELETE')
-                                                                <button type="submit" class="btn btn-sm btn-danger" data-tooltip="true" title="{{ trans('button.delete') }}" onclick="return confirm('{{ trans('general.are_you_sure') }}')">
+                                                                <button type="submit" class="btn btn-sm btn-danger" data-tooltip="true" title="{{ trans('button.delete') }}" aria-label="{{ trans('button.delete') }}" onclick="return confirm('{{ trans('general.are_you_sure') }}')">
                                                                     <i class="fas fa-trash"></i>
+                                                                    <span class="sr-only">{{ trans('button.delete') }}</span>
                                                                 </button>
                                                             </form>
                                                         @endcan
@@ -311,8 +356,32 @@
                                 </table>
                             </div>
                         @endif
+
+                        {{-- Amendment files are shown here once so the Files tab has a complete scope. --}}
+                        @if($amendmentUploadsCount > 0)
+                            <h4 style="margin-top: 20px;">
+                                <i class="fas fa-file-signature" aria-hidden="true"></i>
+                                {{ trans('admin/contracts/general.amendment_files') }}
+                                <span class="badge">{{ $amendmentUploadsCount }}</span>
+                            </h4>
+                            @foreach($contract->amendments as $amendment)
+                                @if($amendment->uploads->isNotEmpty())
+                                    <h5>
+                                        {{ trans('admin/contracts/general.amendment_type_' . $amendment->amendment_type) }}
+                                        &mdash; {{ $contractDate($amendment->effective_date) }}
+                                    </h5>
+                                    <x-table.files
+                                        :object_type="'contract_amendments'"
+                                        :object="$amendment"
+                                        :table_id="'amendment-'.$amendment->id.'-files'"
+                                    />
+                                @endif
+                            @endforeach
+                        @endif
                     </x-tabs.pane>
                     <!-- end files tab pane -->
+
+
 
                 </x-slot:tabpanes>
 
@@ -411,14 +480,14 @@
                         @if ($contract->start_date)
                             <div class="col-md-12">
                                 <strong>{{ trans('admin/contracts/general.start_date') }}: </strong>
-                                {{ $contract->start_date }}
+                                {{ $contractDate($contract->start_date) }}
                             </div>
                         @endif
 
                         @if ($contract->end_date)
                             <div class="col-md-12">
                                 <strong>{{ trans('admin/contracts/general.end_date') }}: </strong>
-                                {{ $contract->end_date }}
+                                {{ $contractDate($contract->end_date) }}
                             </div>
                         @endif
 
@@ -521,6 +590,129 @@
     </x-container>
 
 @endsection
+
+@push('css')
+    <style>
+        .contract-summary {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #e5e5e5;
+            background: #fff;
+        }
+
+        .contract-summary h2 {
+            margin-top: 0;
+        }
+
+        .contract-summary-actions .btn {
+            margin-left: 5px;
+            margin-bottom: 5px;
+        }
+
+        .contract-summary-facts,
+        .contract-financial-summary {
+            clear: both;
+            border-top: 1px solid #eeeeee;
+            margin-top: 12px;
+            padding-top: 12px;
+        }
+
+        .contract-summary-facts > div,
+        .contract-financial-summary > div {
+            min-height: 58px;
+            margin-bottom: 10px;
+        }
+
+        .contract-financial-summary strong,
+        .contract-summary-facts strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .contract-detail-tabs .nav-tabs > li > a {
+            white-space: nowrap;
+        }
+
+        .contract-detail-tabs .tab-label {
+            display: inline-block;
+        }
+
+        @media (max-width: 767px) {
+            .contract-summary-actions {
+                float: none !important;
+                clear: both;
+                padding-top: 8px;
+            }
+
+            .contract-summary-actions .btn:first-child {
+                margin-left: 0;
+            }
+
+            .contract-detail-tabs .nav-tabs > li > a {
+                white-space: normal;
+                text-align: left;
+            }
+
+        }
+    </style>
+@endpush
+
+@push('js')
+    <script nonce="{{ csrf_token() }}">
+        document.addEventListener('DOMContentLoaded', function () {
+            var tabContainer = document.querySelector('.contract-detail-tabs');
+            if (!tabContainer) {
+                return;
+            }
+
+            var tabs = function () {
+                return Array.prototype.slice.call(tabContainer.querySelectorAll('[role="tab"]'));
+            };
+
+            var syncTabs = function (activeTab) {
+                tabs().forEach(function (tab) {
+                    var active = tab === activeTab;
+                    tab.setAttribute('aria-selected', active ? 'true' : 'false');
+                    tab.setAttribute('tabindex', active ? '0' : '-1');
+                });
+            };
+
+            tabContainer.addEventListener('keydown', function (event) {
+                var currentTabs = tabs();
+                var currentIndex = currentTabs.indexOf(event.target);
+                if (currentIndex === -1 || !['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) {
+                    return;
+                }
+
+                event.preventDefault();
+                var nextIndex = currentIndex;
+                if (event.key === 'ArrowRight') {
+                    nextIndex = (currentIndex + 1) % currentTabs.length;
+                } else if (event.key === 'ArrowLeft') {
+                    nextIndex = (currentIndex - 1 + currentTabs.length) % currentTabs.length;
+                } else if (event.key === 'Home') {
+                    nextIndex = 0;
+                } else if (event.key === 'End') {
+                    nextIndex = currentTabs.length - 1;
+                }
+
+                currentTabs[nextIndex].focus();
+                currentTabs[nextIndex].click();
+            });
+
+            if (window.jQuery) {
+                jQuery(tabContainer).on('shown.bs.tab', function (event) {
+                    syncTabs(event.target);
+                });
+            }
+
+            var activeTab = tabContainer.querySelector('[role="tab"][aria-selected="true"]');
+            if (activeTab) {
+                syncTabs(activeTab);
+            }
+        });
+    </script>
+@endpush
 
 @section('moar_scripts')
     @if(! $contract->trashed())

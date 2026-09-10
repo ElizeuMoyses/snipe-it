@@ -56,7 +56,7 @@ final class ContractAssetLinkService
 
             $audit = app(\App\Services\Contracts\ContractAuditService::class);
             $audit->record($lockedContract, 'asset.attached', $lockedAsset,
-                [], $audit->snapshot($lockedAsset), ['asset_id' => $assetId]);
+                [], $audit->snapshot($lockedAsset), ['asset_id' => $assetId, 'actionlog_id' => $this->logAssetHistory($lockedContract, $lockedAsset, true)]);
             ContractAssetLinkChanged::dispatch(
                 $lockedContract,
                 $lockedAsset,
@@ -106,7 +106,7 @@ final class ContractAssetLinkService
 
             $audit = app(\App\Services\Contracts\ContractAuditService::class);
             $audit->record($lockedContract, 'asset.detached', $lockedAsset,
-                $audit->snapshot($lockedAsset), [], ['asset_id' => $assetId]);
+                $audit->snapshot($lockedAsset), [], ['asset_id' => $assetId, 'actionlog_id' => $this->logAssetHistory($lockedContract, $lockedAsset, false)]);
             ContractAssetLinkChanged::dispatch(
                 $lockedContract,
                 $lockedAsset,
@@ -117,6 +117,22 @@ final class ContractAssetLinkService
 
             return self::DETACHED;
         });
+    }
+
+    private function logAssetHistory(Contract $contract, Asset $asset, bool $attached): int
+    {
+        $log = new \App\Models\Actionlog;
+        $log->item_type = Asset::class;
+        $log->item_id = $asset->id;
+        $log->target_type = Contract::class;
+        $log->target_id = $contract->id;
+        $log->created_by = auth()->id();
+        $log->note = trans('admin/contracts/general.' . ($attached ? 'asset_linked_history' : 'asset_unlinked_history'), ['id' => $contract->id]);
+        $log->log_meta = json_encode(['contract_link' => ['old' => $attached ? null : $contract->id, 'new' => $attached ? $contract->id : null]], JSON_THROW_ON_ERROR);
+        if (! $log->logaction(\App\Enums\ActionType::Update)) {
+            throw new \RuntimeException('Asset contract history could not be recorded.');
+        }
+        return $log->id;
     }
 
     private function assertContractCanChangeLinks(Contract $contract): void

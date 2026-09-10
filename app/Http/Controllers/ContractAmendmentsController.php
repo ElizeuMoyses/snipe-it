@@ -143,6 +143,7 @@ class ContractAmendmentsController extends Controller
             $amendment->contract_id = $contract->id;
             $amendment->amendment_type = $amendmentType;
             $amendment->description = $validated['description'];
+            $amendment->rectifies_amendment_id = $validated['rectifies_amendment_id'];
             $amendment->old_value = $validated['old_value'];
             $amendment->new_value = $validated['new_value'];
             $amendment->old_end_date = $validated['old_end_date'];

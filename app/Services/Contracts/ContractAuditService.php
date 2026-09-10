@@ -34,7 +34,7 @@ class ContractAuditService
         'amendment.updated',
         'amendment.deleted',
         'amendment.applied',
-        'amendment.retified',
+        'amendment.rectified',
         'file.uploaded',
         'file.deleted',
         'asset.attached',
@@ -54,7 +54,7 @@ class ContractAuditService
             'status_label_id', 'ticket_reference', 'notes', 'deleted_at',
         ],
         ContractAmendment::class => [
-            'id', 'contract_id', 'amendment_type', 'description', 'old_value', 'new_value',
+            'id', 'contract_id', 'amendment_type', 'description', 'rectifies_amendment_id', 'old_value', 'new_value',
             'old_end_date', 'new_end_date', 'effective_date', 'ticket_reference', 'notes', 'deleted_at',
         ],
         Asset::class => [
@@ -303,7 +303,7 @@ class ContractAuditService
         $offset ??= 0;
         $limit ??= $this->defaultLimit();
         $offset = max(0, $offset);
-        $limit = min(100, max(1, $limit));
+        $limit = min(1000, max(1, $limit));
 
         return [
             'rows' => $entries->slice($offset, $limit)->values(),

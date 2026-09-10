@@ -13,6 +13,8 @@ use App\Models\ContractStatusLabel;
 use App\Services\ContractAssetLinkService;
 use App\Models\ContractType;
 use App\Services\ContractInput;
+use App\Models\Supplier;
+use App\Services\ContractFinancialSummary;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Query\Builder;
 use App\Services\Contracts\ContractAuditService;
@@ -24,6 +26,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Throwable;
+use Illuminate\Validation\Rule;
 
 class ContractsController extends Controller
 {
@@ -89,11 +92,44 @@ class ContractsController extends Controller
     /**
      * Show a list of all contracts
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         $this->authorize('view', Contract::class);
 
-        return view('contracts/index');
+        $request->validate([
+            'company_id' => ['nullable', 'integer'],
+            'supplier_id' => ['nullable', 'integer'],
+            'status_label_id' => ['nullable', 'integer'],
+            'validity' => ['nullable', Rule::in(['current', 'expiring', 'expired', 'indefinite', 'future'])],
+            'due_status' => ['nullable', Rule::in(['upcoming', 'overdue'])],
+        ]);
+
+        $companies = Company::query()
+            ->orderBy('name')
+            ->get(['id', 'name']);
+        $suppliers = Supplier::query()
+            ->orderBy('name')
+            ->get(['id', 'name']);
+        $statuses = ContractStatusLabel::forContracts()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'meta_type']);
+
+        $apiFilters = collect([
+            'archived' => $request->boolean('archived') ? 1 : null,
+            'company_id' => $request->input('company_id'),
+            'supplier_id' => $request->input('supplier_id'),
+            'status_label_id' => $request->input('status_label_id'),
+            'validity' => $request->input('validity'),
+            'due_status' => $request->input('due_status'),
+        ])->filter(fn ($value) => $value !== null && $value !== '')->all();
+
+        return view('contracts/index', [
+            'companies' => $companies,
+            'suppliers' => $suppliers,
+            'statuses' => $statuses,
+            'contractsApiUrl' => route('api.contracts.index', $apiFilters),
+        ]);
     }
 
     /**
@@ -271,12 +307,18 @@ class ContractsController extends Controller
     {
         $this->authorize('view', $contract);
 
-        $contract->load(['contractType', 'installments.statusLabel', 'installments.adminuser', 'installments.uploads.adminuser', 'amendments.adminuser', 'assets.model', 'assets.assetstatus']);
+        $contract->load(['supplier', 'company', 'statusLabel', 'adminuser', 'uploads.adminuser', 'amendments.uploads.adminuser', 'contractType', 'installments.statusLabel', 'installments.adminuser', 'installments.uploads.adminuser', 'amendments.adminuser', 'assets.model', 'assets.assetstatus']);
         $auditHistoryCount = app(ContractAuditService::class)->historyFor($contract, [], 0, 1)['total'];
 
         $contractPreview = null;
         try { $contractPreview = $contract->installmentPreview(); } catch (\InvalidArgumentException) {}
-        return view('contracts/view', compact('contract', 'auditHistoryCount', 'contractPreview'));
+        $financialSummary = (new ContractFinancialSummary)->summarize($contract);
+        $contractUploadCount = $contract->uploads->count();
+        $installmentUploadsCount = $contract->installments->sum(fn ($installment) => $installment->uploads->count());
+        $amendmentUploadsCount = $contract->amendments->sum(fn ($amendment) => $amendment->uploads->count());
+        $totalUploadsCount = $contractUploadCount + $installmentUploadsCount + $amendmentUploadsCount;
+
+        return view('contracts/view', compact('contract', 'auditHistoryCount', 'contractPreview', 'financialSummary', 'contractUploadCount', 'installmentUploadsCount', 'amendmentUploadsCount', 'totalUploadsCount'));
     }
 
     /**
@@ -297,7 +339,7 @@ class ContractsController extends Controller
             'from' => 'nullable|date',
             'to' => 'nullable|date',
             'offset' => 'nullable|integer|min:0',
-            'limit' => 'nullable|integer|min:1|max:100',
+            'limit' => 'nullable|integer|min:1|max:1000',
         ]);
 
         $page = app(ContractAuditService::class)->historyFor(

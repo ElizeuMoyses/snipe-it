@@ -150,8 +150,8 @@ class ContractLifecycleAction
     /**
      * Write the existing action log record used by the application.
      *
-     * Issue #13 can later aggregate these records with child and pivot events
-     * without introducing a second audit store.
+     * The unified history references this record so legacy and new views
+     * represent the same operation without duplicates.
      */
     private function writeAuditLog(Contract $contract, ActionType $action, string $reason, array $metadata): void
     {
@@ -160,7 +160,7 @@ class ContractLifecycleAction
         $audit->item_id = $contract->getKey();
         $audit->created_by = auth()->id();
         $audit->note = $reason;
-        $audit->log_meta = json_encode($metadata, JSON_THROW_ON_ERROR);
+        $audit->log_meta = json_encode(['archived' => ['old' => $action === ActionType::Restore, 'new' => $action === ActionType::Delete]], JSON_THROW_ON_ERROR);
 
         if (! $audit->logaction($action)) {
             throw new RuntimeException('The contract audit event could not be recorded.');

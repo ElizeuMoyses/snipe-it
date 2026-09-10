@@ -24,6 +24,7 @@ class ContractAmendment extends SnipeModel implements ICompanyableChild
         'contract_id',
         'amendment_type',
         'description',
+        'rectifies_amendment_id',
         'old_value',
         'new_value',
         'old_end_date',
@@ -40,6 +41,7 @@ class ContractAmendment extends SnipeModel implements ICompanyableChild
         'old_value'      => 'decimal:2',
         'new_value'      => 'decimal:2',
         'contract_id'    => 'integer',
+        'rectifies_amendment_id' => 'integer',
     ];
 
     protected $rules = [

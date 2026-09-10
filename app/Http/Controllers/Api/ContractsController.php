@@ -10,6 +10,7 @@ use App\Http\Transformers\ContractAuditTransformer;
 use App\Http\Transformers\ContractsTransformer;
 use App\Http\Transformers\SelectlistTransformer;
 use App\Models\Contract;
+use App\Models\ContractInstallment;
 use App\Models\ContractStatusLabel;
 use App\Services\Contracts\ContractAuditService;
 use Illuminate\Http\JsonResponse;
@@ -19,6 +20,8 @@ use App\Services\ContractInput;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Throwable;
+use Carbon\Carbon;
+use Illuminate\Validation\Rule;
 
 class ContractsController extends Controller
 {
@@ -28,6 +31,15 @@ class ContractsController extends Controller
     public function index(FilterRequest $request): array
     {
         $this->authorize('view', Contract::class);
+
+        $request->validate([
+            'supplier_id' => ['nullable', 'integer'],
+            'company_id' => ['nullable', 'integer'],
+            'status_label_id' => ['nullable', 'integer'],
+            'meta_type' => ['nullable', Rule::in(ContractStatusLabel::META_TYPES['contract'])],
+            'validity' => ['nullable', Rule::in(['current', 'expiring', 'expired', 'indefinite', 'future'])],
+            'due_status' => ['nullable', Rule::in(['upcoming', 'overdue'])],
+        ]);
 
         $allowed_columns = [
             'id',
@@ -44,9 +56,17 @@ class ContractsController extends Controller
             'total_value_mode',
             'total_installments',
             'notes',
+            'created_by',
             'created_at',
             'updated_at',
+            'next_due_date',
         ];
+
+        $openInstallmentStatusIds = ContractStatusLabel::query()
+            ->where('scope', 'installment')
+            ->whereIn('meta_type', ['pending', 'overdue'])
+            ->pluck('id')
+            ->all();
 
         $contracts = ($request->boolean('archived') || $request->boolean('deleted'))
             ? Contract::onlyTrashed()
@@ -63,6 +83,18 @@ class ContractsController extends Controller
                 'installments',
                 'installments as pending_installments_count' => fn ($query) => $query->withTrashed()->pending(),
                 'amendments as amendments_count' => fn ($query) => $query->withTrashed(),
+            ])
+            ->addSelect([
+                'next_due_date' => ContractInstallment::query()
+                    ->withoutGlobalScopes()
+                    ->select('due_date')
+                    ->whereColumn('contract_installments.contract_id', 'contracts.id')
+                    ->whereNull('contract_installments.deleted_at')
+                    ->whereIn('contract_installments.status_label_id', $openInstallmentStatusIds)
+                    ->whereNotNull('contract_installments.due_date')
+                    ->orderBy('contract_installments.due_date')
+                    ->orderBy('contract_installments.installment_number')
+                    ->limit(1),
             ]);
 
         if ($request->filled('filter') || $request->filled('search')) {
@@ -90,6 +122,42 @@ class ContractsController extends Controller
             $contracts->whereIn('status_label_id', $statusIds);
         }
 
+        $today = Carbon::today();
+        $horizon = $today->copy()->addDays(30);
+
+        if ($request->filled('validity')) {
+            match ($request->input('validity')) {
+                'current' => $contracts
+                    ->whereDate('start_date', '<=', $today)
+                    ->whereNotNull('end_date')
+                    ->whereDate('end_date', '>=', $today),
+                'expiring' => $contracts
+                    ->whereDate('start_date', '<=', $today)
+                    ->whereDate('end_date', '>=', $today)
+                    ->whereDate('end_date', '<=', $horizon),
+                'expired' => $contracts->whereDate('end_date', '<', $today),
+                'indefinite' => $contracts
+                    ->whereDate('start_date', '<=', $today)
+                    ->whereNull('end_date'),
+                'future' => $contracts->whereDate('start_date', '>', $today),
+            };
+        }
+
+        if ($request->filled('due_status')) {
+            $contracts->whereHas('installments', function ($installments) use ($openInstallmentStatusIds, $today, $horizon, $request) {
+                $installments
+                    ->whereIn('status_label_id', $openInstallmentStatusIds)
+                    ->whereNotNull('due_date')
+                    ->when($request->input('due_status') === 'upcoming', function ($query) use ($today, $horizon) {
+                        $query->whereDate('due_date', '>=', $today)
+                            ->whereDate('due_date', '<=', $horizon);
+                    })
+                    ->when($request->input('due_status') === 'overdue', function ($query) use ($today) {
+                        $query->whereDate('due_date', '<', $today);
+                    });
+            });
+        }
+
         // Make sure the offset and limit are actually integers and do not exceed system limits
         $offset = ($request->input('offset') > $contracts->count()) ? $contracts->count() : app('api_offset_value');
         $limit = app('api_limit_value');
@@ -98,13 +166,19 @@ class ContractsController extends Controller
         $sort = in_array($request->input('sort'), $allowed_columns) ? $request->input('sort') : 'created_at';
 
         switch ($request->input('sort')) {
+            case 'next_due_date':
+                $contracts->orderByRaw('next_due_date IS NULL ASC')
+                    ->orderBy('next_due_date', $order);
+                break;
             case 'created_by':
-                $contracts->OrderByCreatedByName($order);
+                $contracts->orderBy('contracts.created_by', $order);
                 break;
             default:
                 $contracts->orderBy($sort, $order);
                 break;
         }
+
+        $contracts->orderBy('contracts.id', 'asc');
 
         $total = $contracts->count();
         $contracts = $contracts->skip($offset)->take($limit)->get();
@@ -298,7 +372,7 @@ class ContractsController extends Controller
             'from' => 'nullable|date',
             'to' => 'nullable|date',
             'offset' => 'nullable|integer|min:0',
-            'limit' => 'nullable|integer|min:1|max:100',
+            'limit' => 'nullable|integer|min:1|max:1000',
         ]);
 
         $page = app(ContractAuditService::class)->historyFor(
