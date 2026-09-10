@@ -50,10 +50,10 @@ preexistentes sem comparação equivalente da base.
 
 ## Próximos passos
 
-Anexos de contratos: **2 testes / 11 asserções** passaram em SQLite em memória,
-cobrindo permissão de envio, persistência privada, download, exclusão e rejeição
-de operações com arquivo pertencente a outro contrato. Ainda faltam cobertura de
-anexos de parcelas/aditivos, tipos inválidos e isolamento entre empresas nesse fluxo.
+Anexos: **5 testes / 21 asserções** passaram em SQLite em memória, cobrindo
+permissão de envio, persistência privada, download, exclusão, vínculo ao contrato,
+rejeição de PHP, isolamento por empresa de anexos de parcelas e envio autorizado
+em aditivos. Corrigido o registro ausente de política para `ContractAmendment`.
 
 Contratos: testes de acesso a parcelas **3 / 12 asserções** aprovados em MariaDB;
 pagamento negativo, parcela já paga e rollback da geração parcial, junto aos

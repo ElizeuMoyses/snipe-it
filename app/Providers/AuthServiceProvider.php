@@ -11,6 +11,7 @@ use App\Models\Component;
 use App\Models\Consumable;
 use App\Models\Contract;
 use App\Models\ContractInstallment;
+use App\Models\ContractAmendment;
 use App\Models\CustomField;
 use App\Models\CustomFieldset;
 use App\Models\Department;
@@ -75,6 +76,7 @@ class AuthServiceProvider extends ServiceProvider
         Statuslabel::class => StatuslabelPolicy::class,
         Contract::class => ContractPolicy::class,
         ContractInstallment::class => ContractPolicy::class,
+        ContractAmendment::class => ContractPolicy::class,
         Supplier::class => SupplierPolicy::class,
         User::class => UserPolicy::class,
         Manufacturer::class => ManufacturerPolicy::class,
