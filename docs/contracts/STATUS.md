@@ -212,3 +212,19 @@ concluídas/Done; #1, #3 e #6 permanecem abertas/In Progress. Milestone aberta,
 PR draft. Próximo passo: resultado do job indicado, definição de calendário e
 aceite humano. Smoke de assinatura já concluído; não recriar fixture nem repetir
 seu POST. Dados e artefatos privados continuam ignorados pelo Git.
+
+
+## Regra de renovação definida pelo responsável
+
+O usuário escolheu preservar o dia original do vencimento, ajustando o fim de mês.
+A renovação passa a usar start_date como âncora do ciclo e billing_day quando
+configurado. O término anterior é somente limite inferior para novas parcelas.
+Exemplo: 31/01 e término em 31/03 geram 30/04, 31/05 e 30/06.
+Prévia e gravação usam o mesmo calendário; nenhuma parcela histórica é reescrita.
+A escolha resolve a pendência de regra registrada anteriormente. Testes da alteração
+em execução; aceite funcional da release permanece separado.
+
+Validação da nova regra: seleção MariaDB de contratos/status passou com
+87 testes / 309 asserções. Casos de calendário cobrem dia 30/31, fevereiro
+bissexto, ajuste sem perda do dia original, ciclos trimestral/anual, dia fixo,
+prévia versus parcelas persistidas, preservação do histórico e idempotência.

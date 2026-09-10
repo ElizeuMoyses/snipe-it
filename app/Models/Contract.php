@@ -261,12 +261,34 @@ class Contract extends SnipeModel
 
     protected function generateRecurringInstallments(ContractStatusLabel $defaultStatus, ?Carbon $from, int $count): int
     {
-        $start = $from ?: $this->start_date->copy();
-        $end = $this->end_date;
+        $number = $this->installments()->count();
+        foreach ($this->recurringInstallmentDates($from) as $dueDate) {
+            $installment = $this->installments()->create([
+                'installment_number' => ++$number,
+                'reference_date' => $dueDate->copy()->startOfMonth(),
+                'due_date' => $dueDate,
+                'expected_value' => $this->installment_value,
+                'status_label_id' => $defaultStatus->id,
+                'created_by' => auth()->id(),
+            ]);
+            if (! $installment->exists) {
+                throw new \RuntimeException('Installment creation failed');
+            }
+            $count++;
+        }
+
+        return $count;
+    }
+
+    /** Shared calendar for generation and renewal preview; from is only a lower bound. */
+    public function recurringInstallmentDates(?Carbon $from = null, ?Carbon $until = null): array
+    {
+        $start = $this->start_date->copy();
+        $end = $until ?: $this->end_date;
 
         if (! $end) {
             // Contratos sem data final: gerar 12 meses a partir do início
-            $end = $start->copy()->addMonthsNoOverflow(11)->endOfMonth();
+            $end = ($from ?: $start)->copy()->addMonthsNoOverflow(11)->endOfMonth();
         }
 
         $monthsInterval = match ($this->billing_cycle) {
@@ -277,11 +299,10 @@ class Contract extends SnipeModel
             default      => 1,
         };
 
-        $existingCount = $this->installments()->count();
         $current = $this->billing_day ? $start->copy()->startOfMonth() : $start->copy();
         $anchor = $current->copy();
         $monthOffset = 0;
-        $number = $existingCount;
+        $dates = [];
 
         $lastInstallment = $this->installments()->latest('due_date')->first();
         $thresholdDate = $from ? $from->copy()->subDay() : null;
@@ -296,26 +317,13 @@ class Contract extends SnipeModel
         }
 
         while ($this->resolveInstallmentDueDate($current)->lte($end)) {
-            $number++;
             $dueDate = $this->resolveInstallmentDueDate($current);
-
-            $installment = $this->installments()->create([
-                'installment_number' => $number,
-                'reference_date'     => $current->copy()->startOfMonth(),
-                'due_date'           => $dueDate,
-                'expected_value'     => $this->installment_value,
-                'status_label_id'    => $defaultStatus->id,
-                'created_by'         => auth()->id(),
-            ]);
-            if (! $installment->exists) {
-                throw new \RuntimeException('Installment creation failed');
-            }
-            $count++;
+            $dates[] = $dueDate;
             $monthOffset += $monthsInterval;
             $current = $anchor->copy()->addMonthsNoOverflow($monthOffset);
         }
 
-        return $count;
+        return $dates;
     }
 
     // ── Computed attributes ─────────────────────────────────────────

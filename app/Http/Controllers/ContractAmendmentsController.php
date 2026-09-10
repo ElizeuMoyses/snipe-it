@@ -87,20 +87,7 @@ class ContractAmendmentsController extends Controller
         $oldEnd = Carbon::parse($request->input('old_end_date'));
         $newEnd = Carbon::parse($request->input('new_end_date'));
 
-        $monthsInterval = match ($contract->billing_cycle) {
-            'monthly'    => 1,
-            'quarterly'  => 3,
-            'semiannual' => 6,
-            'annual'     => 12,
-            default      => 1,
-        };
-
-        $estimatedCount = 0;
-        $cursor = $oldEnd->copy()->addDay();
-        while ($cursor->lte($newEnd)) {
-            $estimatedCount++;
-            $cursor->addMonths($monthsInterval);
-        }
+        $estimatedCount = count($contract->recurringInstallmentDates($oldEnd->copy()->addDay(), $newEnd));
 
         return [
             'type'              => 'renewal',

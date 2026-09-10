@@ -3,8 +3,7 @@
 Data: 2026-09-10. Candidato de código: `efbcf9ab7dfbcff8515fdf104d0481cc68746821`.
 Base observada: `5642b986afdcecdf6aedd34df092527d680987de`.
 
-**Decisão: NO-GO.** A regra de vencimento após renovação ainda depende de
-definição do responsável; o aceite funcional não foi registrado. Não fazer merge
+**Decisão: NO-GO.** O responsável definiu preservar o dia original, ajustando o fim de mês. A alteração está em validação; o aceite funcional da release não foi registrado. Não fazer merge
 ou implantação a partir deste documento. O CI deste candidato deve ser conferido
 no PR; resultados de SHAs anteriores têm o escopo indicado abaixo.
 
