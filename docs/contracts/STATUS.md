@@ -260,3 +260,31 @@ presente no cadastro completo; sem o clearfix de `.form-group`, colunas flutuant
 empurravam os fieldsets fiscais para uma faixa lateral. Classe adicionada ao form.
 Screenshot local após rolagem confirmou Dados Fiscais e cor em largura completa,
 com rótulos e campos alinhados. Alteração somente de apresentação, sem build JS.
+
+## Investigação de gestão e usabilidade — issues #10–#15
+
+Base de código: 6fcfd8df05. Nenhuma correção funcional realizada nesta investigação.
+Backlog detalhado na milestone Contratos v1 e Project, complementando #9:
+#10 vínculo de ativos; #11 menu de status; #12 aditivos/prévia/retificação;
+#13 histórico unificado; #14 exclusão rastreável; #15 lista/resumo/navegação.
+Cada issue registra arquivos-alvo, fatos versus hipóteses, critérios e testes.
+
+Validação: MariaDB snipeit_test, phpunit tests/Feature/Contracts: 79 testes/288
+asserções aprovados; SQLite sqlite_testing, ContractAssetAccessTest,
+ContractAmendmentEffectsTest e DeleteContractTest: 9 testes/32 asserções aprovados.
+JUnit privado no container: /tmp/contracts-investigation.xml e
+/tmp/contracts-investigation-sqlite.xml. Nenhum banco de trabalho foi recriado.
+
+Visual: menu de status da última linha confirmado cortado; seletor de ativos abriu
+com opções, mas POST de vínculo não foi exercitado na réplica de trabalho. Uma
+navegação retornou 504 durante execução local; funcionou depois, sem causa firmada.
+Não publicar screenshots ou detalhes dos registros reais inspecionados.
+Histórico completo ausente confirmado por leitura de trait/observers/controladores;
+prévia de aditivos calcula dados não exibidos no modal. Testes atuais não cobrem
+essas lacunas. Dois revisores read-only verificaram auditoria e aditivos.
+
+Coordenação sugerida: #13 define mecanismo de auditoria para #10/#11/#12/#14;
+#9 define valores/calendário reutilizados por #12/#15. Evitar edições concorrentes
+em view.blade.php e controladores; commits focados integrados no PR draft #7.
+Decisões ainda explícitas nas issues: efeito de total manual, retificação de
+aditivos aplicados, restauração e papéis. Aceite geral #1/#6 continua pendente.
