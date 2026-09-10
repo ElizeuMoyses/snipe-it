@@ -50,6 +50,13 @@ preexistentes sem comparação equivalente da base.
 
 ## Próximos passos
 
+Contratos: testes de acesso a parcelas **3 / 12 asserções** aprovados em MariaDB;
+pagamento negativo, parcela já paga e rollback da geração parcial, junto aos
+limites financeiros/calendário: **8 testes / 17 asserções** aprovados em SQLite
+em memória. Isso comprova rollback e validações sequenciais, não concorrência
+entre processos. Suíte completa local do candidato `3fa2f88891` em execução
+isolada no Docker, com banco `snipeit_test` (sem uso da réplica de trabalho).
+
 Regressões de aceite: a referência a DomPDF ausente foi substituída pelo TCPDF já
 instalado; teste verifica o cabeçalho do PDF persistido. Corrigidos quantidade do
 aceite, remoção das unidades recusadas e notificação específica de itens.

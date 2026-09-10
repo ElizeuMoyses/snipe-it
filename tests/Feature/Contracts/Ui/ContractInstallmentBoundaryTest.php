@@ -3,11 +3,36 @@
 namespace Tests\Feature\Contracts\Ui;
 
 use App\Models\Contract;
+use App\Models\ContractInstallment;
 use App\Models\User;
 use Tests\TestCase;
 
 class ContractInstallmentBoundaryTest extends TestCase
 {
+    public function test_failed_generation_rolls_back_all_created_installments(): void
+    {
+        $this->actingAs(User::factory()->superuser()->create());
+        $contract = Contract::factory()->oneTime()->create([
+            'total_installments' => 3, 'total_value' => '100.00', 'start_date' => '2026-01-01',
+        ]);
+        $dispatcher = ContractInstallment::getEventDispatcher();
+        ContractInstallment::setEventDispatcher(clone $dispatcher);
+        ContractInstallment::created(function ($installment) {
+            if ($installment->installment_number === 2) {
+                throw new \RuntimeException('Synthetic installment failure');
+            }
+        });
+        try {
+            $contract->generateInstallments();
+            $this->fail('Expected generation failure');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Synthetic installment failure', $exception->getMessage());
+        } finally {
+            ContractInstallment::setEventDispatcher($dispatcher);
+        }
+        $this->assertSame(0, $contract->installments()->count());
+    }
+
     public function test_rounding_up_and_zero_totals_do_not_overcharge(): void
     {
         $this->actingAs(User::factory()->superuser()->create());
