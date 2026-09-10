@@ -50,6 +50,14 @@ preexistentes sem comparação equivalente da base.
 
 ## Próximos passos
 
+Progresso de implementação em 2026-09-10: testes reproduziram perda de centavo,
+salto de fevereiro, deslocamento do calendário recorrente e duplicação na segunda
+geração de contrato pontual. Corrigidos cálculo por centavos, calendário ancorado
+com ajuste de fim de mês e geração transacional com bloqueio do contrato e guarda
+de repetição. Seleção local de geração e limites: **12 testes / 26 asserções passaram**.
+O bloqueio ainda requer teste com processos concorrentes; não considerar a issue #3
+concluída. CI do candidato anterior: contratos passou e suíte completa falhou.
+
 1. Estabelecer execução reproduzível no banco descartável e CI MariaDB 11.4/PHP 8.3.
 2. Acrescentar casos de centavos, fim de mês e geração concorrente/idempotente.
    A leitura inicial indica risco em divisão arredondada e `addMonths`; confirmar

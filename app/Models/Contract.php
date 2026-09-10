@@ -173,6 +173,17 @@ class Contract extends SnipeModel
      */
     public function generateInstallments(?Carbon $from = null): int
     {
+        // Serialize generation for the same persisted contract. Checking for
+        // existing installments outside this lock permits concurrent duplicates.
+        return $this->getConnection()->transaction(function () use ($from) {
+            $contract = static::query()->whereKey($this->getKey())->lockForUpdate()->firstOrFail();
+
+            return $contract->generateInstallmentsLocked($from);
+        });
+    }
+
+    protected function generateInstallmentsLocked(?Carbon $from): int
+    {
         $defaultStatus = ContractStatusLabel::defaultForMetaType('installment', 'pending');
         if (! $defaultStatus) {
             return 0;
@@ -181,6 +192,10 @@ class Contract extends SnipeModel
         $count = 0;
 
         if ($this->contract_type === 'one_time') {
+            if ($this->installments()->exists()) {
+                return 0;
+            }
+
             return $this->generateOneTimeInstallments($defaultStatus, $count);
         }
 
@@ -202,14 +217,25 @@ class Contract extends SnipeModel
     protected function generateOneTimeInstallments(ContractStatusLabel $defaultStatus, int $count): int
     {
         $totalInstallments = $this->total_installments ?: 1;
-        $valuePerInstallment = $this->total_value
-            ? round($this->total_value / $totalInstallments, 2)
-            : $this->installment_value;
+        // Decimal casts provide two places; distribute integer cents so the
+        // installment sum always matches the contract, including a zero total.
+        $totalCents = $this->total_value !== null
+            ? (int) str_replace('.', '', $this->total_value)
+            : null;
+        $baseCents = $totalCents !== null ? intdiv($totalCents, $totalInstallments) : null;
 
         for ($i = 1; $i <= $totalInstallments; $i++) {
             $dueDate = $this->resolveInstallmentDueDate(
-                $this->start_date->copy()->addMonths($i - 1)
+                $this->start_date->copy()->addMonthsNoOverflow($i - 1)
             );
+
+            $cents = $baseCents;
+            if ($cents !== null && $i === $totalInstallments) {
+                $cents += $totalCents % $totalInstallments;
+            }
+            $valuePerInstallment = $cents !== null
+                ? intdiv($cents, 100).'.'.str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT)
+                : $this->installment_value;
 
             $this->installments()->create([
                 'installment_number' => $i,
@@ -232,7 +258,7 @@ class Contract extends SnipeModel
 
         if (! $end) {
             // Contratos sem data final: gerar 12 meses a partir do início
-            $end = $start->copy()->addMonths(11)->endOfMonth();
+            $end = $start->copy()->addMonthsNoOverflow(11)->endOfMonth();
         }
 
         $monthsInterval = match ($this->billing_cycle) {
@@ -245,6 +271,8 @@ class Contract extends SnipeModel
 
         $existingCount = $this->installments()->count();
         $current = $this->billing_day ? $start->copy()->startOfMonth() : $start->copy();
+        $anchor = $current->copy();
+        $monthOffset = 0;
         $number = $existingCount;
 
         $lastInstallment = $this->installments()->latest('due_date')->first();
@@ -255,7 +283,8 @@ class Contract extends SnipeModel
         }
 
         while ($thresholdDate && $this->resolveInstallmentDueDate($current)->lte($thresholdDate)) {
-            $current->addMonths($monthsInterval);
+            $monthOffset += $monthsInterval;
+            $current = $anchor->copy()->addMonthsNoOverflow($monthOffset);
         }
 
         while ($this->resolveInstallmentDueDate($current)->lte($end)) {
@@ -271,7 +300,8 @@ class Contract extends SnipeModel
                 'created_by'         => auth()->id(),
             ]);
             $count++;
-            $current->addMonths($monthsInterval);
+            $monthOffset += $monthsInterval;
+            $current = $anchor->copy()->addMonthsNoOverflow($monthOffset);
         }
 
         return $count;
