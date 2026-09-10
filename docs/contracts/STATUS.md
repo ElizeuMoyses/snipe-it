@@ -76,6 +76,18 @@ Seleção de renderização com envio pela rota UI e testes de arquivos passou:
 
 ## Critérios ainda pendentes
 
+Isolamento UI: **2 testes / 21 asserções passaram**, bloqueando leitura,
+pagamento e aditivo entre empresas e parcela sob contrato incorreto, com dados
+preservados. A exceção do filho inexistente tentava rota inexistente e retornava
+500; o handler agora redireciona à lista de contratos com erro, seguindo o padrão
+existente da aplicação. API mantém seu envelope de erro próprio.
+CI de `271669824b` passou em todas as suítes habilitadas. PR foi reescrito para
+refletir o conjunto final de mudanças e limites da validação.
+Verificação HTTP autenticada de anexo sintético está em execução (`47545`), script
+privado `.local-validation/attachment-http.py`. O marcador
+`.local-validation/attachment-http-result.json` impede repetir envio já efetuado;
+exigir `content_matches` e listagem verificada antes de declarar o fluxo concluído.
+
 A suíte completa local de `a6691ab4f1` está em execução na cópia imutável
 `/tmp/candidate-a669` do container local, banco descartável `snipeit_test`.
 Handle de execução na tarefa: `82787`; não reiniciar enquanto estiver ativo.
