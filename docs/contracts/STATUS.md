@@ -76,6 +76,13 @@ Seleção de renderização com envio pela rota UI e testes de arquivos passou:
 
 ## Critérios ainda pendentes
 
+A suíte completa local de `a6691ab4f1` está em execução na cópia imutável
+`/tmp/candidate-a669` do container local, banco descartável `snipeit_test`.
+Handle de execução na tarefa: `82787`; não reiniciar enquanto estiver ativo.
+JUnit ao concluir: `/tmp/candidate-a669-results.xml`. O
+[runbook de liberação e recuperação](RELEASE-RUNBOOK.md) está preparado e exige
+revalidação da implantação e backup atualizado numa futura janela autorizada.
+
 Atualização financeira: casos mensal bissexto, trimestral, semestral e anual
 passaram, incluindo retorno a 29/02 no próximo ano bissexto e repetição sem novas
 parcelas. Teste de gravação recusada reproduziu reajuste parcial: `save()` falso
