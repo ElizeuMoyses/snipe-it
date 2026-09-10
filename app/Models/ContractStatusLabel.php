@@ -117,23 +117,15 @@ class ContractStatusLabel extends SnipeModel
 
     /**
      * Get all status_label IDs for a given scope + meta_type.
-     * Cached in-memory per request to avoid N+1.
+     * Read current rows so newly created or changed labels are visible even
+     * inside transactions and long-lived workers.
      */
-    protected static array $metaTypeCache = [];
-
     public static function idsForMetaType(string $scope, string $metaType): array
     {
-        $key = "{$scope}:{$metaType}";
-
-        if (! isset(static::$metaTypeCache[$key])) {
-            static::$metaTypeCache[$key] = static::where('scope', $scope)
-                ->where('meta_type', $metaType)
-                ->whereNull('deleted_at')
-                ->pluck('id')
-                ->all();
-        }
-
-        return static::$metaTypeCache[$key];
+        return static::where('scope', $scope)
+            ->where('meta_type', $metaType)
+            ->pluck('id')
+            ->all();
     }
 
     /**
@@ -148,11 +140,10 @@ class ContractStatusLabel extends SnipeModel
     }
 
     /**
-     * Clear the in-memory meta_type ID cache (useful in tests).
+     * Compatibility hook for callers; lookups no longer retain static state.
      */
     public static function clearMetaTypeCache(): void
     {
-        static::$metaTypeCache = [];
     }
 
     // ── Deletable ───────────────────────────────────────────────────

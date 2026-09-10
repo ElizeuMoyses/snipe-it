@@ -11,6 +11,13 @@ use Tests\TestCase;
 
 class ContractAmendmentEffectsTest extends TestCase
 {
+    public function test_status_lookup_includes_labels_created_after_an_earlier_lookup(): void
+    {
+        ContractStatusLabel::idsForMetaType('installment', 'pending');
+        $label = ContractStatusLabel::factory()->pending()->create();
+        $this->assertContains($label->id, ContractStatusLabel::idsForMetaType('installment', 'pending'));
+    }
+
     public function test_readjustment_preserves_paid_and_earlier_installments(): void
     {
         $this->actingAs(User::factory()->superuser()->create());

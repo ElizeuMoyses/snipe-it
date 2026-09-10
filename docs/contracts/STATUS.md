@@ -50,6 +50,19 @@ preexistentes sem comparação equivalente da base.
 
 ## Próximos passos
 
+Ensaio de banco concluído localmente: backup da referência preservada restaurado
+em banco separado, migrations aplicadas e conteúdo dos campos originais de **53
+tabelas comparado por SHA-256 sem divergências** (migrations excluída). O backup
+anterior também foi restaurado em outro banco vazio: **54 tabelas, incluindo
+migrations, sem divergências**. Não houve alteração na referência nem produção.
+Isso valida recuperação do banco; restauração de arquivos e smoke do candidato
+final ainda precisam ser concluídos. Evidências e scripts com nomes de ambientes
+privados ficam somente em `.local-validation/`.
+
+Falha do CI reproduzida: cache estático de IDs ignorava status criados após a
+primeira consulta. Lookup agora usa o banco atual, inclusive após rollback.
+Revalidação MariaDB de status e aditivos: **5 testes / 20 asserções passaram**.
+
 Renovação pela API: **2 testes / 8 asserções** passaram, cobrindo sucesso e
 rejeição de data anterior desatualizada sem alteração do contrato. Corrigida a
 resposta que chamava `fullName()` inexistente. Criação de aditivos na API e UI
