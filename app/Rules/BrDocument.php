@@ -46,12 +46,11 @@ class BrDocument implements Rule, DataAwareRule
 
     private function validateCnpj(string $value): bool
     {
-        $cnpj = strtoupper(preg_replace('/[^A-Z0-9]/', '', $value));
+        $cnpj = preg_replace('/[^A-Z0-9]/', '', strtoupper($value));
 
-        if (strlen($cnpj) !== 14) {
+        if (strlen($cnpj) !== 14 || preg_match('/^(\d)\1{13}$/', $cnpj)) {
             return false;
         }
-
         // Check digits (positions 12-13) must be numeric
         if (!ctype_digit(substr($cnpj, 12, 2))) {
             return false;
@@ -62,11 +61,11 @@ class BrDocument implements Rule, DataAwareRule
             return false;
         }
 
-        // Convert each character: digit = numeric value, letter A=10..Z=35
+        // Receita Federal: ASCII value minus 48 (digits 0..9, letters A=17..Z=42).
         $values = [];
         for ($i = 0; $i < 14; $i++) {
             $char     = $cnpj[$i];
-            $values[] = ctype_digit($char) ? (int) $char : (ord($char) - ord('A') + 10);
+            $values[] = ord($char) - 48;
         }
 
         // First check digit — weights [5,4,3,2,9,8,7,6,5,4,3,2]

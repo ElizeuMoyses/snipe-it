@@ -228,3 +228,26 @@ Validação da nova regra: seleção MariaDB de contratos/status passou com
 87 testes / 309 asserções. Casos de calendário cobrem dia 30/31, fevereiro
 bissexto, ajuste sem perda do dia original, ciclos trimestral/anual, dia fixo,
 prévia versus parcelas persistidas, preservação do histórico e idempotência.
+
+## Fornecedores integrados a contratos — issue #8
+
+Cadastro completo e modal agora compartilham os mesmos campos, incluindo endereço,
+dados fiscais, imagem e cor. O envio multipart fica restrito ao formulário do modal.
+Erros CPF/CNPJ têm tradução e o CNPJ alfanumérico usa ASCII menos 48, conforme o
+exemplo técnico da Receita Federal `12.ABC.345/01DE-35`; sequências numéricas
+repetidas são rejeitadas.
+
+Validação local: fornecedores e BrDocument passaram em MariaDB e SQLite,
+23 testes / 94 asserções em cada banco. Comando: `php -d memory_limit=1G
+vendor/bin/phpunit tests/Feature/Suppliers tests/Unit/Rules/BrDocumentTest.php`.
+Usar exclusivamente `snipeit_test` ou `sqlite_testing`. Build `npm run production`
+concluído. Browser: modal completo, CNPJ como PF rejeitado em português sem perda
+de campos; corrigir para PJ salva e seleciona o fornecedor preservando o contrato.
+Somente fixture sintética foi criada; nenhum contrato foi submetido nesse smoke.
+Upload de arquivo não foi exercitado pelo navegador nesta etapa.
+
+Issue #8 e PR #7 mantêm a rastreabilidade. Regressão de contratos e CI do novo
+commit devem ser conferidos antes de concluir a issue. PR permanece draft;
+aceite da release nas issues #1/#6 segue pendente, sem merge ou deploy.
+Assets locais anteriores foram preservados; apenas bundle JS do modal e sua
+entrada de versão no manifest fazem parte desta alteração.

@@ -32,12 +32,11 @@ class BrDocumentTest extends TestCase
     // --- CNPJ alfanumérico válido (formato novo) ---
     public function test_valid_alphanumeric_cnpj(): void
     {
-        // CNPJ alfanumérico de teste com check digits corretos
-        // Valor: 12ABC34501DE35 (14 caracteres, check digits calculados para o exemplo)
-        // Usamos um CNPJ real numérico convertido para garantir um caso válido
+        // Official Receita Federal example; letters use ASCII minus 48.
         $rule = $this->makeRule('pj');
-        // 11.222.333/0001-81 em formato somente dígitos: 11222333000181
-        $this->assertTrue($rule->passes('document', '11222333000181'));
+        $this->assertTrue($rule->passes('document', '12.ABC.345/01DE-35'));
+        $this->assertFalse($rule->passes('document', '12.ABC.345/01DE-36'));
+        $this->assertFalse($rule->passes('document', '00000000000000'));
     }
 
     // --- CPF válido delega para ValidCpf ---
