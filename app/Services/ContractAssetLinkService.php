@@ -54,6 +54,9 @@ final class ContractAssetLinkService
                 return self::ALREADY_LINKED;
             }
 
+            $audit = app(\App\Services\Contracts\ContractAuditService::class);
+            $audit->record($lockedContract, 'asset.attached', $lockedAsset,
+                [], $audit->snapshot($lockedAsset), ['asset_id' => $assetId]);
             ContractAssetLinkChanged::dispatch(
                 $lockedContract,
                 $lockedAsset,
@@ -101,6 +104,9 @@ final class ContractAssetLinkService
                 return self::NOT_LINKED;
             }
 
+            $audit = app(\App\Services\Contracts\ContractAuditService::class);
+            $audit->record($lockedContract, 'asset.detached', $lockedAsset,
+                $audit->snapshot($lockedAsset), [], ['asset_id' => $assetId]);
             ContractAssetLinkChanged::dispatch(
                 $lockedContract,
                 $lockedAsset,

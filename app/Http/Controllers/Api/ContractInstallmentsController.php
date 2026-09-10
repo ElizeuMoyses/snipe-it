@@ -9,6 +9,7 @@ use App\Http\Transformers\ContractInstallmentsTransformer;
 use App\Models\Contract;
 use App\Models\ContractInstallment;
 use App\Models\ContractStatusLabel;
+use App\Services\Contracts\ContractAuditService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -115,6 +116,14 @@ class ContractInstallmentsController extends Controller
             $installment->status_label_id = $defaultPending->id;
 
             if ($installment->save()) {
+                app(ContractAuditService::class)->record(
+                    $contract,
+                    'installment.created',
+                    $installment,
+                    [],
+                    app(ContractAuditService::class)->snapshot($installment),
+                );
+
                 return response()->json(
                     Helper::formatStandardApiResponse('success', $installment, trans('admin/contracts/message.installment.create.success'))
                 );
@@ -144,12 +153,24 @@ class ContractInstallmentsController extends Controller
             }
 
             // Only allow editing basic fields — payment fields exclusive to payment flow
+            $before = app(ContractAuditService::class)->snapshot($installment);
             $installment->fill($request->only([
                 'installment_number', 'reference_date', 'due_date',
                 'expected_value', 'notes',
             ]));
 
+            $changed = $installment->isDirty();
             if ($installment->save()) {
+                if ($changed) {
+                    app(ContractAuditService::class)->record(
+                        $contract,
+                        'installment.updated',
+                        $installment,
+                        $before,
+                        app(ContractAuditService::class)->snapshot($installment),
+                    );
+                }
+
                 return response()->json(
                     Helper::formatStandardApiResponse('success', $installment, trans('admin/contracts/message.installment.update.success'))
                 );
@@ -202,6 +223,7 @@ class ContractInstallmentsController extends Controller
                     500
                 );
             }
+            $before = app(ContractAuditService::class)->snapshot($installment);
             $installment->paid_value = $request->input('paid_value');
             $installment->payment_date = $request->input('payment_date');
             $installment->payment_method = $request->input('payment_method');
@@ -212,6 +234,14 @@ class ContractInstallmentsController extends Controller
             $installment->status_label_id = $defaultPaid->id;
 
             if ($installment->save()) {
+                app(ContractAuditService::class)->record(
+                    $contract,
+                    'installment.paid',
+                    $installment,
+                    $before,
+                    app(ContractAuditService::class)->snapshot($installment),
+                );
+
                 return response()->json(
                     Helper::formatStandardApiResponse('success', $installment, trans('admin/contracts/message.installment.payment.success'))
                 );
@@ -240,7 +270,15 @@ class ContractInstallmentsController extends Controller
                 );
             }
 
+            $before = app(ContractAuditService::class)->snapshot($installment);
             $installment->delete();
+            app(ContractAuditService::class)->record(
+                $contract,
+                'installment.deleted',
+                $installment,
+                $before,
+                app(ContractAuditService::class)->snapshot($installment),
+            );
 
             return response()->json(
                 Helper::formatStandardApiResponse('success', null, trans('admin/contracts/message.installment.delete.success'))

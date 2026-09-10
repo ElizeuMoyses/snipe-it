@@ -1066,6 +1066,10 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
             ]
         )->name('api.contracts.selectlist');
 
+        Route::get('{contract}/history',
+            [Api\ContractsController::class, 'history']
+        )->name('api.contracts.history');
+
     });
 
     Route::resource('contracts',

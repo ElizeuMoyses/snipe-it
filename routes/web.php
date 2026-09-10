@@ -99,6 +99,7 @@ Route::group(['middleware' => 'auth'], function () {
     */
     Route::get('contracts/dashboard', [ContractsController::class, 'dashboard'])->name('contracts.dashboard');
     Route::resource('contracts', ContractsController::class);
+    Route::get('contracts/{contract}/history', [ContractsController::class, 'history'])->name('contracts.history');
 
     /*
     * Contract Installments

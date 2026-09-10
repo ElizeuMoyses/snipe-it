@@ -98,4 +98,18 @@ return [
     'generate_installments_confirm'  => 'This will generate all installments for this contract. Continue?',
     'pending_count'          => 'pending',
 
+    // Unified audit history
+    'history'                  => 'History',
+    'history_legacy'           => 'Before audit rollout',
+    'system'                   => 'System',
+    'history_filter_search'    => 'Search history',
+    'history_filter_action'    => 'Action',
+    'history_filter_entity'    => 'Entity',
+    'history_filter_author'    => 'Author ID',
+    'history_filter_from'      => 'From',
+    'history_filter_to'        => 'To',
+    'history_filter_apply'     => 'Filter',
+    'history_filter_clear'     => 'Clear filters',
+    'history_no_events'        => 'No history events recorded.',
+
 ];

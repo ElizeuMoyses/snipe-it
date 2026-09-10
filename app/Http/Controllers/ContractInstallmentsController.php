@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Contract;
 use App\Models\ContractInstallment;
 use App\Models\ContractStatusLabel;
+use App\Services\Contracts\ContractAuditService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -63,6 +64,14 @@ class ContractInstallmentsController extends Controller
             $installment->status_label_id = $defaultPending->id;
 
             if ($installment->save()) {
+                app(ContractAuditService::class)->record(
+                    $contract,
+                    'installment.created',
+                    $installment,
+                    [],
+                    app(ContractAuditService::class)->snapshot($installment),
+                );
+
                 return redirect()->route('contracts.show', $contract->id)
                     ->with('success', trans('admin/contracts/message.installment.create.success'))
                     ->withFragment('installments');
@@ -141,6 +150,8 @@ class ContractInstallmentsController extends Controller
                     ->with('error', trans('admin/contracts/message.installment.terminal_locked'));
             }
 
+            $before = app(ContractAuditService::class)->snapshot($installment);
+
             // Only allow editing basic fields — payment fields are exclusive to payment flow
             $installment->installment_number = $request->input('installment_number');
             $installment->reference_date = $request->input('reference_date');
@@ -148,7 +159,18 @@ class ContractInstallmentsController extends Controller
             $installment->expected_value = $request->input('expected_value');
             $installment->notes = $request->input('notes');
 
+            $changed = $installment->isDirty();
             if ($installment->save()) {
+                if ($changed) {
+                    app(ContractAuditService::class)->record(
+                        $contract,
+                        'installment.updated',
+                        $installment,
+                        $before,
+                        app(ContractAuditService::class)->snapshot($installment),
+                    );
+                }
+
                 return redirect()->route('contracts.show', $contract->id)
                     ->with('success', trans('admin/contracts/message.installment.update.success'))
                     ->withFragment('installments');
@@ -174,7 +196,15 @@ class ContractInstallmentsController extends Controller
                     ->with('error', trans('admin/contracts/message.installment.terminal_locked'));
             }
 
+            $before = app(ContractAuditService::class)->snapshot($installment);
             $installment->delete();
+            app(ContractAuditService::class)->record(
+                $contract,
+                'installment.deleted',
+                $installment,
+                $before,
+                app(ContractAuditService::class)->snapshot($installment),
+            );
 
             return redirect()->route('contracts.show', $contract->id)
                 ->with('success', trans('admin/contracts/message.installment.delete.success'))
@@ -243,6 +273,7 @@ class ContractInstallmentsController extends Controller
                 return redirect()->back()->withInput()
                     ->with('error', trans('admin/contracts/message.installment.payment.missing_default_status'));
             }
+            $before = app(ContractAuditService::class)->snapshot($installment);
             $installment->paid_value = $request->input('paid_value');
             $installment->payment_date = $request->input('payment_date');
             $installment->payment_method = $request->input('payment_method');
@@ -253,6 +284,14 @@ class ContractInstallmentsController extends Controller
             $installment->status_label_id = $defaultPaid->id;
 
             if ($installment->save()) {
+                app(ContractAuditService::class)->record(
+                    $contract,
+                    'installment.paid',
+                    $installment,
+                    $before,
+                    app(ContractAuditService::class)->snapshot($installment),
+                );
+
                 return redirect()->route('contracts.show', $contract->id)
                     ->with('success', trans('admin/contracts/message.installment.payment.success'))
                     ->withFragment('installments');
@@ -309,8 +348,22 @@ class ContractInstallmentsController extends Controller
                 }
             }
 
+            $before = app(ContractAuditService::class)->snapshot($installment);
             $installment->status_label_id = $newStatusLabel->id;
-            $installment->save();
+            if (! $installment->save()) {
+                return redirect()->back()->withInput()->withErrors($installment->getErrors());
+            }
+            app(ContractAuditService::class)->record(
+                $contract,
+                'installment.status_changed',
+                $installment,
+                $before,
+                app(ContractAuditService::class)->snapshot($installment),
+                [
+                    'status_before' => $currentStatusLabel?->name,
+                    'status_after' => $newStatusLabel->name,
+                ],
+            );
 
             return redirect()->route('contracts.show', $contract->id)
                 ->with('success', trans('admin/contracts/message.installment.status.success'))

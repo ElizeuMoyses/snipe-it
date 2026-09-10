@@ -8,6 +8,9 @@ use App\Models\Actionlog;
 use App\Models\Contract;
 use App\Models\ContractAmendment;
 use App\Services\ContractAmendmentPreviewService;
+use App\Models\ContractStatusLabel;
+use App\Services\Contracts\ContractAuditService;
+use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -132,8 +135,10 @@ class ContractAmendmentsController extends Controller
 
         $amendment = null;
         $sideEffectResult = [];
+        $auditService = app(ContractAuditService::class);
+        $correlationId = (string) \Illuminate\Support\Str::uuid();
 
-        DB::transaction(function () use ($validated, $contract, $amendmentType, &$amendment, &$sideEffectResult) {
+        DB::transaction(function () use ($validated, $contract, $amendmentType, &$amendment, &$sideEffectResult, $auditService, $correlationId) {
             $amendment = new ContractAmendment;
             $amendment->contract_id = $contract->id;
             $amendment->amendment_type = $amendmentType;
@@ -151,6 +156,21 @@ class ContractAmendmentsController extends Controller
                 throw new \RuntimeException('Amendment save failed');
             }
 
+            $auditService->record(
+                $contract,
+                'amendment.created',
+                $amendment,
+                [],
+                $auditService->snapshot($amendment),
+                [
+                    'amendment_id' => $amendment->id,
+                    'amendment_type' => $amendmentType,
+                    'operation' => 'create',
+                ],
+                $correlationId,
+                'amendment-created:'.$amendment->id,
+            );
+
             $sideEffectResult = match ($amendmentType) {
                 'readjustment' => $contract->applyReadjustment($amendment),
                 'renewal'      => $contract->applyRenewal($amendment),
@@ -158,16 +178,25 @@ class ContractAmendmentsController extends Controller
                 'scope_change' => ['type' => 'scope_change'],
                 default        => [],
             };
-        });
 
-        // ActionLog with side-effect summary
-        $log = new Actionlog();
-        $log->item_type = ContractAmendment::class;
-        $log->item_id = $amendment->id;
-        $log->created_by = auth()->id();
-        $log->company_id = $contract->company_id;
-        $log->log_meta = json_encode($sideEffectResult);
-        $log->logaction(ActionType::Update);
+            $auditService->record(
+                $contract,
+                'amendment.applied',
+                $amendment,
+                [],
+                $auditService->snapshot($amendment),
+                [
+                    'amendment_id' => $amendment->id,
+                    'amendment_type' => $amendmentType,
+                    'effect_type' => $sideEffectResult['type'] ?? $amendmentType,
+                    'side_effects' => $sideEffectResult,
+                    'documented_only' => $amendmentType === 'scope_change',
+                    'operation' => 'apply',
+                ],
+                $correlationId,
+                'amendment-applied:'.$amendment->id,
+            );
+        });
 
         // Build success message with side-effect summary
         $successMsg = trans('admin/contracts/message.amendment.create.success');
@@ -213,26 +242,40 @@ class ContractAmendmentsController extends Controller
      */
     public function update(Request $request, Contract $contract, $amendmentId): RedirectResponse
     {
-        $amendment = $contract->amendments()->findOrFail($amendmentId);
-        $this->authorize('update', $contract);
-
         $request->validate([
             'description'      => 'required|string',
             'ticket_reference' => 'nullable|string|max:100',
             'notes'            => 'nullable|string',
         ]);
 
-        $amendment->description = $request->input('description');
-        $amendment->ticket_reference = $request->input('ticket_reference');
-        $amendment->notes = $request->input('notes');
+        return $contract->getConnection()->transaction(function () use ($request, $contract, $amendmentId) {
+            $contract = Contract::whereKey($contract->getKey())->lockForUpdate()->firstOrFail();
+            $this->authorize('update', $contract);
+            $amendment = $contract->amendments()->lockForUpdate()->findOrFail($amendmentId);
+            $auditService = app(ContractAuditService::class);
+            $before = $auditService->snapshot($amendment);
+            $amendment->description = $request->input('description');
+            $amendment->ticket_reference = $request->input('ticket_reference');
+            $amendment->notes = $request->input('notes');
 
-        if ($amendment->save()) {
-            return redirect()->route('contracts.show', $contract->id)
-                ->with('success', trans('admin/contracts/message.amendment.update.success'))
-                ->withFragment('amendments');
-        }
+            if ($amendment->save()) {
+                if ($amendment->wasChanged()) {
+                    $auditService->record(
+                        $contract,
+                        'amendment.updated',
+                        $amendment,
+                        $before,
+                        $auditService->snapshot($amendment),
+                        ['amendment_id' => $amendment->id, 'operation' => 'update'],
+                    );
+                }
+                return redirect()->route('contracts.show', $contract->id)
+                    ->with('success', trans('admin/contracts/message.amendment.update.success'))
+                    ->withFragment('amendments');
+            }
 
-        return redirect()->back()->withInput()->withErrors($amendment->getErrors());
+            return redirect()->back()->withInput()->withErrors($amendment->getErrors());
+        });
     }
 
     /**
@@ -241,20 +284,31 @@ class ContractAmendmentsController extends Controller
      */
     public function destroy(Contract $contract, $amendmentId): RedirectResponse
     {
-        $amendment = $contract->amendments()->findOrFail($amendmentId);
-        $this->authorize('update', $contract);
+        return $contract->getConnection()->transaction(function () use ($contract, $amendmentId) {
+            $contract = Contract::whereKey($contract->getKey())->lockForUpdate()->firstOrFail();
+            $this->authorize('update', $contract);
+            $amendment = $contract->amendments()->lockForUpdate()->findOrFail($amendmentId);
+            if ($amendment->hasAppliedEffects()) {
+                return redirect()->route('contracts.show', $contract->id)
+                    ->with('error', trans('admin/contracts/message.amendment.delete.applied'))
+                    ->withFragment('amendments');
+            }
+            $auditService = app(ContractAuditService::class);
+            $before = $auditService->snapshot($amendment);
+            $amendment->delete();
+            $auditService->record(
+                $contract,
+                'amendment.deleted',
+                $amendment,
+                $before,
+                $auditService->snapshot($amendment),
+                ['amendment_id' => $amendment->id, 'operation' => 'delete'],
+            );
 
-        if ($amendment->hasAppliedEffects()) {
             return redirect()->route('contracts.show', $contract->id)
-                ->with('error', trans('admin/contracts/message.amendment.delete.applied'))
+                ->with('success', trans('admin/contracts/message.amendment.delete.success'))
                 ->withFragment('amendments');
-        }
-
-        $amendment->delete();
-
-        return redirect()->route('contracts.show', $contract->id)
-            ->with('success', trans('admin/contracts/message.amendment.delete.success'))
-            ->withFragment('amendments');
+        });
     }
 
     private function isTerminal(Contract $contract): bool

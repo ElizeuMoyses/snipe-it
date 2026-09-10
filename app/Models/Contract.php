@@ -9,6 +9,7 @@ use App\Models\Traits\Loggable;
 use App\Models\Traits\Searchable;
 use App\Presenters\ContractPresenter;
 use App\Presenters\Presentable;
+use App\Services\Contracts\ContractAuditService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -122,6 +123,11 @@ class Contract extends SnipeModel
         return $this->hasMany(ContractAmendment::class, 'contract_id');
     }
 
+    public function auditEvents()
+    {
+        return $this->hasMany(ContractAuditEvent::class, 'contract_id');
+    }
+
     public function assets()
     {
         return $this->belongsToMany(Asset::class, 'contract_asset')
@@ -203,16 +209,36 @@ class Contract extends SnipeModel
         }
 
         $count = 0;
+        $generatedIds = [];
 
         if ($this->contract_type === 'one_time') {
             if ($this->installments()->exists()) {
                 return 0;
             }
 
-            return $this->generateOneTimeInstallments($defaultStatus, $count);
+            $count = $this->generateOneTimeInstallments($defaultStatus, $count, $generatedIds);
+        } else {
+            $count = $this->generateRecurringInstallments($defaultStatus, $from, $count, $generatedIds);
         }
 
-        return $this->generateRecurringInstallments($defaultStatus, $from, $count);
+        if ($count > 0) {
+            app(ContractAuditService::class)->record(
+                $this,
+                'installments.generated',
+                $this,
+                [],
+                [],
+                [
+                    'operation' => 'contract.generate_installments',
+                    'count' => $count,
+                    'installment_ids' => $generatedIds,
+                ],
+                null,
+                'installments-generated:'.$this->getKey().':'.implode(',', $generatedIds),
+            );
+        }
+
+        return $count;
     }
 
     protected function resolveInstallmentDueDate(Carbon $baseDate): Carbon
@@ -227,7 +253,7 @@ class Contract extends SnipeModel
         return $dueDate;
     }
 
-    protected function generateOneTimeInstallments(ContractStatusLabel $defaultStatus, int $count): int
+    protected function generateOneTimeInstallments(ContractStatusLabel $defaultStatus, int $count, array &$generatedIds = []): int
     {
         $totalInstallments = $this->total_installments ?: 1;
         // Decimal casts provide two places; distribute integer cents so the
@@ -261,13 +287,14 @@ class Contract extends SnipeModel
             if (! $installment->exists) {
                 throw new \RuntimeException('Installment creation failed');
             }
+            $generatedIds[] = $installment->getKey();
             $count++;
         }
 
         return $count;
     }
 
-    protected function generateRecurringInstallments(ContractStatusLabel $defaultStatus, ?Carbon $from, int $count): int
+    protected function generateRecurringInstallments(ContractStatusLabel $defaultStatus, ?Carbon $from, int $count, array &$generatedIds = []): int
     {
         $number = $this->installments()->count();
         foreach ($this->recurringInstallmentDates($from) as $dueDate) {
@@ -282,6 +309,7 @@ class Contract extends SnipeModel
             if (! $installment->exists) {
                 throw new \RuntimeException('Installment creation failed');
             }
+            $generatedIds[] = $installment->getKey();
             $count++;
         }
 

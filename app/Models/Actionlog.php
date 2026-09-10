@@ -10,6 +10,7 @@ use App\Models\Traits\CompanyableTrait;
 use App\Models\Traits\Searchable;
 use App\Presenters\ActionlogPresenter;
 use App\Presenters\Presentable;
+use App\Services\Contracts\ContractAuditService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -490,6 +491,22 @@ class Actionlog extends SnipeModel
         $log->filename = $filename;
         $log->created_at = date('Y-m-d H:i:s');
         $log->logaction('upload deleted');
+
+        if ($object instanceof SnipeModel) {
+            app(ContractAuditService::class)->recordForSubject(
+                $object,
+                'file.deleted',
+                [],
+                [],
+                [
+                    'actionlog_id' => $log->getKey(),
+                    'file_id' => $log->getKey(),
+                    'filename' => $filename,
+                ],
+                null,
+                'file-deleted:'.$log->getKey(),
+            );
+        }
 
         return $log;
     }

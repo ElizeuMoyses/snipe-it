@@ -3,6 +3,7 @@
 namespace Tests\Feature\Contracts\Ui;
 
 use App\Models\ContractInstallment;
+use App\Models\ContractAuditEvent;
 use App\Models\ContractStatusLabel;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -19,6 +20,14 @@ class ContractOverdueCommandTest extends TestCase
         $this->assertSame('overdue', $past->fresh()->statusLabel->meta_type);
         $this->assertSame('pending', $today->fresh()->statusLabel->meta_type);
         $this->assertSame('paid', $paid->fresh()->statusLabel->meta_type);
+        $this->assertSame(1, ContractAuditEvent::query()
+            ->where('contract_id', $past->contract_id)
+            ->where('action', 'installment.status_changed')
+            ->count());
+        $this->assertSame('scheduler', ContractAuditEvent::query()
+            ->where('contract_id', $past->contract_id)
+            ->where('action', 'installment.status_changed')
+            ->value('source'));
     }
 
     public function test_overdue_job_does_not_overwrite_payment_after_initial_selection(): void

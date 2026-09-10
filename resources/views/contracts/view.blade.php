@@ -45,6 +45,14 @@
                         tooltip="{{ trans('admin/contracts/general.linked_assets') }}"
                     />
 
+                    <x-tabs.nav-item
+                        name="history"
+                        icon="fas fa-clock-rotate-left"
+                        label="{{ trans('admin/contracts/general.history') }}"
+                        count="{{ $auditHistoryCount }}"
+                        tooltip="{{ trans('admin/contracts/general.history') }}"
+                    />
+
                     @php
                         $installmentUploadsCount = $contract->installments->sum(fn ($i) => $i->uploads->count());
                         $totalUploadsCount = $contract->uploads()->count() + $installmentUploadsCount;
@@ -162,6 +170,58 @@
                         @endif
                     </x-tabs.pane>
                     <!-- end assets tab pane -->
+
+                    <!-- start history tab pane -->
+                    <x-tabs.pane name="history">
+                        @can('history', $contract)
+                            @php
+                                $historyQuery = request()->only(['action', 'entity', 'created_by', 'source', 'search', 'from', 'to']);
+                            @endphp
+                            <form method="GET" action="{{ route('contracts.show', $contract->id) }}" class="form-inline" style="margin-bottom: 15px;">
+                                <div class="form-group" style="margin: 4px 8px 4px 0;">
+                                    <label class="sr-only" for="contract-history-search">{{ trans('admin/contracts/general.history_filter_search') }}</label>
+                                    <input id="contract-history-search" name="search" class="form-control input-sm" value="{{ request('search') }}" placeholder="{{ trans('admin/contracts/general.history_filter_search') }}">
+                                </div>
+                                <div class="form-group" style="margin: 4px 8px 4px 0;">
+                                    <label class="sr-only" for="contract-history-action">{{ trans('admin/contracts/general.history_filter_action') }}</label>
+                                    <input id="contract-history-action" name="action" class="form-control input-sm" value="{{ request('action') }}" placeholder="{{ trans('admin/contracts/general.history_filter_action') }}">
+                                </div>
+                                <div class="form-group" style="margin: 4px 8px 4px 0;">
+                                    <label class="sr-only" for="contract-history-entity">{{ trans('admin/contracts/general.history_filter_entity') }}</label>
+                                    <input id="contract-history-entity" name="entity" class="form-control input-sm" value="{{ request('entity') }}" placeholder="{{ trans('admin/contracts/general.history_filter_entity') }}">
+                                </div>
+                                <div class="form-group" style="margin: 4px 8px 4px 0;">
+                                    <label class="sr-only" for="contract-history-author">{{ trans('admin/contracts/general.history_filter_author') }}</label>
+                                    <input id="contract-history-author" name="created_by" type="number" min="1" class="form-control input-sm" value="{{ request('created_by') }}" placeholder="{{ trans('admin/contracts/general.history_filter_author') }}">
+                                </div>
+                                <div class="form-group" style="margin: 4px 8px 4px 0;">
+                                    <label class="sr-only" for="contract-history-from">{{ trans('admin/contracts/general.history_filter_from') }}</label>
+                                    <input id="contract-history-from" name="from" type="date" class="form-control input-sm" value="{{ request('from') }}">
+                                </div>
+                                <div class="form-group" style="margin: 4px 8px 4px 0;">
+                                    <label class="sr-only" for="contract-history-to">{{ trans('admin/contracts/general.history_filter_to') }}</label>
+                                    <input id="contract-history-to" name="to" type="date" class="form-control input-sm" value="{{ request('to') }}">
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm" style="margin: 4px 8px 4px 0;">
+                                    {{ trans('admin/contracts/general.history_filter_apply') }}
+                                </button>
+                                @if($historyQuery)
+                                    <a class="btn btn-default btn-sm" style="margin: 4px 0;" href="{{ route('contracts.show', $contract->id) }}#history">
+                                        {{ trans('admin/contracts/general.history_filter_clear') }}
+                                    </a>
+                                @endif
+                            </form>
+
+                            <x-table
+                                name="contractAudit"
+                                :presenter="\App\Presenters\ContractAuditPresenter::dataTableLayout()"
+                                :api_url="route('contracts.history', array_merge(['contract' => $contract->id], $historyQuery))"
+                                show_advanced_search="false"
+                                export_filename="contract-{{ $contract->id }}-history-{{ date('Y-m-d') }}"
+                            />
+                        @endcan
+                    </x-tabs.pane>
+                    <!-- end history tab pane -->
 
                     <!-- start files tab pane -->
                     <x-tabs.pane name="files" class="{{ $totalUploadsCount == 0 ? 'hidden-print' : '' }}">

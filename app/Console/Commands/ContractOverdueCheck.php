@@ -2,11 +2,10 @@
 
 namespace App\Console\Commands;
 
-use App\Enums\ActionType;
-use App\Models\Actionlog;
 use App\Models\ContractInstallment;
 use App\Models\Contract;
 use App\Models\ContractStatusLabel;
+use App\Services\Contracts\ContractAuditService;
 use Illuminate\Console\Command;
 
 class ContractOverdueCheck extends Command
@@ -45,24 +44,28 @@ class ContractOverdueCheck extends Command
                         return;
                     }
                     $oldStatusName = $installment->statusLabel->name;
+                    $before = app(ContractAuditService::class)->snapshot($installment);
 
                     $installment->status_label_id = $defaultOverdue->id;
                     if (! $installment->save()) {
                         throw new \RuntimeException('Overdue status update failed');
                     }
 
-                    $log = new Actionlog();
-                    $log->item_type = ContractInstallment::class;
-                    $log->item_id = $installment->id;
-                    $log->target_type = $installment->contract ? get_class($installment->contract) : null;
-                    $log->target_id = $installment->contract_id;
-                    $log->created_by = null;
-                    $log->company_id = $installment->contract->company_id ?? null;
-                    $log->log_meta = json_encode([
-                        'status_label' => ['old' => $oldStatusName, 'new' => $defaultOverdue->name],
-                        'meta_type' => ['old' => 'pending', 'new' => 'overdue'],
-                    ]);
-                    $log->logaction(ActionType::Update);
+                    app(ContractAuditService::class)->record(
+                        $contract,
+                        'installment.status_changed',
+                        $installment,
+                        $before,
+                        app(ContractAuditService::class)->snapshot($installment),
+                        [
+                            'operation' => 'contracts.check-overdue',
+                            'source' => 'scheduler',
+                            'status_before' => $oldStatusName,
+                            'status_after' => $defaultOverdue->name,
+                        ],
+                        null,
+                        'overdue:installment:'.$installment->id.':'.$defaultOverdue->id,
+                    );
 
                     $updated++;
                 });

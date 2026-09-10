@@ -98,4 +98,18 @@ return [
     'generate_installments_confirm'  => 'Isso irá gerar todas as parcelas deste contrato. Continuar?',
     'pending_count'          => 'pendente(s)',
 
+    // Histórico unificado de auditoria
+    'history'                  => 'Histórico',
+    'history_legacy'           => 'Anterior à implantação da auditoria',
+    'system'                   => 'Sistema',
+    'history_filter_search'    => 'Pesquisar histórico',
+    'history_filter_action'    => 'Ação',
+    'history_filter_entity'    => 'Entidade',
+    'history_filter_author'    => 'ID do autor',
+    'history_filter_from'      => 'De',
+    'history_filter_to'        => 'Até',
+    'history_filter_apply'     => 'Filtrar',
+    'history_filter_clear'     => 'Limpar filtros',
+    'history_no_events'        => 'Nenhum evento de histórico registrado.',
+
 ];

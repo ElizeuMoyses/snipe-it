@@ -321,3 +321,23 @@ Regressão após integrar ativos: 105 testes/475 asserções SQLite passaram,
 com banco em memória. `node --check resources/assets/js/snipeit.js` e
 `git diff --check` passaram. CI MariaDB de contratos passou em 6ebf7ec72c;
 esse resultado antecede a integração dos ativos.
+
+## Regras confirmadas pelo responsável — 10/09/2026
+
+- Aditivos aplicam os efeitos imediatamente ao confirmar, inclusive quando a data
+  efetiva é passada/futura; não existe agendamento nesta versão. Permissão:
+  editar contratos. Edição posterior é documental e auditada; correção de efeito
+  financeiro deve usar novo aditivo identificado como retificação.
+- Total manual representa o total negociado, separado da soma das parcelas.
+  Exibir divergência sem redistribuir automaticamente parcelas existentes.
+
+## Histórico — integração central
+
+Tabela append-only, serviço, UI/API e registro de contrato/parcelas/aditivos/
+arquivos integrados ao fluxo atual. Vínculo de ativos registra o evento dentro da
+transação; o evento posterior ao commit é apenas notificação de integração.
+Regressão SQLite: 111 testes/504 asserções. Testes adicionais de idempotência,
+rollback do vínculo diante de falha de auditoria e isolamento: 3/10 passaram.
+O erro de contrato inacessível usa envelope legado HTTP 200 com status error,
+sem linhas do histórico. Migration aplicada somente na réplica local após backup
+privado validado por gzip e SHA-256. Sem alteração em produção.
