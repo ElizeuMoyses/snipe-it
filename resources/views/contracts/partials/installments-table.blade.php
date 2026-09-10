@@ -90,50 +90,13 @@
                                         @endphp
 
                                         @if($eligibleStatuses->isNotEmpty())
-                                            <div class="btn-group">
-                                                <button type="button" class="btn btn-sm btn-default dropdown-toggle" data-toggle="dropdown">
-                                                    {{ trans('admin/contracts/general.change_status') }} <span class="caret"></span>
-                                                </button>
-                                                <ul class="dropdown-menu dropdown-menu-right">
-                                                    {{-- Same meta_type (free transition) --}}
-                                                    @foreach($eligibleStatuses->where('meta_type', $currentMeta) as $status)
-                                                        <li>
-                                                            <form method="POST" action="{{ route('contracts.installments.status.update', [$contract->id, $installment->id]) }}" style="display:inline;">
-                                                                @csrf
-                                                                @method('PATCH')
-                                                                <input type="hidden" name="status_label_id" value="{{ $status->id }}">
-                                                                <button type="submit" class="btn btn-link">
-                                                                    <span class="label" style="background-color: {{ $status->color }}">
-                                                                        <i class="fa {{ $status->icon }}"></i> {{ $status->name }}
-                                                                    </span>
-                                                                </button>
-                                                            </form>
-                                                        </li>
-                                                    @endforeach
-
-                                                    {{-- Separator between meta_types --}}
-                                                    @if($eligibleStatuses->where('meta_type', $currentMeta)->isNotEmpty() && $eligibleStatuses->where('meta_type', '!=', $currentMeta)->isNotEmpty())
-                                                        <li role="separator" class="divider"></li>
-                                                    @endif
-
-                                                    {{-- Cross meta_type (restricted transition) --}}
-                                                    @foreach($eligibleStatuses->where('meta_type', '!=', $currentMeta) as $status)
-                                                        <li>
-                                                            <form method="POST" action="{{ route('contracts.installments.status.update', [$contract->id, $installment->id]) }}" style="display:inline;">
-                                                                @csrf
-                                                                @method('PATCH')
-                                                                <input type="hidden" name="status_label_id" value="{{ $status->id }}">
-                                                                <button type="submit" class="btn btn-link">
-                                                                    <span class="label" style="background-color: {{ $status->color }}">
-                                                                        <i class="fa {{ $status->icon }}"></i> {{ $status->name }}
-                                                                    </span>
-                                                                    <small class="text-muted">({{ $status->meta_type }})</small>
-                                                                </button>
-                                                            </form>
-                                                        </li>
-                                                    @endforeach
-                                                </ul>
-                                            </div>
+                                            <button type="button" class="btn btn-sm btn-default"
+                                                    data-toggle="modal" data-target="#installmentStatusModal"
+                                                    data-action-url="{{ route('contracts.installments.status.update', [$contract->id, $installment->id]) }}"
+                                                    data-installment-number="{{ $installment->installment_number }}"
+                                                    data-status-options="{{ $eligibleStatuses->map(fn ($status) => ['id' => $status->id, 'name' => $status->name])->values()->toJson() }}">
+                                                {{ trans('admin/contracts/general.change_status') }}
+                                            </button>
                                         @endif
                                     @endif
 
@@ -179,6 +142,50 @@
             </tfoot>
         </table>
     </div>
+
+    @can('installments', $contract)
+        <div class="modal fade" id="installmentStatusModal" tabindex="-1" role="dialog" aria-labelledby="installmentStatusTitle">
+            <div class="modal-dialog" role="document"><div class="modal-content">
+                <form method="POST" id="installmentStatusForm">
+                    @csrf
+                    @method('PATCH')
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="{{ trans('general.close') }}">&times;</button>
+                        <h2 class="modal-title" id="installmentStatusTitle">{{ trans('admin/contracts/general.change_status') }}</h2>
+                    </div>
+                    <div class="modal-body">
+                        <p>{{ trans('admin/contracts/general.installment_number') }}: <strong id="statusInstallmentNumber"></strong></p>
+                        <label for="installmentNewStatus">{{ trans('admin/contracts/general.status_label') }}</label>
+                        <select class="form-control" id="installmentNewStatus" name="status_label_id" required></select>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>
+                        <button type="submit" class="btn btn-primary">{{ trans('general.save') }}</button>
+                    </div>
+                </form>
+            </div></div>
+        </div>
+        <script nonce="{{ csrf_token() }}">
+            document.addEventListener('DOMContentLoaded', function () {
+                var modal = $('#installmentStatusModal').appendTo(document.body);
+                var form = $('#installmentStatusForm');
+                var select = $('#installmentNewStatus');
+                modal.on('show.bs.modal', function (event) {
+                    var trigger = $(event.relatedTarget);
+                    form.attr('action', trigger.attr('data-action-url') || '');
+                    $('#statusInstallmentNumber').text(trigger.attr('data-installment-number'));
+                    select.empty().append($('<option>').val('').text(@json(trans('general.select'))));
+                    JSON.parse(trigger.attr('data-status-options') || '[]').forEach(function (status) {
+                        select.append($('<option>').val(status.id).text(status.name));
+                    });
+                }).on('shown.bs.modal', function () { select.trigger('focus'); })
+                  .on('hidden.bs.modal', function () { form.attr('action', ''); select.empty(); });
+                form.on('submit', function (event) {
+                    if (!form.attr('action') || !select.val()) { event.preventDefault(); }
+                });
+            });
+        </script>
+    @endcan
 
     {{-- Single shared upload modal for installments --}}
     @can('files', App\Models\Contract::class)
