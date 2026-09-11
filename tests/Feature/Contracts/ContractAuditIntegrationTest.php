@@ -36,7 +36,7 @@ class ContractAuditIntegrationTest extends TestCase
     public function test_history_accepts_the_application_default_page_size(): void
     {
         $contract = Contract::factory()->create();
-        app(ContractAuditService::class)->record($contract, 'contract.created');
+        app(ContractAuditService::class)->record($contract, 'installments.generated', $contract, [], [], ['generated_count' => 3]);
         $this->actingAs(User::factory()->superuser()->create())
             ->getJson(route('contracts.history', ['contract' => $contract->id, 'limit' => 200]))
             ->assertOk()->assertJsonPath('total', 1);

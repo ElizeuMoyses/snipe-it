@@ -112,8 +112,7 @@ class ContractAuditTransformer
 
         foreach ($entry['metadata'] as $field => $value) {
             if (is_scalar($value)) {
-                if (array_key_exists('old', $change) && array_key_exists('new', $change) && $change['old'] === $change['new']) { continue; }
-            $changes[] = $field.': '.$value;
+                $changes[] = $field.': '.$value;
             }
         }
 
