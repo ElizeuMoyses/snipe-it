@@ -2,7 +2,17 @@
 
 **Decisão atual: NO-GO enquanto os critérios abaixo estiverem pendentes.**
 Atualizado em 2026-09-10. Etapa autorizada: implementação e validação local/CI,
-sem merge ou deploy. O goal permanece ativo.
+sem merge ou deploy.
+
+## Revisão central mais recente
+
+As issues #9–#15 foram integradas e validadas centralmente. Consulte
+[VALIDATION-2026-09-10.md](VALIDATION-2026-09-10.md) para os testes, ensaio de
+recuperação, navegação sintética e limites. Regressão completa local: 1.624 testes /
+5.814 asserções sem falhas/erros; quatro ignorados e 30 incompletos legados, nenhum
+de contratos. Última regressão do módulo: 161/763; delta de auditoria: 6/22.
+A regra de aditivos e o total negociado já foram decididos pelo responsável.
+O aceite do SHA final permanece em #1/#6; não há autorização de merge/deploy.
 
 ## Acompanhamento
 

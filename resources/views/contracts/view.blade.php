@@ -59,7 +59,7 @@
             @endif
 
             @include('contracts.partials.summary')
-            <x-tabs class="contract-detail-tabs">
+            <x-tabs class="contract-detail-tabs" :mobile_dropdown="false">
                 <x-slot:tabnav>
 
                     <x-tabs.nav-item
@@ -629,6 +629,11 @@
             margin-bottom: 4px;
         }
 
+        .contract-detail-tabs { min-width: 0; max-width: 100%; }
+        .contract-detail-tabs .tab-content { min-width: 0; overflow-x: auto; }
+        .contract-detail-tabs > .nav-tabs { display: flex; flex-wrap: wrap; }
+        .contract-detail-tabs > .nav-tabs > li { float: none !important; }
+        .contract-detail-tabs > .nav-tabs > li > a { position: relative; }
         .contract-detail-tabs .nav-tabs > li > a {
             white-space: nowrap;
         }

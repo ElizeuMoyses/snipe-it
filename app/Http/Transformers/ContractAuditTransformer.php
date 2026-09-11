@@ -36,14 +36,14 @@ class ContractAuditTransformer
             'entity' => [
                 'type' => $entityType,
                 'id' => $entry['entity_id'] !== null ? (int) $entry['entity_id'] : null,
-                'label' => $this->subjectLabel($subject, $entityType, $entry['entity_id']),
+                'label' => e($this->subjectLabel($subject, $entityType, $entry['entity_id'])),
             ],
             'entity_type' => $entityType,
             'entity_id' => $entry['entity_id'] !== null ? (int) $entry['entity_id'] : null,
-            'entity_label' => $this->subjectLabel($subject, $entityType, $entry['entity_id']),
+            'entity_label' => e($this->subjectLabel($subject, $entityType, $entry['entity_id'])),
             'actor' => $this->actor($actor, $entry['actor_id']),
-            'actor_name' => $actor?->display_name ?: trans('admin/contracts/general.system'),
-            'created_by' => $actor?->display_name ?: trans('admin/contracts/general.system'),
+            'actor_name' => e($actor?->display_name ?: trans('admin/contracts/general.system')),
+            'created_by' => e($actor?->display_name ?: trans('admin/contracts/general.system')),
             'occurred_at' => $this->date($entry['occurred_at']),
             'created_at' => $this->date($entry['occurred_at']),
             'source' => $entry['source'],
@@ -51,7 +51,7 @@ class ContractAuditTransformer
             'before' => $entry['before'],
             'after' => $entry['after'],
             'metadata' => $entry['metadata'],
-            'details' => $this->details($entry),
+            'details' => e($this->details($entry)),
             'is_historical' => $entry['is_historical'],
             'historical_label' => $entry['is_historical'] ? trans('admin/contracts/general.history_legacy') : null,
         ];
@@ -92,7 +92,10 @@ class ContractAuditTransformer
 
     private function date($date): array
     {
-        return Helper::getFormattedDateObject($date instanceof Carbon ? $date : Carbon::parse($date), 'datetime');
+        $date = $date instanceof Carbon ? $date : Carbon::parse($date);
+        $result = Helper::getFormattedDateObject($date, 'datetime');
+        if (in_array(app()->getLocale(), ['pt-BR', 'pt_BR'], true)) $result['formatted'] = $date->format('d/m/Y H:i');
+        return $result + ['iso8601' => $date->toIso8601String(), 'timezone' => $date->getTimezone()->getName()];
     }
 
     private function details(array $entry): string

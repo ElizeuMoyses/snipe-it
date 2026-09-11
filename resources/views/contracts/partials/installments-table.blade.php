@@ -188,6 +188,9 @@
                 var modal = $('#installmentStatusModal').appendTo(document.body);
                 var form = $('#installmentStatusForm');
                 var select = $('#installmentNewStatus');
+                modal[0].addEventListener('keydown', function (event) {
+                    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); modal.modal('hide'); }
+                }, true);
                 modal.on('show.bs.modal', function (event) {
                     var trigger = $(event.relatedTarget);
                     form.attr('action', trigger.attr('data-action-url') || '');

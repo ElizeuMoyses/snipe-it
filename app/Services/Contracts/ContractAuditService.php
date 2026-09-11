@@ -324,7 +324,9 @@ class ContractAuditService
             'actor_id' => $event->actor_id,
             'actor' => $event->actor,
             'subject' => $event->auditable,
-            'occurred_at' => $event->occurred_at ?: $event->created_at,
+            'occurred_at' => $event->getRawOriginal('occurred_at')
+                ? Carbon::parse($event->getRawOriginal('occurred_at'), 'UTC')->setTimezone(config('app.timezone'))
+                : $event->created_at,
             'source' => $event->source,
             'correlation_id' => $event->correlation_id,
             'before' => $event->before ?: [],
@@ -414,14 +416,14 @@ class ContractAuditService
         }
 
         if (! empty($filters['from'])) {
-            $from = Carbon::parse($filters['from'])->startOfDay();
+            $from = Carbon::parse($filters['from'], config('app.timezone'))->startOfDay();
             if ($entry['occurred_at']->lt($from)) {
                 return false;
             }
         }
 
         if (! empty($filters['to'])) {
-            $to = Carbon::parse($filters['to'])->endOfDay();
+            $to = Carbon::parse($filters['to'], config('app.timezone'))->endOfDay();
             if ($entry['occurred_at']->gt($to)) {
                 return false;
             }

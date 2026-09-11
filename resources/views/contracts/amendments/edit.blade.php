@@ -18,7 +18,7 @@
               action="{{ $item->id
                   ? route('contracts.amendments.update', [$contract->id, $item->id])
                   : route('contracts.amendments.store', $contract->id) }}"
-              id="amendment-form">
+              id="amendment-form" class="form-horizontal">
             @csrf
             @if (! $item->id)
                 <input type="hidden" name="preview_token" id="preview_token" value="">

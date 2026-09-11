@@ -42,6 +42,34 @@ class ContractAuditIntegrationTest extends TestCase
             ->assertOk()->assertJsonPath('total', 1);
     }
 
+    public function test_utc_event_uses_application_timezone_for_display_and_date_filter(): void
+    {
+        config(['app.timezone' => 'America/Sao_Paulo']);
+        $contract = Contract::factory()->create();
+        \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse('2026-09-11 01:30:00', 'UTC'));
+        try {
+            $service = app(ContractAuditService::class);
+            $service->record($contract, 'contract.created');
+            $page = $service->historyFor($contract, ['from' => '2026-09-10', 'to' => '2026-09-10']);
+            $this->assertSame(1, $page['total']);
+            $this->assertSame('2026-09-10 22:30', $page['rows']->first()['occurred_at']->format('Y-m-d H:i'));
+            $this->assertSame(0, $service->historyFor($contract, ['from' => '2026-09-11'])['total']);
+        } finally { \Carbon\Carbon::setTestNow(); }
+    }
+
+    public function test_history_text_fields_escape_markup_before_table_rendering(): void
+    {
+        $contract = Contract::factory()->create(['name' => '<img src=x onerror=alert(1)>']);
+        $service = app(ContractAuditService::class);
+        $service->record($contract, 'contract.updated', $contract, [], $service->snapshot($contract));
+        $response = $this->actingAs(User::factory()->superuser()->create())
+            ->getJson(route('contracts.history', $contract))->assertOk();
+        foreach (['entity_label', 'details'] as $field) {
+            $this->assertStringNotContainsString('<img', $response->json('rows.0.'.$field));
+            $this->assertStringContainsString('&lt;img', $response->json('rows.0.'.$field));
+        }
+    }
+
     public function test_audit_failure_rolls_back_asset_link(): void
     {
         $contract = Contract::factory()->create();

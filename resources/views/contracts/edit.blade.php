@@ -86,9 +86,8 @@
 <div class="form-group {{ $errors->has('start_date') ? ' has-error' : '' }}">
     <label for="start_date" class="col-md-3 control-label">{{ trans('admin/contracts/general.start_date') }}</label>
     <div class="col-md-7">
-        <div class="input-group date" id="start_date_picker" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-autoclose="true">
-            <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="start_date" id="start_date" value="{{ old('start_date', $item->start_date) }}" aria-describedby="start-date-help" @if ($strictContractFields) required aria-required="true" @endif>
-            <span class="input-group-addon"><x-icon type="calendar" /></span>
+        <div id="start_date_picker">
+            <input type="date" class="form-control" name="start_date" id="start_date" value="{{ old('start_date', $item->start_date?->format('Y-m-d')) }}" aria-describedby="start-date-help" @if ($strictContractFields) required aria-required="true" @endif>
         </div>
         {!! $errors->first('start_date', '<span class="alert-msg" role="alert"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
     </div>
@@ -98,9 +97,8 @@
 <div class="form-group {{ $errors->has('end_date') ? ' has-error' : '' }}">
     <label for="end_date" class="col-md-3 control-label">{{ trans('admin/contracts/general.end_date') }}</label>
     <div class="col-md-7">
-        <div class="input-group date" id="end_date_picker" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-autoclose="true">
-            <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="end_date" id="end_date" value="{{ old('end_date', $item->end_date) }}" aria-describedby="end-date-help" @if ($strictContractFields) required aria-required="true" @endif>
-            <span class="input-group-addon"><x-icon type="calendar" /></span>
+        <div id="end_date_picker">
+            <input type="date" class="form-control" name="end_date" id="end_date" value="{{ old('end_date', $item->end_date?->format('Y-m-d')) }}" aria-describedby="end-date-help" @if ($strictContractFields) required aria-required="true" @endif>
         </div>
         <p id="end-date-help" class="help-block">{{ trans('admin/contracts/general.end_date_help') }}</p>
         {!! $errors->first('end_date', '<span class="alert-msg" role="alert"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
@@ -138,8 +136,7 @@
 <div class="form-group {{ $errors->has('installment_value') ? ' has-error' : '' }}">
     <label for="installment_value" class="col-md-3 control-label">{{ trans('admin/contracts/general.installment_value') }}</label>
     <div class="col-md-7">
-        <div class="input-group">
-            <span class="input-group-addon">R$</span>
+        <div>
             <input class="form-control js-contract-money" name="installment_value" type="text" id="installment_value" inputmode="decimal" aria-describedby="installment-value-help" @if ($strictContractFields) required aria-required="true" @endif value="{{ old('installment_value', $item->installment_value) }}">
         </div>
         <p id="installment-value-help" class="help-block">{{ trans('admin/contracts/general.zero_value_help') }}</p>
@@ -164,8 +161,7 @@
 <div class="form-group {{ $errors->has('total_value') ? ' has-error' : '' }}">
     <label for="total_value" class="col-md-3 control-label">{{ trans('admin/contracts/general.total_value') }}</label>
     <div class="col-md-7">
-        <div class="input-group">
-            <span class="input-group-addon">R$</span>
+        <div>
             <input class="form-control js-contract-money" name="total_value" type="text" id="total_value" inputmode="decimal" aria-describedby="total-value-help" @if ($strictContractFields && $totalMode === 'manual') required aria-required="true" @endif value="{{ old('total_value', $item->total_value) }}" @if ($totalMode === 'automatic') readonly @endif>
         </div>
         <p id="total-value-help" class="help-block">{{ trans('admin/contracts/general.preview_planned_total') }}: <span id="preview-planned-total">—</span></p>
@@ -305,6 +301,18 @@
             }
         }
 
+        function previewDate(value) {
+            if ({{ in_array(app()->getLocale(), ['pt-BR', 'pt_BR'], true) ? 'true' : 'false' }} && /^\d{4}-\d{2}-\d{2}$/.test(value || '')) {
+                return value.split('-').reverse().join('/');
+            }
+            return value;
+        }
+
+        function clearPreview() {
+            ['preview-count', 'preview-first', 'preview-last', 'preview-planned-total-detail', 'preview-planned-total', 'preview-negotiated-total', 'preview-difference'].forEach(id => setText(id, null));
+            if (totalMode?.value === 'automatic' && totalValue) totalValue.value = '';
+        }
+
         function updateModeState() {
             const manual = totalMode && totalMode.value === 'manual';
             if (totalValue) {
@@ -322,8 +330,10 @@
         }
 
         async function updatePreview() {
+            if (previewRequest) previewRequest.abort();
             const requiredIds = ['contract_type', 'start_date', 'end_date', 'billing_cycle', 'billing_day', 'installment_value'];
             if (requiredIds.some((id) => !document.getElementById(id)?.value)) {
+                clearPreview();
                 previewMessage.textContent = @json(trans('admin/contracts/general.preview_none'));
                 return;
             }
@@ -350,8 +360,8 @@
 
                 const data = body.data || {};
                 setText('preview-count', data.installments_count === undefined ? null : String(data.installments_count));
-                setText('preview-first', data.first_due_date);
-                setText('preview-last', data.last_due_date);
+                setText('preview-first', previewDate(data.first_due_date));
+                setText('preview-last', previewDate(data.last_due_date));
                 setText('preview-planned-total-detail', data.planned_total ? formatBrl(data.planned_total) : 'R$ 0,00');
                 setText('preview-planned-total', data.planned_total ? formatBrl(data.planned_total) : 'R$ 0,00');
                 setText('preview-negotiated-total', data.negotiated_total === null || data.negotiated_total === undefined ? null : formatBrl(data.negotiated_total));
@@ -367,6 +377,7 @@
                 }
             } catch (error) {
                 if (error.name !== 'AbortError') {
+                    clearPreview();
                     previewMessage.textContent = @json(trans('admin/contracts/general.preview_error'));
                 }
             }
