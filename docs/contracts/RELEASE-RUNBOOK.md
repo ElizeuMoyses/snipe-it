@@ -5,6 +5,35 @@ merge ou deploy. O candidato e a decisão vigente estão em STATUS.md e no PR #7
 
 ## Antes da janela
 
+### Preparação de imagem do fork
+
+O workflow `release-image.yml` valida a imagem Ubuntu sem login em registry,
+push ou deploy. Executa build de `git archive HEAD`, testa exclusão de sentinelas
+privadas e inicia containers com banco sintético em rede interna. Pode ser
+reproduzido localmente com `bash scripts/qa/image-readiness.sh`; não usa o banco
+da réplica nem produção. A imagem local fica identificada por SHA e label OCI.
+
+O startup continua aplicando migrations automaticamente: não iniciar a imagem
+contra a VPS fora da janela autorizada. `docker/initialize-app.sh` limpa cache
+antigo antes de migrar e interrompe em qualquer falha de configuração/migration,
+impedindo liberar o servidor web com schema parcialmente aplicado. Validar esse
+comportamento não reverte DDL já executado; preservar o plano de recuperação.
+
+O contexto Docker exclui `.env`, réplicas, dumps, uploads, chaves e caches locais.
+Ainda assim, a origem da release deve ser o checkout limpo do SHA aprovado.
+Não executar build da pasta com dados reais nem reutilizar a imagem local de
+desenvolvimento. Fixar o ID/digest resultante para a implantação autorizada.
+
+### Inspeção de produção pendente
+
+O acesso SSH exige a rede da empresa. Antes da liberação, confirmar ao vivo
+checkout versus conteúdo da imagem, digest, stack, mounts, permissões de escrita,
+espaço, histórico de migrations, cobertura/restauração do backup e scheduler.
+O candidato introduz `contracts:check-overdue` às 06:00 no fuso da aplicação;
+não executar esse comando na auditoria de leitura. Confirmar também concessões
+de permissões de contratos e integrações externas. A captura anterior não
+substitui essa inspeção nem o backup da janela.
+
 1. Fixar o SHA aprovado e construir a imagem a partir dele, com lockfiles e assets
    correspondentes. Não construir a imagem de produção a partir do workspace com
    alterações locais não revisadas. Registrar digest e versões PHP/MariaDB.

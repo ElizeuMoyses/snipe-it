@@ -6,6 +6,12 @@ sem merge ou deploy.
 
 ## Revisão central mais recente
 
+Preparação operacional adicional nas issues #17–#19: exclusões do contexto Docker,
+startup com interrupção obrigatória em falhas, build/smoke da imagem Ubuntu do fork
+e proteção da branch production. Resultados e SHA final nos comentários do PR #7.
+A inspeção atual da VPS depende de acesso pela rede da empresa; ela e o aceite
+funcional continuam em #1/#6. Nenhum merge/deploy está autorizado nesta etapa.
+
 As issues #9–#15 foram integradas e validadas centralmente. Consulte
 [VALIDATION-2026-09-10.md](VALIDATION-2026-09-10.md) para os testes, ensaio de
 recuperação, navegação sintética e limites. Regressão completa local: 1.624 testes /
