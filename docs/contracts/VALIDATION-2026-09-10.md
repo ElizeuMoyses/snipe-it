@@ -48,6 +48,11 @@ php vendor/bin/phpunit --filter ContractAuditIntegrationTest
 
 ## Limites e continuidade
 
+Última verificação de navegador: a prévia da edição agora remove o método PUT
+herdado do formulário e usa a rota POST dedicada. Confirmados cálculo inicial,
+limpeza da prévia ao remover o término e preservação do total manual de R$ 299,00.
+Também confirmado cancelamento da prévia de aditivo em tela de 390 px sem envio.
+
 - Evidências detalhadas, screenshots sintéticas, JUnit e backups ficam privados em
   `.local-validation/`. Não publicar réplica, credenciais ou conteúdo de clientes.
 - Histórico não inventa operações anteriores à implantação. Exclusão física de

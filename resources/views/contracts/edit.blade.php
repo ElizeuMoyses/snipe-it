@@ -343,6 +343,8 @@
             }
             previewRequest = new AbortController();
             const formData = new FormData(form);
+            // The edit form spoofs PUT; preview always uses its dedicated POST route.
+            formData.delete('_method');
             try {
                 const response = await fetch(preview.dataset.previewUrl, {
                     method: 'POST',
