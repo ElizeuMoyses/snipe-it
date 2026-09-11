@@ -37,6 +37,8 @@ for attempt in {1..90}; do
     sleep 2
 done
 if [ "$ready" != true ]; then docker logs --tail 80 "$app"; exit 1; fi
+docker exec -i -w /var/www/html "$app" php < scripts/qa/image-fixture.php
+test "$(docker exec "$app" curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/login)" = 200
 docker exec -w /var/www/html "$app" php artisan migrate:status --no-ansi
 docker exec -w /var/www/html "$app" php artisan route:list --path=contracts --except-vendor --no-ansi
 docker exec -w /var/www/html "$app" php artisan schedule:list --no-ansi
