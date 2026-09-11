@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\ContractStatusLabel;
 use App\Models\CustomField;
 use App\Models\Location;
 use App\Models\Setting;
@@ -362,6 +363,30 @@ class ValidationServiceProvider extends ServiceProvider
             }
 
             return true;
+        });
+
+        /**
+         * Validates that meta_type is valid for the given scope.
+         *
+         * Used by ContractStatusLabel to ensure that the meta_type value
+         * is one of the allowed values for the selected scope.
+         * The valid combinations are defined in ContractStatusLabel::META_TYPES.
+         */
+        Validator::extend('meta_type_for_scope', function ($attribute, $value, $parameters, $validator) {
+            $data = $validator->getData();
+            $scope = $data['scope'] ?? null;
+
+            if (! $scope || ! $value) {
+                return false;
+            }
+
+            $validTypes = ContractStatusLabel::META_TYPES[$scope] ?? [];
+
+            return in_array($value, $validTypes);
+        });
+
+        Validator::replacer('meta_type_for_scope', function ($message, $attribute, $rule, $parameters) {
+            return str_replace(':attribute', $attribute, trans('validation.meta_type_for_scope'));
         });
     }
 

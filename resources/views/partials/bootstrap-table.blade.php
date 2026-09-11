@@ -770,6 +770,78 @@
     @endcan
 
 
+    // Contract table buttons
+    @php($contractsArchived = $showArchived ?? false)
+    window.contractButtons = () => ({
+        btnArchived: {
+            text: '{{ $contractsArchived ? trans('admin/contracts/general.show_current') : trans('admin/contracts/general.show_archived') }}',
+            icon: 'fa fa-archive',
+            event () {
+                window.location.href = '{{ $contractsArchived ? route('contracts.index') : route('contracts.index', ['archived' => 1]) }}';
+            },
+            attributes: {
+                class: 'btn-default',
+                title: '{{ $contractsArchived ? trans('admin/contracts/general.show_current') : trans('admin/contracts/general.show_archived') }}',
+            },
+        },
+        @can('create', \App\Models\Contract::class)
+        btnAdd: {
+            text: '{{ trans('general.create') }}',
+            icon: 'fa fa-plus',
+            event () {
+                window.location.href = '{{ route('contracts.create') }}';
+            },
+            attributes: {
+                class: 'btn-warning',
+                title: '{{ trans('general.create') }}',
+                @if ($snipeSettings->shortcuts_enabled == 1)
+                accesskey: 'n'
+                @endif
+            },
+        },
+        @endcan
+    });
+
+    // Contract Status Label table buttons
+    window.contractStatusLabelButtons = () => ({
+        @can('create', \App\Models\Contract::class)
+        btnAdd: {
+            text: '{{ trans('general.create') }}',
+            icon: 'fa fa-plus',
+            event () {
+                window.location.href = '{{ route('contract-status-labels.create') }}';
+            },
+            attributes: {
+                class: 'btn-info',
+                title: '{{ trans('general.create') }}',
+                @if ($snipeSettings->shortcuts_enabled == 1)
+                accesskey: 'n'
+                @endif
+            },
+        },
+        @endcan
+    });
+
+    // Configurable contract type table buttons
+    window.contractTypeButtons = () => ({
+        @can('create', \App\Models\ContractType::class)
+        btnAdd: {
+            text: '{{ trans('general.create') }}',
+            icon: 'fa fa-plus',
+            event () {
+                window.location.href = '{{ route('contract-types.create') }}';
+            },
+            attributes: {
+                class: 'btn-info',
+                title: '{{ trans('general.create') }}',
+                @if ($snipeSettings->shortcuts_enabled == 1)
+                accesskey: 'n'
+                @endif
+            },
+        },
+        @endcan
+    });
+
     // License table buttons
     window.licenseButtons = () => ({
         @can('create', \App\Models\License::class)
@@ -1150,12 +1222,19 @@
 
 
                 
+                var deleteIcon = owner_name === 'contracts' ? 'fa-archive' : 'fa-trash';
+                var deleteTitle = owner_name === 'contracts' ? '{{ trans('admin/contracts/general.archive_contract') }}' : '{{ trans('general.delete') }}';
+                var deleteContent = owner_name === 'contracts'
+                    ? '{{ trans('admin/contracts/message.archive.confirm') }} ' + name_for_box + '. {{ trans('admin/contracts/message.archive.impact') }}'
+                    : '{{ trans('general.sure_to_delete') }}: ' + name_for_box + '?';
+                var deleteReasonAttribute = owner_name === 'contracts' ? ' data-require-reason="true"' : '';
+
                 actions += '<a href="{{ config('app.url') }}/' + dest + '/' + row.id + '" '
                     + ' class="actions btn btn-danger btn-sm delete-asset hidden-print" data-tooltip="true"  '
-                    + ' data-toggle="modal" data-icon="fa-trash"'
-                    + ' data-content="{{ trans('general.sure_to_delete') }}: ' + name_for_box + '?" '
-                    + ' data-title="{{  trans('general.delete') }}" onClick="return false;">'
-                    + '<x-icon type="delete" class="fa-fw" /><span class="sr-only">{{ trans('general.delete') }}</span></a>&nbsp;';
+                    + ' data-toggle="modal" data-icon="' + deleteIcon + '"'
+                    + ' data-content="' + deleteContent + '"'
+                    + ' data-title="' + deleteTitle + '"' + deleteReasonAttribute + ' onClick="return false;">'
+                    + '<x-icon type="delete" class="fa-fw" /><span class="sr-only">' + deleteTitle + '</span></a>&nbsp;';
             } else {
                 // Do not show the delete button on things that are already deleted
                 if ((row.available_actions) && (row.available_actions.restore != true)) {
@@ -1352,6 +1431,7 @@
         'companies',
         'components',
         'consumables',
+        'contracts',
         'departments',
         'depreciations',
         'fieldsets',
@@ -1386,6 +1466,81 @@
         var owner_name = child_formatters[i][0];
         var child_name = child_formatters[i][1];
         window[owner_name + '_' + child_name + 'ActionsFormatter'] = genericActionsFormatter(owner_name, child_name);
+    }
+
+    // Contract Status Labels formatters (route uses hyphens: contract-status-labels)
+    window.contractStatusLabelsLinkFormatter = genericRowLinkFormatter('contract-status-labels');
+    window.contractStatusLabelsLinkObjFormatter = genericColumnObjLinkFormatter('contract-status-labels');
+    window.contractStatusLabelsActionsFormatter = genericActionsFormatter('contract-status-labels');
+
+    // Contract classifications use a separate resource from the legacy
+    // recurring/one-time billing modality.
+    window.contractTypesLinkFormatter = genericRowLinkFormatter('contract-types');
+    window.contractTypesActionsFormatter = genericActionsFormatter('contract-types');
+
+    function contractMoneyFormatter(value) {
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        const amount = Number(value);
+        if (!Number.isFinite(amount)) {
+            return value;
+        }
+
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+        }).format(amount);
+    }
+
+    function genericContractClassificationFormatter(value) {
+        if (value && value.name) {
+            return '<a href="{{ config('app.url') }}/contract-types/' + value.id + '">' + value.name + '</a>';
+        }
+
+        return '';
+    }
+
+    // Contract status badge formatter (colored badge with icon)
+    function contractStatusFormatter(value, row) {
+        if (value) {
+            var color = value.color || '#888';
+            var icon = value.icon || 'fa-circle';
+            var name = value.name || '';
+            return '<span class="label" style="background-color: ' + color + '; white-space: nowrap;">' +
+                   '<i class="fa ' + icon + '" aria-hidden="true"></i> ' + name + '</span>';
+        }
+        return '';
+    }
+
+    // Contract actions keep their text visible so the action remains
+    // recognizable on narrow screens and to assistive technology.
+    function contractActionsFormatter(value, row) {
+        var labels = {
+            view: @json(trans('admin/contracts/general.view')),
+            update: @json(trans('general.update')),
+            delete: @json(trans('general.delete')),
+            deleteConfirm: @json(trans('admin/contracts/message.delete.confirm')),
+        };
+        var baseUrl = '{{ config('app.url') }}/contracts/' + row.id;
+        var actions = '<div class="contract-list-actions">';
+
+        actions += '<a href="' + baseUrl + '" class="btn btn-sm btn-default" title="' + labels.view + '" aria-label="' + labels.view + '">' +
+            '<i class="fas fa-eye" aria-hidden="true"></i> <span>' + labels.view + '</span></a>';
+
+        if (row.available_actions && row.available_actions.update === true) {
+            actions += '<a href="' + baseUrl + '/edit" class="btn btn-sm btn-warning" title="' + labels.update + '" aria-label="' + labels.update + '">' +
+                '<i class="fas fa-pencil-alt" aria-hidden="true"></i> <span>' + labels.update + '</span></a>';
+        }
+
+        if (row.available_actions && row.available_actions.delete === true) {
+            actions += '<a href="' + baseUrl + '" class="btn btn-sm btn-danger delete-asset" data-toggle="modal" data-icon="fa-trash"' +
+                ' data-content="' + labels.deleteConfirm + '" data-title="' + labels.delete + '" title="' + labels.delete + '" aria-label="' + labels.delete + '" onClick="return false;">' +
+                '<i class="fas fa-trash" aria-hidden="true"></i> <span>' + labels.delete + '</span></a>';
+        }
+
+        return actions + '</div>';
     }
 
 

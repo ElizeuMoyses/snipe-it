@@ -145,6 +145,9 @@ $(function () {
         var message = $context.attr('data-content');
         var headericon = $context.attr('data-icon');
         var title = $context.attr('data-title');
+        var requiresReason = $context.attr('data-require-reason') === 'true';
+        var $deleteReasonGroup = $('#deleteReasonGroup');
+        var $deleteReason = $('#deleteReason');
 
         // deleteForm is the ID of the modal form itself
         $('#deleteForm').attr('action', href);
@@ -152,6 +155,10 @@ $(function () {
         $dataConfirmModal.find('.modal-title').text(title).prepend('<i class="fa ' + headericon + '"></i> ');
         $dataConfirmModal.find('.modal-body').text(message);
         $dataConfirmModal.attr('action', href);
+        $deleteReason.val('');
+        $deleteReason.prop('required', requiresReason);
+        $deleteReason.prop('disabled', !requiresReason);
+        $deleteReasonGroup.toggleClass('hidden', !requiresReason);
 
         // Fire the modal
         $dataConfirmModal.modal({
@@ -183,8 +190,18 @@ $(function () {
         var link = $(item);
         var endpoint = link.data("endpoint");
         var select = link.data("select");
+        var ajaxUrl = link.data("ajax-url") || baseUrl + 'api/v1/' + endpoint + '/selectlist';
+        var isContractAssetSelector = link.is("[data-contract-asset-selector]");
+        var selectorStatus = link.data("status-target") ? $("#" + link.data("status-target")) : $();
+        var setSelectorStatus = function (message, isError) {
+            if (!selectorStatus.length) {
+                return;
+            }
 
-        link.select2({
+            selectorStatus.text(message || '').toggleClass('text-danger', !!isError);
+        };
+
+        var select2Options = {
 
             /**
              * Adds an empty placeholder, allowing every select2 instance to be cleared.
@@ -197,8 +214,7 @@ $(function () {
             
             ajax: {
 
-                // the baseUrl includes a trailing slash
-                url: baseUrl + 'api/v1/' + endpoint + '/selectlist',
+                url: ajaxUrl,
                 dataType: 'json',
                 delay: 250,
                 headers: {
@@ -232,7 +248,48 @@ $(function () {
             //escapeMarkup: function (markup) { return markup; }, // let our custom formatter work
             templateResult: formatDatalistSafe,
             //templateSelection: formatDataSelection
-        });
+        };
+
+        if (isContractAssetSelector) {
+            select2Options.language = {
+                searching: function () {
+                    return link.data("loading-message") || 'Loading...';
+                },
+                noResults: function () {
+                    return link.data("no-results-message") || 'No results found';
+                },
+                errorLoading: function () {
+                    return link.data("error-message") || 'The results could not be loaded.';
+                }
+            };
+
+            select2Options.ajax.transport = function (params, success, failure) {
+                setSelectorStatus(link.data("loading-message") || 'Loading...', false);
+
+                var request = $.ajax(params);
+                request.done(function (response) {
+                    if (response.results && response.results.length) {
+                        setSelectorStatus('', false);
+                    } else {
+                        setSelectorStatus(link.data("no-results-message") || 'No results found', false);
+                    }
+                    success(response);
+                }).fail(function () {
+                    setSelectorStatus(link.data("error-message") || 'The results could not be loaded.', true);
+                    failure();
+                });
+
+                return request;
+            };
+        }
+
+        link.select2(select2Options);
+
+        if (isContractAssetSelector) {
+            link.on('select2:select select2:clear', function () {
+                setSelectorStatus('', false);
+            });
+        }
 
     });
 
@@ -283,14 +340,28 @@ $(function () {
 		if(value && !noForceAjax && !isMouseUp) {
 			var endpoint = element.data("endpoint");
 			var assetStatusType = element.data("asset-status-type");
+			var ajaxUrl = element.data("ajax-url") || baseUrl + 'api/v1/' + endpoint + '/selectlist';
+			var querySeparator = ajaxUrl.indexOf('?') === -1 ? '?' : '&';
+			var query = querySeparator + 'search=' + encodeURIComponent(value) + '&page=1' +
+				(assetStatusType ? '&assetStatusType=' + encodeURIComponent(assetStatusType) : '') +
+				(element.data("company-id") ? '&companyId=' + encodeURIComponent(element.data("company-id")) : '');
+			var isContractAssetSelector = element.is("[data-contract-asset-selector]");
+			var selectorStatus = element.data("status-target") ? $("#" + element.data("status-target")) : $();
+			if (isContractAssetSelector && selectorStatus.length) {
+				selectorStatus.text(element.data("loading-message") || 'Loading...').removeClass('text-danger');
+			}
+
 			$.ajax({
-				url: baseUrl + 'api/v1/' + endpoint + '/selectlist?search='+value+'&page=1' + (assetStatusType ? '&assetStatusType='+assetStatusType : ''),
+				url: ajaxUrl + query,
 				dataType: 'json',
 				headers: {
 					"X-Requested-With": 'XMLHttpRequest',
 					"X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content')
 				},
 			}).done(function(response) {
+				if (isContractAssetSelector && selectorStatus.length) {
+					selectorStatus.text(response.results && response.results.length ? '' : (element.data("no-results-message") || 'No results found'));
+				}
 				var currentlySelected = element.select2('data').map(function (x){ 
                     return +x.id;
                 }).filter(function (x) {
@@ -322,6 +393,10 @@ $(function () {
 							data: first
 						}
 					});
+				}
+			}).fail(function () {
+				if (isContractAssetSelector && selectorStatus.length) {
+					selectorStatus.text(element.data("error-message") || 'The results could not be loaded.').addClass('text-danger');
 				}
 			});
 		}

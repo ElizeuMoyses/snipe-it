@@ -96,6 +96,9 @@ class IconHelper
             case 'licenses':
             case 'license':
                 return 'far fa-save';
+            case 'contracts':
+            case 'contract':
+                return 'fa-solid fa-file-contract';
             case 'requests':
             case 'requestable':
             case 'request':
@@ -144,7 +147,7 @@ class IconHelper
             case 'paperclip':
                 return 'fas fa-paperclip';
             case 'files':
-                return 'fa-solid fa-file-contract';
+                return 'fa-solid fa-file-lines';
             case 'contact-card':
                 return 'fa-regular fa-id-card';
             case 'eula':

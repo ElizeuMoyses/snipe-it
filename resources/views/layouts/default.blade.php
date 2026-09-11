@@ -1236,6 +1236,14 @@
                                     </a>
                                 </li>
                             @endcan
+                            @can('view', \App\Models\Contract::class)
+                                <li aria-hidden="true"{!! (request()->is('contracts*') ? ' class="active"' : '') !!}>
+                                    <a href="{{ route('contracts.index') }}" tabindex="-1" data-tooltip="true" data-placement="bottom" data-title="{{ trans('admin/contracts/general.contracts') }}">
+                                        <x-icon type="contracts" class="fa-fw" />
+                                        <span class="sr-only">{{ trans('admin/contracts/general.contracts') }}</span>
+                                    </a>
+                                </li>
+                            @endcan
                             @can('index', \App\Models\Accessory::class)
                                 <li aria-hidden="true"{!! (request()->is('accessories*') ? ' class="active"' : '') !!}>
                                     <a href="{{ route('accessories.index') }}" {{$snipeSettings->shortcuts_enabled == 1 ? "accesskey=3" : ''}} tabindex="-1" data-tooltip="true" data-placement="bottom" data-title="{{ trans('general.accessories') }}">
@@ -1342,6 +1350,14 @@
                                                 <a href="{{ route('users.create') }}" tabindex="-1">
                                                     <x-icon type="users" class="fa-fw" />
                                                     {{ trans('general.user') }}
+                                                </a>
+                                            </li>
+                                        @endcan
+                                        @can('create', \App\Models\Contract::class)
+                                            <li {!! (request()->is('contracts/create') ? 'class="active"' : '') !!}>
+                                                <a href="{{ route('contracts.create') }}" tabindex="-1">
+                                                    <x-icon type="contracts" class="fa-fw" />
+                                                    {{ trans('admin/contracts/general.contract') }}
                                                 </a>
                                             </li>
                                         @endcan
@@ -1637,6 +1653,29 @@
                                 </a>
                             </li>
                         @endcan
+                        @can('view', \App\Models\Contract::class)
+                            <li class="treeview{{ (request()->is('contracts*') ? ' active' : '') }}" id="contracts-sidenav-option">
+                                <a href="#">
+                                    <x-icon type="contracts" class="fa-fw"/>
+                                    <span>{{ trans('admin/contracts/general.contracts') }}</span>
+                                    <x-icon type="angle-left" class="pull-right fa-fw"/>
+                                </a>
+                                <ul class="treeview-menu">
+                                    <li{!! (request()->is('contracts/dashboard') ? ' class="active"' : '') !!}>
+                                        <a href="{{ route('contracts.dashboard') }}">
+                                            <x-icon type="dashboard" class="text-grey fa-fw"/>
+                                            {{ trans('general.dashboard') }}
+                                        </a>
+                                    </li>
+                                    <li{!! (request()->is('contracts') && !request()->is('contracts/*') ? ' class="active"' : '') !!}>
+                                        <a href="{{ route('contracts.index') }}">
+                                            <x-icon type="circle" class="text-grey fa-fw"/>
+                                            {{ trans('general.list_all') }}
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+                        @endcan
                         @can('index', \App\Models\Accessory::class)
                             <li id="accessories-sidenav-option"{!! (request()->is('accessories*') ? ' class="active"' : '') !!}>
                                 <a href="{{ route('accessories.index') }}">
@@ -1748,6 +1787,22 @@
                                         <li {!! (request()->is('statuslabels*') ? ' class="active"' : '') !!}>
                                             <a href="{{ route('statuslabels.index') }}">
                                                 {{ trans('general.status_labels') }}
+                                            </a>
+                                        </li>
+                                    @endcan
+
+                                    @can('view', \App\Models\Contract::class)
+                                        <li {!! (request()->is('contract-status-labels*') ? ' class="active"' : '') !!}>
+                                            <a href="{{ route('contract-status-labels.index') }}">
+                                                {{ trans('admin/contract_status_labels/general.title') }}
+                                            </a>
+                                        </li>
+                                    @endcan
+
+                                    @can('view', \App\Models\ContractType::class)
+                                        <li {!! (request()->is('contract-types*') ? ' class="active"' : '') !!}>
+                                            <a href="{{ route('contract-types.index') }}">
+                                                {{ trans('admin/contract_types/general.title') }}
                                             </a>
                                         </li>
                                     @endcan
@@ -2074,6 +2129,13 @@
                         <form method="post" id="deleteForm" role="form" action="">
                             {{ csrf_field() }}
                             {{ method_field('DELETE') }}
+
+                            <div class="form-group hidden text-left" id="deleteReasonGroup">
+                                <label for="deleteReason">{{ trans('admin/contracts/general.archive_reason') }}</label>
+                                <textarea class="form-control" id="deleteReason" name="reason" rows="3"
+                                          maxlength="2000" disabled></textarea>
+                                <p class="help-block">{{ trans('admin/contracts/general.archive_reason_help') }}</p>
+                            </div>
 
                             <button type="button" class="btn btn-default pull-left"
                                     data-dismiss="modal">{{ trans('general.cancel') }}</button>

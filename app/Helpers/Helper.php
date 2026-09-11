@@ -1424,6 +1424,7 @@ class Helper
             '#',
             'fields*',
             'statuslabels*',
+            'contract-status-labels*',
             'models*',
             'categories*',
             'manufacturers*',

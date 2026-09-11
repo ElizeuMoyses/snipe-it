@@ -101,15 +101,19 @@ $(function () {
  
 
   $('#createModal').on('click','#modal-save', function () {
+    var form = $('#createModal .modal-body form').first();
+    var multipart = form.attr('enctype') === 'multipart/form-data';
     $.ajax({
         type: 'POST',
-        url: $('.modal-body form').attr('action'),
+        url: form.attr('action'),
         headers: {
             "X-Requested-With": 'XMLHttpRequest',
             "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content')
         },
 
-        data: $('.modal-body form').serialize(),
+        data: multipart ? new FormData(form[0]) : form.serialize(),
+        processData: !multipart,
+        contentType: multipart ? false : 'application/x-www-form-urlencoded; charset=UTF-8',
         success: function (result) {
 
             if(result.status == "error") {

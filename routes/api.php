@@ -1055,6 +1055,132 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
     ); // end suppliers API routes
 
     /**
+     * Contracts API routes
+     */
+    Route::group(['prefix' => 'contracts'], function () {
+
+        Route::get('selectlist',
+            [
+                Api\ContractsController::class,
+                'selectlist',
+            ]
+        )->name('api.contracts.selectlist');
+
+        Route::get('{contract}/history',
+            [Api\ContractsController::class, 'history']
+        )->name('api.contracts.history');
+
+    });
+
+    Route::post('contracts/preview', [Api\ContractsController::class, 'preview'])
+        ->name('api.contracts.preview');
+
+    Route::resource('contracts',
+        Api\ContractsController::class,
+        ['names' => [
+            'index' => 'api.contracts.index',
+            'show' => 'api.contracts.show',
+            'update' => 'api.contracts.update',
+            'store' => 'api.contracts.store',
+            'destroy' => 'api.contracts.destroy',
+        ],
+            'except' => ['create', 'edit'],
+            'parameters' => ['contract' => 'contract_id'],
+        ]
+    ); // end contracts API routes
+
+    Route::post('contracts/{contract}/restore',
+        [Api\ContractsController::class, 'restore']
+    )->name('api.contracts.restore');
+
+    /**
+     * Contract Installments API routes
+     */
+    Route::resource('contracts.installments',
+        Api\ContractInstallmentsController::class,
+        ['names' => [
+            'index' => 'api.contracts.installments.index',
+            'show' => 'api.contracts.installments.show',
+            'update' => 'api.contracts.installments.update',
+            'store' => 'api.contracts.installments.store',
+            'destroy' => 'api.contracts.installments.destroy',
+        ],
+            'except' => ['create', 'edit'],
+            'parameters' => ['installments' => 'installment'],
+        ]
+    );
+
+    Route::post('contracts/{contract}/installments/{installment}/pay',
+        [Api\ContractInstallmentsController::class, 'storePayment']
+    )->name('api.contracts.installments.pay.store');
+    // end contract installments API routes
+
+    /**
+     * Contract Amendments API routes
+     */
+    Route::post('contracts/{contract}/amendments/preview',
+        [Api\ContractAmendmentsController::class, 'preview']
+    )->name('api.contracts.amendments.preview');
+
+    Route::resource('contracts.amendments',
+        Api\ContractAmendmentsController::class,
+        ['names' => [
+            'index' => 'api.contracts.amendments.index',
+            'show' => 'api.contracts.amendments.show',
+            'update' => 'api.contracts.amendments.update',
+            'store' => 'api.contracts.amendments.store',
+            'destroy' => 'api.contracts.amendments.destroy',
+        ],
+            'except' => ['create', 'edit'],
+            'parameters' => ['amendments' => 'amendment'],
+        ]
+    ); // end contract amendments API routes
+
+    /**
+     * Contract Status Labels API routes
+     */
+    Route::group(['prefix' => 'contract-status-labels'], function () {
+
+        Route::get('selectlist',
+            [
+                Api\ContractStatusLabelsController::class,
+                'selectlist',
+            ]
+        )->name('api.contract-status-labels.selectlist');
+
+    });
+
+    Route::resource('contract-status-labels',
+        Api\ContractStatusLabelsController::class,
+        ['names' => [
+            'index' => 'api.contract-status-labels.index',
+            'show' => 'api.contract-status-labels.show',
+            'update' => 'api.contract-status-labels.update',
+            'store' => 'api.contract-status-labels.store',
+            'destroy' => 'api.contract-status-labels.destroy',
+        ],
+            'except' => ['create', 'edit'],
+            'parameters' => ['contract_status_label' => 'contract_status_label_id'],
+        ]
+    ); // end contract status labels API routes
+
+    /**
+     * Contract Types API routes
+     */
+    Route::group(['prefix' => 'contract-types'], function () {
+        Route::get('selectlist', [Api\ContractTypesController::class, 'selectlist'])
+            ->name('api.contract-types.selectlist');
+    });
+
+    Route::resource('contract-types', Api\ContractTypesController::class, ['names' => [
+        'index' => 'api.contract-types.index',
+        'show' => 'api.contract-types.show',
+        'update' => 'api.contract-types.update',
+        'store' => 'api.contract-types.store',
+        'destroy' => 'api.contract-types.destroy',
+    ], 'except' => ['create', 'edit'], 'parameters' => ['contract_type' => 'contract_type_id']]);
+
+    /**
      * Users API routes
      */
     Route::group(['prefix' => 'users'], function () {
@@ -1352,7 +1478,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
             'index',
         ]
     )->name('api.files.index')
-        ->where(['object_type' => 'accessories|audits|assets|components|consumables|hardware|licenses|locations|maintenances|models|suppliers|users|companies|departments']);
+        ->where(['object_type' => 'accessories|audits|assets|components|consumables|hardware|licenses|locations|maintenances|models|suppliers|users|companies|departments|contracts|contract_installments|contract_amendments']);
 
     // Get a file
     Route::get('{object_type}/{id}/files/{file_id}',
@@ -1361,7 +1487,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
             'show',
         ]
     )->name('api.files.show')
-        ->where(['object_type' => 'accessories|audits|assets|components|consumables|hardware|licenses|locations|maintenances|models|suppliers|users|companies|departments']);
+        ->where(['object_type' => 'accessories|audits|assets|components|consumables|hardware|licenses|locations|maintenances|models|suppliers|users|companies|departments|contracts|contract_installments|contract_amendments']);
 
     // Upload files(s)
     Route::post('{object_type}/{id}/files',
@@ -1370,7 +1496,7 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
             'store',
         ]
     )->name('api.files.store')
-        ->where(['object_type' => 'accessories|audits|assets|components|consumables|hardware|licenses|locations|maintenances|models|suppliers|users|companies|departments']);
+        ->where(['object_type' => 'accessories|audits|assets|components|consumables|hardware|licenses|locations|maintenances|models|suppliers|users|companies|departments|contracts|contract_installments|contract_amendments']);
 
     // Delete files(s)
     Route::delete('{object_type}/{id}/files/{file_id}/delete',
@@ -1379,6 +1505,6 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
             'destroy',
         ]
     )->name('api.files.destroy')
-        ->where(['object_type' => 'accessories|assets|components|consumables|hardware|licenses|locations|maintenances|models|suppliers|users|companies|departments']);
+        ->where(['object_type' => 'accessories|assets|components|consumables|hardware|licenses|locations|maintenances|models|suppliers|users|companies|departments|contracts|contract_installments|contract_amendments']);
 
 }); // end API routes

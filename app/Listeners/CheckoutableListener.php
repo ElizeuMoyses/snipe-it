@@ -78,6 +78,12 @@ class CheckoutableListener
 
         $shouldSendEmailToUser = $this->shouldSendCheckoutEmailToUser($event->checkoutable);
         $shouldSendEmailToAlertAddress = $this->shouldSendEmailToAlertAddress($acceptance);
+        // The bulk event sends the consolidated email. Keep acceptance/token
+        // creation and webhook handling here, without duplicate individual mail.
+        if ($event->isBulk) {
+            $shouldSendEmailToUser = false;
+            $shouldSendEmailToAlertAddress = false;
+        }
         $shouldSendWebhookNotification = $this->shouldSendWebhookNotification();
 
         if (!$shouldSendEmailToUser && !$shouldSendEmailToAlertAddress && !$shouldSendWebhookNotification) {
@@ -96,8 +102,8 @@ class CheckoutableListener
 
             if (!empty($to)) {
                 try {
-                    Mail::to(array_flatten($to))->send($mailable->locale($notifiable->locale));
-                    Mail::to(array_flatten($cc))->send($mailable->locale(Setting::getSettings()->locale));
+                    Mail::to(array_flatten($to))->cc(array_flatten($cc))
+                        ->send($mailable->locale($notifiable?->locale ?? Setting::getSettings()->locale));
                     Log::info('Checkout Mail sent to checkout target');
                 } catch (ClientException $e) {
                     Log::debug("Exception caught during checkout email: " . $e->getMessage());
@@ -181,8 +187,8 @@ class CheckoutableListener
 
             try {
                 if (!empty($to)) {
-                    Mail::to(array_flatten($to))->send($mailable->locale($notifiable->locale));
-                    Mail::to(array_flatten($cc))->send($mailable->locale(Setting::getSettings()->locale));
+                    Mail::to(array_flatten($to))->cc(array_flatten($cc))
+                        ->send($mailable->locale($notifiable?->locale ?? Setting::getSettings()->locale));
                     Log::info('Checkin Mail sent to CC addresses');
                 }
             } catch (ClientException $e) {
@@ -241,6 +247,7 @@ class CheckoutableListener
         $acceptance = new CheckoutAcceptance;
         $acceptance->checkoutable()->associate($event->checkoutable);
         $acceptance->assignedTo()->associate($event->checkedOutTo);
+        $acceptance->qty = $event->quantity;
 
         $category = $this->getCategoryFromCheckoutable($event->checkoutable);
 

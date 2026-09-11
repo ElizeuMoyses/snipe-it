@@ -1,0 +1,161 @@
+<?php
+
+namespace App\Presenters;
+
+class ContractPresenter extends Presenter
+{
+    public static function dataTableLayout()
+    {
+        $layout = [
+            [
+                'field' => 'checkbox',
+                'checkbox' => true,
+                'titleTooltip' => trans('general.select_all_none'),
+                'printIgnore' => true,
+                'class' => 'hidden-print',
+            ],
+            [
+                'field' => 'id',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('general.id'),
+                'visible' => false,
+            ],
+            [
+                'field' => 'contract_number',
+                'searchable' => true,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('admin/contracts/table.contract_number'),
+                'visible' => true,
+            ],
+            [
+                'field' => 'name',
+                'searchable' => true,
+                'sortable' => true,
+                'switchable' => false,
+                'title' => trans('general.name'),
+                'visible' => true,
+                'formatter' => 'contractsLinkFormatter',
+            ],
+            [
+                'field' => 'supplier',
+                'searchable' => false,
+                'sortable' => false,
+                'switchable' => true,
+                'title' => trans('general.supplier'),
+                'visible' => true,
+                'formatter' => 'suppliersLinkObjFormatter',
+            ],
+            [
+                'field' => 'contract_type',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('admin/contracts/general.billing_mode'),
+                'visible' => true,
+            ],
+            [
+                'field' => 'contract_classification',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('admin/contracts/general.contract_classification'),
+                'visible' => false,
+                'formatter' => 'genericContractClassificationFormatter',
+            ],
+            [
+                'field' => 'status_label',
+                'searchable' => false,
+                'sortable' => false,
+                'switchable' => true,
+                'title' => trans('admin/contracts/table.status'),
+                'visible' => true,
+                'formatter' => 'contractStatusFormatter',
+            ],
+            [
+                'field' => 'installment_value',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('admin/contracts/table.installment_value'),
+                'visible' => true,
+                'formatter' => 'contractMoneyFormatter',
+            ],
+            [
+                'field' => 'start_date',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('admin/contracts/table.start_date'),
+                'visible' => true,
+                'formatter' => 'dateDisplayFormatter',
+            ],
+            [
+                'field' => 'validity',
+                'searchable' => false,
+                'sortable' => false,
+                'switchable' => true,
+                'title' => trans('admin/contracts/table.validity'),
+                'visible' => true,
+            ],
+            [
+                'field' => 'next_due_date',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('admin/contracts/table.next_due'),
+                'visible' => true,
+                'formatter' => 'dateDisplayFormatter',
+            ],
+            [
+                'field' => 'end_date',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('admin/contracts/table.end_date'),
+                'visible' => true,
+                'formatter' => 'dateDisplayFormatter',
+            ],
+            [
+                'field' => 'company',
+                'searchable' => false,
+                'sortable' => false,
+                'switchable' => true,
+                'title' => trans('general.company'),
+                'visible' => false,
+                'formatter' => 'companiesLinkObjFormatter',
+            ],
+            [
+                'field' => 'created_by',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('general.created_by'),
+                'visible' => false,
+                'formatter' => 'usersLinkObjFormatter',
+            ],
+            [
+                'field' => 'created_at',
+                'searchable' => true,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('general.created_at'),
+                'visible' => false,
+                'formatter' => 'dateDisplayFormatter',
+            ],
+            [
+                'field' => 'actions',
+                'searchable' => false,
+                'sortable' => false,
+                'switchable' => false,
+                'title' => trans('table.actions'),
+                'visible' => true,
+                'formatter' => 'contractsActionsFormatter',
+            ],
+        ];
+
+        return json_encode($layout);
+    }
+}

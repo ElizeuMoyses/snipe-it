@@ -33,6 +33,9 @@ use App\Models\Department;
 use App\Models\License;
 use App\Models\Location;
 use App\Models\Maintenance;
+use App\Models\Contract;
+use App\Models\ContractAmendment;
+use App\Models\ContractInstallment;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Traits\DisablesDebugbar;
@@ -60,6 +63,9 @@ abstract class Controller extends BaseController
         'locations' => Location::class,
         'models' => AssetModel::class,
         'suppliers' => Supplier::class,
+        'contracts' => Contract::class,
+        'contract_amendments' => ContractAmendment::class,
+        'contract_installments' => ContractInstallment::class,
         'users' => User::class,
     ];
 
@@ -77,6 +83,9 @@ abstract class Controller extends BaseController
         'locations' => 'private_uploads/locations/',
         'models' => 'private_uploads/models/',
         'suppliers' => 'private_uploads/suppliers/',
+        'contracts' => 'private_uploads/contracts/',
+        'contract_amendments' => 'private_uploads/contract_amendments/',
+        'contract_installments' => 'private_uploads/contract_installments/',
         'users' => 'private_uploads/users/',
     ];
 
@@ -94,6 +103,9 @@ abstract class Controller extends BaseController
         'locations' => 'location',
         'models' => 'model',
         'suppliers' => 'supplier',
+        'contracts' => 'contract',
+        'contract_amendments' => 'contract_amendment',
+        'contract_installments' => 'contract_installment',
         'users' => 'user',
     ];
 

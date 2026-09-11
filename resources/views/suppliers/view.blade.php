@@ -26,6 +26,15 @@
                     <x-tabs.consumable-tab count="{{ $supplier->consumables->count() }}" />
                     <x-tabs.component-tab count="{{ $supplier->components->count() }}" />
                     <x-tabs.maintenance-tab count="{{ $supplier->maintenances->count() }}"/>
+                    @can('view', \App\Models\Contract::class)
+                    <x-tabs.nav-item
+                        name="contracts"
+                        icon="fas fa-file-contract"
+                        label="{{ trans('admin/contracts/general.contracts') }}"
+                        count="{{ $supplier->contracts()->count() }}"
+                        tooltip="{{ trans('admin/contracts/general.contracts') }}"
+                    />
+                    @endcan
                     <x-tabs.files-tab :item="$supplier" count="{{ $supplier->uploads()->count() }}"/>
                     <x-tabs.upload-tab :item="$supplier"/>
 
@@ -83,7 +92,18 @@
 
                         </x-tabs.pane>
                     @endcan
-                    <!-- end consumables tab pane -->
+                    <!-- end maintenances tab pane -->
+
+                    <!-- start contracts tab pane -->
+                    @can('view', \App\Models\Contract::class)
+                    <x-tabs.pane name="contracts">
+                        <x-table.contracts
+                            name="contracts"
+                            :route="route('api.contracts.index', ['supplier_id' => $supplier->id])"
+                        />
+                    </x-tabs.pane>
+                    @endcan
+                    <!-- end contracts tab pane -->
 
                     <!-- start files tab pane -->
                     <x-tabs.pane name="files" class="{{ $supplier->uploads->count() == 0 ? 'hidden-print' : '' }}">
@@ -108,6 +128,38 @@
 
                 </x-info-panel>
             </x-box>
+
+            @if($supplier->supplier_type || $supplier->document || $supplier->corporate_name || $supplier->internal_code)
+            <x-box class="side-box">
+                <x-slot:header>{{ trans('admin/suppliers/table.br_data') }}</x-slot:header>
+                <table class="table table-condensed">
+                    @if($supplier->supplier_type)
+                    <tr>
+                        <td class="col-md-5"><strong>{{ trans('admin/suppliers/table.supplier_type') }}</strong></td>
+                        <td>{{ trans('admin/suppliers/table.supplier_type_' . $supplier->supplier_type) }}</td>
+                    </tr>
+                    @endif
+                    @if($supplier->document)
+                    <tr>
+                        <td><strong>{{ trans('admin/suppliers/table.document') }}</strong></td>
+                        <td>{{ $supplier->document }}</td>
+                    </tr>
+                    @endif
+                    @if($supplier->corporate_name)
+                    <tr>
+                        <td><strong>{{ trans('admin/suppliers/table.corporate_name') }}</strong></td>
+                        <td>{{ $supplier->corporate_name }}</td>
+                    </tr>
+                    @endif
+                    @if($supplier->internal_code)
+                    <tr>
+                        <td><strong>{{ trans('admin/suppliers/table.internal_code') }}</strong></td>
+                        <td>{{ $supplier->internal_code }}</td>
+                    </tr>
+                    @endif
+                </table>
+            </x-box>
+            @endif
         </x-page-column>
 
     </x-container>

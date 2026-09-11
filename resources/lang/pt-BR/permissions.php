@@ -412,6 +412,23 @@ return [
         'name' => 'Create Depreciation Records',
     ],
 
+    'contract-types' => [
+        'name' => 'Tipos de Contrato',
+        'note' => 'Concede acesso às classificações configuráveis de contratos.',
+    ],
+    'contract-types-view' => [
+        'name' => 'Visualizar Tipos de Contrato',
+    ],
+    'contract-types-create' => [
+        'name' => 'Criar Tipos de Contrato',
+    ],
+    'contract-types-edit' => [
+        'name' => 'Editar Tipos de Contrato',
+    ],
+    'contract-types-delete' => [
+        'name' => 'Excluir Tipos de Contrato',
+    ],
+
     'grant_all' => 'Grant all permissions for :area',
     'deny_all' => 'Deny all permissions for :area',
     'inherit_all' => 'Inherit all permissions for :area from permission groups',

@@ -502,7 +502,7 @@ class Asset extends Depreciable
      *
      * @return bool
      */
-    public function checkOut($target, $admin = null, $checkout_at = null, $expected_checkin = null, $note = null, $name = null, $location = null)
+    public function checkOut($target, $admin = null, $checkout_at = null, $expected_checkin = null, $note = null, $name = null, $location = null, bool $isBulk = false)
     {
         if (! $target) {
             return false;
@@ -546,7 +546,7 @@ class Asset extends Depreciable
             } else {
                 $checkedOutBy = auth()->user();
             }
-            event(new CheckoutableCheckedOut($this, $target, $checkedOutBy, $note, $originalValues));
+            event(new CheckoutableCheckedOut($this, $target, $checkedOutBy, $note, $originalValues, 1, $isBulk));
 
             $this->increment('checkout_counter', 1);
 

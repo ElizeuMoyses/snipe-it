@@ -10,6 +10,7 @@ use App\Models\Location;
 use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\AuditNotification;
+use App\Services\Contracts\ContractAuditService;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
@@ -475,6 +476,22 @@ trait Loggable
         $log->action_date = date('Y-m-d H:i:s');
         $log->filename = $filename;
         $log->logaction('uploaded');
+
+        // Contract files keep Actionlog for the existing file browser, while
+        // the unified contract history receives one linked, safe event.
+        app(ContractAuditService::class)->recordForSubject(
+            $this,
+            'file.uploaded',
+            [],
+            [],
+            [
+                'actionlog_id' => $log->getKey(),
+                'file_id' => $log->getKey(),
+                'filename' => $filename,
+            ],
+            null,
+            'file-uploaded:'.$log->getKey(),
+        );
 
         return $log;
     }

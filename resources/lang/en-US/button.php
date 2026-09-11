@@ -12,6 +12,8 @@ return [
     'remove' => 'Remove',
     'request' => 'Request',
     'submit' => 'Submit',
+    'apply' => 'Apply',
+    'clear' => 'Clear',
     'upload' => 'Upload',
     'select_file' => 'Select File...',
     'select_files' => 'Select Files...',

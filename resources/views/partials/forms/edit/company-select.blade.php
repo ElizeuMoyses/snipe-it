@@ -4,7 +4,7 @@
     <div class="form-group">
         <label for="{{ $fieldname }}" class="col-md-3 control-label">{{ $translated_name }}</label>
         <div class="col-md-6">
-            <select class="js-data-ajax" disabled="true" data-endpoint="companies" data-placeholder="{{ trans('general.select_company') }}" name="{{ $fieldname }}" style="width: 100%" aria-label="{{ $fieldname }}"{{ (isset($multiple) && ($multiple=='true')) ? " multiple='multiple'" : '' }}>
+            <select class="js-data-ajax" disabled="true" data-endpoint="companies" data-placeholder="{{ trans('general.select_company') }}" name="{{ $fieldname }}" style="width: 100%" aria-label="{{ $fieldname }}"{{ (isset($multiple) && ($multiple=='true')) ? " multiple='multiple'" : '' }}{{ ((isset($required) && $required === true) || (isset($item) && (Helper::checkIfRequired($item, $fieldname)))) ? ' required aria-required="true"' : '' }}>
                 @if ($company_id = old($fieldname, (isset($item)) ? $item->{$fieldname} : ''))
                     <option value="{{ $company_id }}" selected="selected" role="option" aria-selected="true"  role="option">
                         {{ (\App\Models\Company::find($company_id)) ? \App\Models\Company::find($company_id)->name : '' }}
@@ -13,6 +13,9 @@
                     {!! (!isset($multiple) || ($multiple=='false')) ? '<option value="" role="option">'.trans('general.select_company').'</option>' : ''  !!}
                 @endif
             </select>
+            @if (isset($required) && $required === true)
+                <input type="hidden" name="{{ $fieldname }}" value="{{ old($fieldname, (isset($item) ? $item->{$fieldname} : Auth::user()->company_id)) }}">
+            @endif
         </div>
     </div>
 
@@ -21,7 +24,7 @@
     <div id="{{ $fieldname }}" class="form-group{{ $errors->has($fieldname) ? ' has-error' : '' }}">
         <label for="{{ $fieldname }}" class="col-md-3 control-label">{{ $translated_name }}</label>
         <div class="col-md-8">
-            <select class="js-data-ajax" data-endpoint="companies" data-placeholder="{{ trans('general.select_company') }}" name="{{ $fieldname }}" style="width: 100%"{{ (isset($multiple) && ($multiple=='true')) ? " multiple='multiple'" : '' }}>
+            <select class="js-data-ajax" data-endpoint="companies" data-placeholder="{{ trans('general.select_company') }}" name="{{ $fieldname }}" style="width: 100%"{{ (isset($multiple) && ($multiple=='true')) ? " multiple='multiple'" : '' }}{{ ((isset($required) && $required === true) || (isset($item) && (Helper::checkIfRequired($item, $fieldname)))) ? ' required aria-required="true"' : '' }}>
                 @isset ($selected)
                     @foreach ($selected as $company_id)
                         <option value="{{ $company_id }}" selected="selected" role="option" aria-selected="true">
@@ -38,7 +41,7 @@
                 @endif
             </select>
         </div>
-        {!! $errors->first($fieldname, '<div class="col-md-8 col-md-offset-3"><span class="alert-msg"><i class="fas fa-times" aria-hidden="true"></i> :message</span></div>') !!}
+        {!! $errors->first($fieldname, '<div class="col-md-8 col-md-offset-3"><span class="alert-msg" role="alert"><i class="fas fa-times" aria-hidden="true"></i> :message</span></div>') !!}
 
     </div>
 

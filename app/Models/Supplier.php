@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Http\Traits\UniqueUndeletedTrait;
 use App\Models\Traits\HasUploads;
+use App\Rules\BrDocument;
 use App\Models\Traits\Loggable;
 use App\Models\Traits\Searchable;
 use App\Presenters\Presentable;
@@ -38,7 +39,11 @@ class Supplier extends SnipeModel
         'state' => 'min:2|max:191|nullable',
         'country' => 'min:2|max:191|nullable',
         'zip' => 'max:10|nullable',
-        'url' => 'sometimes|url|nullable|string|max:250',
+        'url'           => 'sometimes|url|nullable|string|max:250',
+        'supplier_type' => 'nullable|in:pj,pf,international',
+        'document'      => 'nullable|max:20',
+        'corporate_name' => 'nullable|max:255',
+        'internal_code' => 'nullable|max:50|unique_undeleted',
     ];
 
     /**
@@ -60,7 +65,7 @@ class Supplier extends SnipeModel
      *
      * @var array
      */
-    protected $searchableAttributes = ['name', 'notes', 'phone', 'fax', 'url', 'email', 'contact', 'address', 'address2', 'city', 'state', 'country', 'zip'];
+    protected $searchableAttributes = ['name', 'notes', 'phone', 'fax', 'url', 'email', 'contact', 'address', 'address2', 'city', 'state', 'country', 'zip', 'corporate_name', 'internal_code'];
 
     /**
      * The relations and their attributes that should be included when searching the model.
@@ -74,7 +79,27 @@ class Supplier extends SnipeModel
      *
      * @var array
      */
-    protected $fillable = ['name', 'address', 'address2', 'city', 'state', 'country', 'zip', 'phone', 'fax', 'email', 'contact', 'url', 'tag_color', 'notes'];
+    protected $fillable = ['name', 'address', 'address2', 'city', 'state', 'country', 'zip', 'phone', 'fax', 'email', 'contact', 'url', 'tag_color', 'notes', 'supplier_type', 'document', 'corporate_name', 'internal_code'];
+
+    public function setDocumentAttribute(?string $value): void
+    {
+        $this->attributes['document'] = $value ? (preg_replace('/[^A-Z0-9]/', '', strtoupper($value)) ?: null) : null;
+    }
+
+    public function setInternalCodeAttribute(?string $value): void
+    {
+        $this->attributes['internal_code'] = $value ?: null;
+    }
+
+    /**
+     * Override getRules to inject DataAwareRule instances dynamically.
+     */
+    public function getRules(): array
+    {
+        $rules = $this->rules;
+        $rules['document'] = ['nullable', 'max:20', new \App\Rules\BrDocument];
+        return $rules;
+    }
 
     public function isDeletable()
     {
@@ -85,6 +110,7 @@ class Supplier extends SnipeModel
             && (($this->accessories_count ?? $this->accessories()->count()) === 0)
             && (($this->components_count ?? $this->components()->count()) === 0)
             && (($this->maintenances_count ?? $this->maintenances()->count()) === 0)
+            && (($this->contracts_count ?? $this->contracts()->count()) === 0)
             && ($this->deleted_at == '');
     }
 
@@ -183,6 +209,14 @@ class Supplier extends SnipeModel
     public function maintenances(): Relation
     {
         return $this->hasMany(Maintenance::class, 'supplier_id');
+    }
+
+    /**
+     * Contracts associated with this supplier.
+     */
+    public function contracts()
+    {
+        return $this->hasMany(\App\Models\Contract::class, 'supplier_id');
     }
 
     /**

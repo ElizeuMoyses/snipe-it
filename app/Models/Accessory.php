@@ -408,14 +408,14 @@ class Accessory extends SnipeModel
      * @param  User  $acceptedBy
      * @param  string  $signature
      */
-    public function declinedCheckout(User $declinedBy, $signature)
+    public function declinedCheckout(User $declinedBy, $signature, int $quantity = 1)
     {
         if (is_null($accessory_checkout = AccessoryCheckout::userAssigned()->where('assigned_to', $declinedBy->id)->where('accessory_id', $this->id)->latest('created_at'))) {
             // Redirect to the accessory management page with error
             return redirect()->route('accessories.index')->with('error', trans('admin/accessories/message.does_not_exist'));
         }
 
-        $accessory_checkout->limit(1)->delete();
+        $accessory_checkout->limit(max(1, $quantity))->delete();
     }
 
     public function totalCostSum()

@@ -23,4 +23,14 @@ return [
     'view_assets_for' => 'View Assets for',
     'zip' => 'Postal Code',
 
+    // Brazilian fiscal fields
+    'br_data'                    => 'Fiscal Data',
+    'supplier_type'              => 'Supplier Type',
+    'supplier_type_pj'           => 'Legal Entity (PJ)',
+    'supplier_type_pf'           => 'Individual (PF)',
+    'supplier_type_international' => 'International',
+    'document'                   => 'Document (CNPJ/CPF)',
+    'corporate_name'             => 'Corporate Name',
+    'internal_code'              => 'Internal Code',
+
 ];

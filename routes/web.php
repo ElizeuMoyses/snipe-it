@@ -5,6 +5,9 @@ use App\Http\Controllers\ActionlogController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\ResetPasswordController;
+use App\Http\Controllers\BulkCategoriesController;
+use App\Http\Controllers\BulkManufacturersController;
+use App\Http\Controllers\BulkSuppliersController;
 use App\Http\Controllers\CategoriesController;
 use App\Http\Controllers\CompaniesController;
 use App\Http\Controllers\DashboardController;
@@ -24,6 +27,11 @@ use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StatuslabelsController;
+use App\Http\Controllers\ContractsController;
+use App\Http\Controllers\ContractAmendmentsController;
+use App\Http\Controllers\ContractInstallmentsController;
+use App\Http\Controllers\ContractStatusLabelsController;
+use App\Http\Controllers\ContractTypesController;
 use App\Http\Controllers\SuppliersController;
 use App\Http\Controllers\ViewAssetsController;
 use App\Livewire\Importer;
@@ -45,6 +53,9 @@ Route::group(['middleware' => 'auth'], function () {
     Route::resource('categories', CategoriesController::class, [
         'parameters' => ['category' => 'category_id'],
     ]);
+
+    Route::post('categories/bulk/delete', [BulkCategoriesController::class, 'destroy'])
+        ->name('categories.bulk.delete');
   
     /*
     * Labels
@@ -73,10 +84,65 @@ Route::group(['middleware' => 'auth'], function () {
 
     Route::resource('manufacturers', ManufacturersController::class);
 
+    Route::post('manufacturers/bulk/delete', [BulkManufacturersController::class, 'destroy'])
+        ->name('manufacturers.bulk.delete');
+
     /*
     * Suppliers
     */
     Route::resource('suppliers', SuppliersController::class);
+
+    Route::post('suppliers/bulk/delete', [BulkSuppliersController::class, 'destroy'])
+        ->name('suppliers.bulk.delete');
+
+    /*
+    * Contracts
+    */
+    Route::get('contracts/dashboard', [ContractsController::class, 'dashboard'])->name('contracts.dashboard');
+    Route::resource('contracts', ContractsController::class)->withTrashed(['show', 'destroy']);
+    Route::post('contracts/{contract}/restore', [ContractsController::class, 'restore'])
+        ->withTrashed()
+        ->name('contracts.restore');
+    Route::get('contracts/{contract}/history', [ContractsController::class, 'history'])->name('contracts.history');
+    Route::post('contracts/preview', [ContractsController::class, 'preview'])->name('contracts.preview');
+
+    /*
+    * Contract Installments
+    */
+    Route::post('contracts/{contract}/installments/generate', [ContractInstallmentsController::class, 'generate'])
+        ->name('contracts.installments.generate');
+    Route::resource('contracts.installments', ContractInstallmentsController::class)->except(['index', 'show']);
+    Route::get('contracts/{contract}/installments/{installment}/pay', [ContractInstallmentsController::class, 'registerPayment'])
+        ->name('contracts.installments.pay');
+    Route::post('contracts/{contract}/installments/{installment}/pay', [ContractInstallmentsController::class, 'storePayment'])
+        ->name('contracts.installments.pay.store');
+    Route::patch('contracts/{contract}/installments/{installment}/status', [ContractInstallmentsController::class, 'updateStatus'])
+        ->name('contracts.installments.status.update');
+
+    /*
+    * Contract Amendments
+    */
+    Route::resource('contracts.amendments', ContractAmendmentsController::class)->except(['index', 'show']);
+    Route::post('contracts/{contract}/amendments/preview', [ContractAmendmentsController::class, 'preview'])
+        ->name('contracts.amendments.preview');
+
+    /*
+    * Contract Asset Links
+    */
+    Route::get('contracts/{contract}/assets/selectlist', [ContractsController::class, 'assetSelectlist'])
+        ->name('contracts.assets.selectlist');
+    Route::post('contracts/{contract}/assets', [ContractsController::class, 'attachAsset'])->name('contracts.assets.attach');
+    Route::delete('contracts/{contract}/assets/{asset}', [ContractsController::class, 'detachAsset'])->name('contracts.assets.detach');
+
+    /*
+    * Contract Status Labels
+    */
+    Route::resource('contract-status-labels', ContractStatusLabelsController::class);
+
+    /*
+    * Contract Types
+    */
+    Route::resource('contract-types', ContractTypesController::class);
 
     /*
     * Depreciations
@@ -753,7 +819,7 @@ Route::group(['middleware' => 'web'], function () {
             'show'
         ]
     )->name('ui.files.show')
-        ->where(['object_type' => 'assets|maintenances|hardware|models|users|locations|accessories|consumables|licenses|components']);
+        ->where(['object_type' => 'assets|maintenances|hardware|models|users|locations|accessories|consumables|licenses|components|contracts|contract_installments|contract_amendments']);
 
     // Upload files(s)
     Route::post('{object_type}/{id}/files',
@@ -762,7 +828,7 @@ Route::group(['middleware' => 'web'], function () {
             'store'
         ]
     )->name('ui.files.store')
-        ->where(['object_type' => 'assets|maintenances|hardware|models|users|locations|accessories|consumables|licenses|components']);
+        ->where(['object_type' => 'assets|maintenances|hardware|models|users|locations|accessories|consumables|licenses|components|contracts|contract_installments|contract_amendments']);
 
     // Delete files(s)
     Route::delete('{object_type}/{id}/files/{file_id}/delete',
@@ -771,7 +837,7 @@ Route::group(['middleware' => 'web'], function () {
             'destroy'
         ]
     )->name('ui.files.destroy')
-        ->where(['object_type' => 'assets|hardware|models|users|locations|accessories|consumables|licenses|components']);
+        ->where(['object_type' => 'assets|hardware|models|users|locations|accessories|consumables|licenses|components|contracts|contract_installments|contract_amendments']);
 });
 
 

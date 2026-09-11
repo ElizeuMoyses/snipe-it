@@ -3,6 +3,7 @@
     'object',
     'object_type' => '',
     'table_header' => trans('general.files'),
+    'table_id' => null,
 ])
 
 
@@ -13,9 +14,9 @@
 @if(isset($object))
 <table
     data-columns="{{ \App\Presenters\UploadedFilesPresenter::dataTableLayout() }}"
-    data-cookie-id-table="{{ $object_type }}-FileUploadsTable"
-    data-id-table="{{ $object_type }}-FileUploadsTable"
-    id="{{ $object_type }}-FileUploadsTable"
+    data-cookie-id-table="{{ $table_id ?? $object_type . '-FileUploadsTable' }}"
+    data-id-table="{{ $table_id ?? $object_type . '-FileUploadsTable' }}"
+    id="{{ $table_id ?? $object_type . '-FileUploadsTable' }}"
     data-side-pagination="server"
     data-pagination="true"
     data-sort-order="desc"

@@ -1,10 +1,10 @@
 <!-- Modal -->
-<div class="modal fade" id="uploadFileModal" tabindex="-1" role="dialog" aria-labelledby="uploadFileModalLabel" aria-hidden="true">
+<div class="modal fade" id="{{ $modal_id ?? 'uploadFileModal' }}" tabindex="-1" role="dialog" aria-labelledby="{{ $modal_id ?? 'uploadFileModal' }}Label" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                <h4 class="modal-title" id="uploadFileModalLabel">{{ trans('general.file_upload') }}</h4>
+                <h4 class="modal-title" id="{{ $modal_id ?? 'uploadFileModal' }}Label">{{ trans('general.file_upload') }}</h4>
             </div>
             <form
                 method="POST"
@@ -21,15 +21,15 @@
 
                         <label class="btn btn-theme btn-block">
                             {{ trans('button.select_files')  }}
-                            <input type="file" name="file[]" multiple class="js-uploadFile" id="uploadFile" data-maxsize="{{ Helper::file_upload_max_size() }}" accept="{{ config('filesystems.allowed_upload_mimetypes') }}" style="display:none" required>
+                            <input type="file" name="file[]" multiple class="js-uploadFile" id="{{ isset($modal_id) ? $modal_id . '-file' : 'uploadFile' }}" data-maxsize="{{ Helper::file_upload_max_size() }}" accept="{{ config('filesystems.allowed_upload_mimetypes') }}" style="display:none" required>
                         </label>
 
                     </div>
                     <div class="col-md-12">
-                        <span id="uploadFile-info"></span>
+                        <span id="{{ isset($modal_id) ? $modal_id . '-file' : 'uploadFile' }}-info"></span>
                     </div>
                     <div class="col-md-12">
-                        <p class="help-block" id="uploadFile-status">{{ trans('general.upload_filetypes_help', ['allowed_filetypes' => config('filesystems.allowed_upload_extensions'), 'size' => Helper::file_upload_max_size_readable()]) }}</p>
+                        <p class="help-block" id="{{ isset($modal_id) ? $modal_id . '-file' : 'uploadFile' }}-status">{{ trans('general.upload_filetypes_help', ['allowed_filetypes' => config('filesystems.allowed_upload_extensions'), 'size' => Helper::file_upload_max_size_readable()]) }}</p>
                     </div>
 
                     <div class="col-md-12">

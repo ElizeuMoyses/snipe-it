@@ -7,6 +7,7 @@ use App\Exceptions\ItemStillHasAssets;
 use App\Exceptions\ItemStillHasComponents;
 use App\Exceptions\ItemStillHasConsumables;
 use App\Exceptions\ItemStillHasLicenses;
+use App\Exceptions\ItemStillHasContracts;
 use App\Exceptions\ItemStillHasMaintenances;
 use App\Models\Supplier;
 use Illuminate\Support\Facades\Log;
@@ -21,6 +22,7 @@ class DestroySupplierAction
      * @throws ItemStillHasAccessories
      * @throws ItemStillHasConsumables
      * @throws ItemStillHasComponents
+     * @throws ItemStillHasContracts
      */
     public static function run(Supplier $supplier): bool
     {
@@ -31,6 +33,7 @@ class DestroySupplierAction
             'accessories as accessories_count',
             'consumables as consumables_count',
             'components as components_count',
+            'contracts as contracts_count',
         ]);
         if ($supplier->assets_count > 0) {
             throw new ItemStillHasAssets($supplier);
@@ -54,6 +57,10 @@ class DestroySupplierAction
 
         if ($supplier->components_count > 0) {
             throw new ItemStillHasComponents($supplier);
+        }
+
+        if ($supplier->contracts_count > 0) {
+            throw new ItemStillHasContracts($supplier);
         }
 
         if ($supplier->image) {

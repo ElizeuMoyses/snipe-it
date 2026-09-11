@@ -23,4 +23,14 @@ return [
     'view_assets_for' => 'Ver Bens para',
     'zip' => 'Código Postal',
 
+    // Campos fiscais brasileiros
+    'br_data'                    => 'Dados Fiscais',
+    'supplier_type'              => 'Tipo de Pessoa',
+    'supplier_type_pj'           => 'Pessoa Jurídica',
+    'supplier_type_pf'           => 'Pessoa Física',
+    'supplier_type_international' => 'Internacional',
+    'document'                   => 'Documento (CNPJ/CPF)',
+    'corporate_name'             => 'Razão Social',
+    'internal_code'              => 'Código Interno',
+
 ];

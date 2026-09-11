@@ -385,6 +385,52 @@ return [
         ],
     ],
 
+    'Contracts' => [
+        [
+            'permission' => 'contracts.view',
+            'display' => true,
+        ],
+        [
+            'permission' => 'contracts.create',
+            'display' => true,
+        ],
+        [
+            'permission' => 'contracts.edit',
+            'display' => true,
+        ],
+        [
+            'permission' => 'contracts.delete',
+            'display' => true,
+        ],
+        [
+            'permission' => 'contracts.installments',
+            'display' => true,
+        ],
+        [
+            'permission' => 'contracts.files',
+            'display' => true,
+        ],
+    ],
+
+    'Contract Types' => [
+        [
+            'permission' => 'contract_types.view',
+            'display' => true,
+        ],
+        [
+            'permission' => 'contract_types.create',
+            'display' => true,
+        ],
+        [
+            'permission' => 'contract_types.edit',
+            'display' => true,
+        ],
+        [
+            'permission' => 'contract_types.delete',
+            'display' => true,
+        ],
+    ],
+
     'Manufacturers' => [
         [
             'permission' => 'manufacturers.view',
