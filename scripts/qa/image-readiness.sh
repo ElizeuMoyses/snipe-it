@@ -3,8 +3,15 @@ set -euo pipefail
 # Only committed source and synthetic data enter these builds.
 source_root=$(pwd)
 revision=$(git rev-parse HEAD)
-scratch=$(mktemp -d)
-trap 'rm -rf "$scratch"' EXIT
+scratch_base=$(cd "${TMPDIR:-/tmp}" && pwd -P)
+scratch=$(mktemp -d "$scratch_base/snipeit-image.XXXXXXXX")
+cleanup_context() {
+    case "$scratch" in
+        "$scratch_base"/snipeit-image.*) rm -rf -- "$scratch" ;;
+        *) echo 'Refusing cleanup outside the image-test temporary directory.' >&2 ;;
+    esac
+}
+trap cleanup_context EXIT
 git archive HEAD | tar -x -C "$scratch"
 mkdir -p "$scratch"/{.local-production,.local-validation,storage/private_uploads,public/uploads,storage/app/backups,storage/logs,bootstrap/cache}
 for path in .env .env.testing .local-production/security-canary.sql .local-validation/security-canary.json storage/private_uploads/security-canary.txt public/uploads/security-canary.txt storage/app/backups/security-canary.zip storage/logs/security-canary.log storage/security-canary.key bootstrap/cache/security-canary.php security-canary.sql.gz; do

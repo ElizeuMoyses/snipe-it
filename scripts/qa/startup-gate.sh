@@ -1,8 +1,15 @@
 #!/bin/sh
 set -eu
 repo=$(pwd)
-scratch=$(mktemp -d)
-trap 'rm -rf "$scratch"' EXIT
+scratch_base=$(cd "${TMPDIR:-/tmp}" && pwd -P)
+scratch=$(mktemp -d "$scratch_base/snipeit-startup.XXXXXXXX")
+cleanup() {
+    case "$scratch" in
+        "$scratch_base"/snipeit-startup.*) rm -rf -- "$scratch" ;;
+        *) echo 'Refusing cleanup outside the startup-test temporary directory.' >&2 ;;
+    esac
+}
+trap cleanup EXIT
 mkdir "$scratch/bin"
 cat > "$scratch/bin/php" <<'EOF'
 #!/bin/sh
