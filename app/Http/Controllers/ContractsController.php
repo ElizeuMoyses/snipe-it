@@ -310,6 +310,27 @@ class ContractsController extends Controller
         $contract->load(['supplier', 'company', 'statusLabel', 'adminuser', 'uploads.adminuser', 'amendments.uploads.adminuser', 'contractType', 'installments.statusLabel', 'installments.adminuser', 'installments.uploads.adminuser', 'amendments.adminuser', 'assets.model', 'assets.assetstatus']);
         $auditHistoryCount = app(ContractAuditService::class)->historyFor($contract, [], 0, 1)['total'];
 
+        $selectedAssetIds = [];
+        $oldAssetIds = old('asset_ids', []);
+        if (Gate::allows('view', Asset::class) && is_array($oldAssetIds)) {
+            $ids = collect($oldAssetIds)
+                ->filter(fn ($id) => is_numeric($id) && (int) $id > 0)
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->take(500)
+                ->values();
+
+            if ($ids->isNotEmpty()) {
+                $selectedAssets = Asset::query()->whereIn('assets.id', $ids);
+                if ($contract->company_id === null) {
+                    $selectedAssets->whereNull('assets.company_id');
+                } else {
+                    $selectedAssets->where('assets.company_id', $contract->company_id);
+                }
+                $selectedAssetIds = $selectedAssets->pluck('assets.id')->map(fn ($id) => (int) $id)->all();
+            }
+        }
+
         $contractPreview = null;
         try { $contractPreview = $contract->installmentPreview(); } catch (\InvalidArgumentException) {}
         $financialSummary = (new ContractFinancialSummary)->summarize($contract);
@@ -318,7 +339,7 @@ class ContractsController extends Controller
         $amendmentUploadsCount = $contract->amendments->sum(fn ($amendment) => $amendment->uploads->count());
         $totalUploadsCount = $contractUploadCount + $installmentUploadsCount + $amendmentUploadsCount;
 
-        return view('contracts/view', compact('contract', 'auditHistoryCount', 'contractPreview', 'financialSummary', 'contractUploadCount', 'installmentUploadsCount', 'amendmentUploadsCount', 'totalUploadsCount'));
+        return view('contracts/view', compact('contract', 'auditHistoryCount', 'contractPreview', 'financialSummary', 'contractUploadCount', 'installmentUploadsCount', 'amendmentUploadsCount', 'totalUploadsCount', 'selectedAssetIds'));
     }
 
     /**
@@ -432,7 +453,11 @@ class ContractsController extends Controller
 
         $this->authorize('view', Asset::class);
 
-        $validator = Validator::make($request->all(), [
+        $bulk = $request->has('asset_ids');
+        $validator = Validator::make($request->all(), $bulk ? [
+            'asset_ids' => ['required', 'array', 'min:1', 'max:500'],
+            'asset_ids.*' => ['required', 'integer', 'min:1', 'distinct'],
+        ] : [
             'asset_id' => ['required', 'integer', 'min:1'],
         ]);
 
@@ -442,17 +467,55 @@ class ContractsController extends Controller
                 ->withInput();
         }
 
-        $asset = Asset::query()->whereKey((int) $request->input('asset_id'))->first();
-        if (! $asset) {
+        $assetIds = $bulk
+            ? array_map('intval', $request->input('asset_ids'))
+            : [(int) $request->input('asset_id')];
+        sort($assetIds, SORT_NUMERIC);
+        $assets = Asset::query()
+            ->whereIn('assets.id', $assetIds)
+            ->get()
+            ->keyBy('id');
+
+        if ($assets->count() !== count($assetIds)) {
             return $this->assetErrorRedirect($contract, trans('admin/contracts/message.asset.not_available'));
         }
 
-        $this->authorize('view', $asset);
+        foreach ($assetIds as $assetId) {
+            $this->authorize('view', $assets->get($assetId));
+        }
+
+        if ($bulk && DB::table('contract_asset')
+            ->where('contract_id', $contract->getKey())
+            ->whereIn('asset_id', $assetIds)
+            ->exists()) {
+            return $this->assetErrorRedirect($contract, trans('admin/contracts/bulk_assets.attach.already_linked'));
+        }
 
         try {
-            $result = $this->assetLinkService->attach($contract, $asset->id);
+            $result = DB::transaction(function () use ($contract, $assetIds, $bulk): string {
+                foreach ($assetIds as $assetId) {
+                    $result = $this->assetLinkService->attach($contract, $assetId);
+
+                    if ($result === ContractAssetLinkService::ALREADY_LINKED && $bulk) {
+                        throw new ContractAssetLinkException(ContractAssetLinkException::ASSET_NOT_AVAILABLE);
+                    }
+                }
+
+                return $result;
+            });
         } catch (ContractAssetLinkException $exception) {
             return $this->assetErrorRedirect($contract, $this->assetLinkErrorMessage($exception));
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return $this->assetErrorRedirect($contract, $bulk
+                ? trans('admin/contracts/bulk_assets.attach.error')
+                : trans('admin/contracts/message.asset.attach.error'));
+        }
+
+        if ($bulk) {
+            return $this->assetRedirect($contract)
+                ->with('success', trans('admin/contracts/bulk_assets.attach.success', ['count' => count($assetIds)]));
         }
 
         if ($result === ContractAssetLinkService::ALREADY_LINKED) {

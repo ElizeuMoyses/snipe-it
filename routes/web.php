@@ -111,6 +111,9 @@ Route::group(['middleware' => 'auth'], function () {
     */
     Route::post('contracts/{contract}/installments/generate', [ContractInstallmentsController::class, 'generate'])
         ->name('contracts.installments.generate');
+    Route::post('contracts/{contract}/installments/bulk-delete', [ContractInstallmentsController::class, 'bulkDestroy'])->name('contracts.installments.bulk-delete');
+    Route::post('contracts/{contract}/installments/{installment}/reopen', [ContractInstallmentsController::class, 'reopen'])->name('contracts.installments.reopen');
+    Route::get('contracts/{contract}/installments/{installment}/reopen', [ContractInstallmentsController::class, 'showReopen'])->name('contracts.installments.reopen.form');
     Route::resource('contracts.installments', ContractInstallmentsController::class)->except(['index', 'show']);
     Route::get('contracts/{contract}/installments/{installment}/pay', [ContractInstallmentsController::class, 'registerPayment'])
         ->name('contracts.installments.pay');

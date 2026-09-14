@@ -6,6 +6,10 @@
 @stop
 
 @section('content')
+@php
+    $isBrazilian = in_array(app()->getLocale(), ['pt-BR', 'pt_BR'], true);
+    $paymentDateFormat = $isBrazilian ? 'd/m/Y' : 'Y-m-d';
+@endphp
 
 <div class="row">
     <div class="col-md-8 col-md-offset-2">
@@ -27,7 +31,7 @@
                     </div>
                     <div class="col-md-4">
                         <strong>{{ trans('admin/contracts/general.due_date') }}:</strong>
-                        {{ $installment->due_date ? $installment->due_date->format('Y-m-d') : '—' }}
+                        {{ $installment->due_date ? $installment->due_date->format($paymentDateFormat) : '—' }}
                     </div>
                 </div>
                 <div class="row" style="margin-top: 10px;">
@@ -76,9 +80,9 @@
                     <div class="form-group {{ $errors->has('payment_date') ? ' has-error' : '' }}">
                         <label for="payment_date" class="col-md-3 control-label">{{ trans('admin/contracts/general.payment_date') }}</label>
                         <div class="col-md-7 required">
-                            <div class="input-group date" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-autoclose="true">
-                                <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="payment_date" id="payment_date"
-                                       value="{{ old('payment_date', date('Y-m-d')) }}">
+                            <div class="input-group date" data-provide="datepicker" data-date-format="{{ $isBrazilian ? 'dd/mm/yyyy' : 'yyyy-mm-dd' }}" data-autoclose="true">
+                                <input type="text" class="form-control" placeholder="{{ $isBrazilian ? 'dd/mm/aaaa' : trans('general.select_date') }}" name="payment_date" id="payment_date"
+                                       value="{{ old('payment_date', date($paymentDateFormat)) }}">
                                 <span class="input-group-addon"><x-icon type="calendar" /></span>
                             </div>
                             {!! $errors->first('payment_date', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}

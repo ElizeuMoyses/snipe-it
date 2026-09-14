@@ -17,6 +17,15 @@
     );
 @endphp
 @if ($contract->installments->count() > 0)
+    @can('installments', $contract)
+        <form method="POST" id="installmentBulkDelete" action="{{ route('contracts.installments.bulk-delete', $contract->id) }}">
+            @csrf
+            <span id="installmentBulkIds"></span>
+            <label><input type="checkbox" id="installmentSelectAll"> {{ trans('admin/contracts/installment_ux.select_all') }}</label>
+            <button type="submit" class="btn btn-danger btn-sm" id="installmentBulkSubmit" disabled>{{ trans('admin/contracts/installment_ux.bulk_delete') }} (<span id="installmentSelectedCount">0</span>)</button>
+            @error('installment_ids')<p class="text-danger" role="alert">{{ $message }}</p>@enderror
+        </form>
+    @endcan
     <div class="table-responsive">
         <table
             data-cookie="true"
@@ -46,7 +55,14 @@
             <tbody>
                 @foreach ($contract->installments->sortBy('installment_number') as $installment)
                     <tr>
-                        <td>{{ $installment->installment_number }}</td>
+                        <td>
+                            @can('installments', $contract)
+                                @if(! $installment->statusLabel?->isTerminal() && $installment->paid_value === null && $installment->payment_date === null)
+                                    <input type="checkbox" class="installment-bulk-item" value="{{ $installment->id }}" aria-label="{{ trans('admin/contracts/installment_ux.select', ['number' => $installment->installment_number]) }}">
+                                @endif
+                            @endcan
+                            {{ $installment->installment_number }}
+                        </td>
                         <td>{{ $installment->reference_date ? $installment->reference_date->format('m/Y') : '—' }}</td>
                         <td>{{ $formatInstallmentDate($installment->due_date) }}</td>
                         <td>{{ $formatInstallmentMoney($installment->expected_value) }}</td>
@@ -71,6 +87,10 @@
                                         $currentMeta = $installment->statusLabel?->meta_type;
                                         $isTerminal = $installment->statusLabel?->isTerminal();
                                     @endphp
+
+                                    @if($currentMeta === 'paid' && ! in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled']))
+                                        <a class="btn btn-sm btn-warning" href="{{ route('contracts.installments.reopen.form', [$contract->id, $installment->id]) }}">{{ trans('admin/contracts/installment_ux.reopen') }}</a>
+                                    @endif
 
                                     @if(in_array($currentMeta, ['pending', 'overdue']))
                                         <a href="{{ route('contracts.installments.pay', [$contract->id, $installment->id]) }}"
@@ -185,6 +205,27 @@
         </div>
         <script nonce="{{ csrf_token() }}">
             document.addEventListener('DOMContentLoaded', function () {
+                var eligibleIds = Array.from(new Set($('#contractInstallmentsTable .installment-bulk-item').map(function () { return this.value; }).get()));
+                var selectedIds = new Set();
+                var updateBulk = function () {
+                    var count = selectedIds.size;
+                    $('#contractInstallmentsTable .installment-bulk-item').each(function () { this.checked = selectedIds.has(this.value); });
+                    var inputs = $('#installmentBulkIds').empty();
+                    selectedIds.forEach(function (id) { $('<input>', {type: 'hidden', name: 'installment_ids[]', value: id}).appendTo(inputs); });
+                    $('#installmentSelectedCount').text(count);
+                    $('#installmentBulkSubmit').prop('disabled', count === 0);
+                    $('#installmentSelectAll').prop('checked', count > 0 && count === eligibleIds.length).prop('indeterminate', count > 0 && count < eligibleIds.length);
+                };
+                $('#installmentSelectAll').on('change', function () { selectedIds = new Set(this.checked ? eligibleIds : []); updateBulk(); });
+                $(document).on('change', '#contractInstallmentsTable .installment-bulk-item', function () {
+                    if (this.checked) selectedIds.add(this.value); else selectedIds.delete(this.value);
+                    updateBulk();
+                });
+                $('#contractInstallmentsTable').on('post-body.bs.table', updateBulk);
+                $('#installmentBulkDelete').on('submit', function (event) {
+                    var count = selectedIds.size;
+                    if (!count || !window.confirm(@json(trans('admin/contracts/installment_ux.bulk_confirm')) + count)) event.preventDefault();
+                });
                 var modal = $('#installmentStatusModal').appendTo(document.body);
                 var form = $('#installmentStatusForm');
                 var select = $('#installmentNewStatus');

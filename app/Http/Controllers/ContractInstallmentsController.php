@@ -12,6 +12,81 @@ use Illuminate\Http\Request;
 
 class ContractInstallmentsController extends Controller
 {
+    public function bulkDestroy(Request $request, Contract $contract): RedirectResponse
+    {
+        $this->authorize('installments', $contract);
+        $data = $request->validate([
+            'installment_ids' => 'required|array|min:1|max:500',
+            'installment_ids.*' => 'required|integer|min:1|distinct',
+        ]);
+        return $contract->getConnection()->transaction(function () use ($data, $contract) {
+            $contract = Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
+            $this->authorize('installments', $contract);
+            $items = $contract->installments()->whereIn('id', $data['installment_ids'])->orderBy('id')->lockForUpdate()->get();
+            abort_unless($items->count() === count($data['installment_ids']), 404);
+            foreach ($items as $item) {
+                if ($item->statusLabel?->isTerminal() || $item->paid_value !== null || $item->payment_date !== null) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'installment_ids' => trans('admin/contracts/installment_ux.bulk_locked'),
+                    ]);
+                }
+            }
+            $audit = app(ContractAuditService::class);
+            foreach ($items as $item) {
+                $before = $audit->snapshot($item);
+                if (! $item->delete()) {
+                    throw new \RuntimeException('Installment deletion failed.');
+                }
+                $audit->record($contract, 'installment.deleted', $item, $before, $audit->snapshot($item), ['operation' => 'bulk_delete']);
+            }
+            return redirect()->route('contracts.show', $contract->id)->withFragment('installments')
+                ->with('success', trans('admin/contracts/installment_ux.bulk_success', ['count' => $items->count()]));
+        });
+    }
+
+    public function showReopen(Contract $contract, $installmentId): View|RedirectResponse
+    {
+        $this->authorize('installments', $contract);
+        $item = $contract->installments()->findOrFail($installmentId);
+        if ($item->statusLabel?->meta_type !== 'paid' || in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled'])) {
+            return redirect()->route('contracts.show', $contract->id)->with('error', trans('admin/contracts/installment_ux.reopen_locked'));
+        }
+        return view('contracts.installments.reopen', ['contract' => $contract, 'installment' => $item]);
+    }
+
+    public function reopen(Request $request, Contract $contract, $installmentId): RedirectResponse
+    {
+        $this->authorize('installments', $contract);
+        $data = $request->validate(['reason' => 'required|string|max:1000']);
+        return $contract->getConnection()->transaction(function () use ($data, $contract, $installmentId) {
+            $contract = Contract::whereKey($contract->id)->lockForUpdate()->firstOrFail();
+            $this->authorize('installments', $contract);
+            $item = $contract->installments()->lockForUpdate()->findOrFail($installmentId);
+            if ($item->statusLabel?->meta_type !== 'paid' || in_array($contract->statusLabel?->meta_type, ['expired', 'cancelled'])) {
+                return redirect()->back()->with('error', trans('admin/contracts/installment_ux.reopen_locked'));
+            }
+            $pending = ContractStatusLabel::defaultForMetaType('installment', 'pending');
+            if (! $pending) {
+                return redirect()->back()->with('error', trans('admin/contracts/message.installment.create.missing_default_status'));
+            }
+            $audit = app(ContractAuditService::class);
+            $before = $audit->snapshot($item);
+            $item->paid_value = null;
+            $item->payment_date = null;
+            $item->payment_method = null;
+            $item->status_label_id = $pending->id;
+            if (! $item->save()) {
+                throw \Illuminate\Validation\ValidationException::withMessages($item->getErrors()->toArray());
+            }
+            $audit->record($contract, 'installment.status_changed', $item, $before, $audit->snapshot($item), [
+                'operation' => 'payment_reopened', 'reason' => $data['reason'],
+                'status_before' => 'paid', 'status_after' => 'pending',
+            ]);
+            return redirect()->route('contracts.show', $contract->id)->withFragment('installments')
+                ->with('success', trans('admin/contracts/installment_ux.reopen_success'));
+        });
+    }
+
     /**
      * Show form for creating a new installment.
      */
@@ -260,9 +335,18 @@ class ContractInstallmentsController extends Controller
                     ->with('error', trans('admin/contracts/message.installment.payment.already_terminal'));
             }
 
+            // Browser dates are localized; keep canonical ISO requests compatible.
+            $paymentDate = $request->input('payment_date');
+            if (is_string($paymentDate) && preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $paymentDate)) {
+                $parsed = \DateTimeImmutable::createFromFormat('!d/m/Y', $paymentDate);
+                if ($parsed && $parsed->format('d/m/Y') === $paymentDate) {
+                    $request->merge(['payment_date' => $parsed->format('Y-m-d')]);
+                }
+            }
+
             $request->validate([
                 'paid_value'       => 'required|numeric|min:0.01',
-                'payment_date'     => 'required|date',
+                'payment_date'     => 'required|date_format:Y-m-d',
                 'payment_method'   => 'nullable|string|max:100',
                 'ticket_reference' => 'nullable|string|max:100',
                 'notes'            => 'nullable|string',

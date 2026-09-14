@@ -108,6 +108,13 @@
                             </a>
 
                             @if ($amendment->hasAppliedEffects())
+                                <a href="{{ route('contracts.amendments.create', ['contract' => $contract->id, 'rectifies_amendment_id' => $amendment->id]) }}"
+                                   class="btn btn-info btn-sm"
+                                   title="{{ trans('admin/contracts/amendment_ux.rectify_action') }}"
+                                   aria-label="{{ trans('admin/contracts/amendment_ux.rectify_action') }}">
+                                    <i class="fas fa-undo" aria-hidden="true"></i>
+                                    <span class="visible-xs">{{ trans('admin/contracts/amendment_ux.rectify_action') }}</span>
+                                </a>
                                 <span class="btn btn-default btn-sm disabled"
                                       title="{{ trans('admin/contracts/message.amendment.delete.applied') }}"
                                       aria-label="{{ trans('admin/contracts/message.amendment.delete.applied') }}">
