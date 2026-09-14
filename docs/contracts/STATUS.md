@@ -2,10 +2,21 @@
 
 ## Correções de usabilidade — 14/09/2026
 
-Nova etapa nas issues #22–#26, baseada em `production` após o merge do PR #7.
+Etapa nas issues #22–#26 e #28, baseada em `production` após o merge do PR #7.
 Consulte [USABILITY-2026-09-14.md](USABILITY-2026-09-14.md) para comportamento,
 validação e limites. O histórico abaixo descreve a release anterior; não é o
-status das correções atuais. Esta etapa não autoriza merge nem deploy.
+status das correções atuais. O responsável autorizou a publicação em 14/09/2026.
+
+PR #27 integrado em `6d0f48011c`; código `eb25d6b98f` publicado após backup e
+restauração isolada com a imagem exata do banco. Foram preservadas 61 tabelas,
+1.220 arquivos, chaves e configuração. Sem novas migrations (449 existentes).
+Foram aprovadas 28 verificações de leitura em cache frio/quente e HTTPS/login.
+A CI completa do código final passou; aplicação, banco e backup retornaram a 1/1.
+
+O acompanhamento encontrou CRLF nos executáveis `artisan` e no listener do
+Supervisor, também presente na imagem anterior. A correção operacional da issue
+#29 fixa LF e amplia o smoke da imagem para execução direta e processo do listener.
+Seu rollout deve preservar o mesmo conjunto de dados e manter backup atualizado.
 
 **Decisão atual: NO-GO enquanto os critérios abaixo estiverem pendentes.**
 Atualizado em 2026-09-10. Etapa autorizada: implementação e validação local/CI,
