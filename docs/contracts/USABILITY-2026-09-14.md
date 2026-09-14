@@ -1,6 +1,6 @@
 # Contratos — correções de usabilidade
 
-Base: `d481e8a280` (`production`). Issues: #22, #23, #24, #25 e #26.
+Base: `d481e8a280` (`production`). Issues: #22–#26 e #28. PR draft: #27.
 Escopo: correção, réplica local e validação; sem merge ou deploy.
 
 ## Comportamento
@@ -22,6 +22,8 @@ Escopo: correção, réplica local e validação; sem merge ou deploy.
   após erro. Lotes de até 500 IDs distintos usam transação, mesma empresa,
   autorização individual e auditoria. Vínculos existentes são recusados sem
   alterações parciais. A entrada escalar anterior continua compatível.
+- O rodapé das parcelas formata os totais em centavos diretamente, corrigindo a
+  multiplicação visual por 100 encontrada na validação. Valores no banco preservados.
 
 ## Evidência e limites
 
@@ -30,13 +32,25 @@ A seleção em massa também falhou no navegador antes da correção: a tabela
 substituía os checkboxes, deixando a seleção nos elementos removidos do DOM.
 Após o ajuste, quantidade visível e quantidade enviada coincidiram.
 
-A suíte de contratos passou em SQLite e MariaDB: **159 testes / 785 asserções**
-antes dos ajustes finais de apresentação e da página dedicada de correção.
-O delta final e a regressão geral devem ser registrados no PR antes do aceite.
-Os testes usam banco descartável, nunca a réplica de trabalho.
+A suíte final de contratos passou em SQLite e MariaDB: **160 testes / 790 asserções**
+em cada banco, incluindo a página dedicada de correção e o teste vermelho/verde do
+rodapé. Regressão geral local MariaDB: **1.643 testes / 5.909 asserções**, sem erros
+ou falhas, 4 ignorados e 30 incompletos legados. A regressão geral antecede o delta
+final de apresentação; esse delta está incluído na suíte final de contratos.
+Os testes usam banco descartável, nunca a réplica de trabalho. O CI completo de
+`98e3ecea53` passou; conferir o CI do commit posterior com o ajuste de rodapé.
+
+HTTP autenticado na réplica confirmou reabertura com motivo, novo pagamento com
+data brasileira, exclusão de duas parcelas sintéticas e vínculo de dois ativos.
+SQL confirmou dois soft-deletes, dois vínculos e eventos de auditoria, incluindo
+o pagamento original e sua correção. A retificação abriu com referência selecionada.
+No navegador: seleção em massa, data, página de correção, atalho de retificação,
+seleção de dois ativos e confirmação da quantidade foram observados. O envio final
+da confirmação de ativos ficou limitado pela ferramenta do navegador; a gravação
+do lote foi validada separadamente por HTTP e SQL. Não confundir esses escopos.
 
 A réplica foi restaurada de uma captura nova, com verificação de integridade,
-em banco independente. E-mails/integracões foram desativados e a aplicação usa
+em banco independente. E-mails/integrações foram desativados e a aplicação usa
 rede interna. Somente o gateway local é publicado. Dados, credenciais e evidências
 da réplica não fazem parte do repositório público. Os anexos não foram recapturados
 para esta validação de contratos.
@@ -57,3 +71,5 @@ Chaves OAuth descartáveis foram geradas para os testes de API.
 6. Revisar isolamento/permissões, testes automatizados e CI do SHA final.
 
 O aceite funcional permanece separado de aprovação técnica e autorização de deploy.
+Issues estão na milestone 2. A inclusão no Project ficou pendente por falta do
+escopo `read:project` na credencial do GitHub, sem alteração da autenticação.

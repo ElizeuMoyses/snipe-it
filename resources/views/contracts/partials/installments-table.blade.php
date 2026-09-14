@@ -173,8 +173,8 @@
             <tfoot>
                 <tr>
                     <td colspan="3"><strong>{{ trans('admin/contracts/general.totals') }}</strong></td>
-                    <td><strong>{{ $formatInstallmentMoney($financialSummary['planned_total_cents']) }}</strong></td>
-                    <td><strong>{{ $financialSummary['paid_count'] > 0 ? $formatInstallmentMoney($financialSummary['paid_total_cents']) : '—' }}</strong></td>
+                    <td><strong>{{ \App\Services\ContractFinancialSummary::formatCents($financialSummary['planned_total_cents'], $contractCurrency) }}</strong></td>
+                    <td><strong>{{ $financialSummary['paid_count'] > 0 ? \App\Services\ContractFinancialSummary::formatCents($financialSummary['paid_total_cents'], $contractCurrency) : '—' }}</strong></td>
                     <td colspan="5"></td>
                 </tr>
             </tfoot>

@@ -10,7 +10,7 @@
     <thead>
         <tr>
             <th>{{ trans('admin/hardware/table.asset_tag') }}</th>
-            <th>{{ trans('admin/hardware/table.name') }}</th>
+            <th>{{ trans('general.name') }}</th>
             <th>{{ trans('admin/hardware/form.model') }}</th>
             <th>{{ trans('admin/hardware/table.serial') }}</th>
             <th>{{ trans('admin/hardware/table.status') }}</th>
