@@ -41,7 +41,9 @@ docker exec -i -w /var/www/html "$app" php < scripts/qa/image-fixture.php
 test "$(docker exec "$app" curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/login)" = 200
 docker exec -w /var/www/html "$app" php artisan migrate:status --no-ansi
 docker exec -w /var/www/html "$app" php artisan route:list --path=contracts --except-vendor --no-ansi
-docker exec -w /var/www/html "$app" php artisan schedule:list --no-ansi
+docker exec -u docker -w /var/www/html "$app" ./artisan schedule:list --no-ansi
+# These executable shebangs must survive archives created on Windows too.
+docker exec "$app" pgrep -f '^python3 /usr/bin/supervisor-exit-event-listener$'
 docker exec -u docker "$app" sh -c 'for dir in contracts contract_amendments contract_installments; do test -w "/var/www/html/storage/private_uploads/$dir" || exit 1; done'
 docker exec "$app" sh -c 'test -f /var/www/html/vendor/autoload.php && test -s /var/www/html/public/js/dist/all.js && test ! -e /var/www/html/.local-production && test ! -e /var/www/html/.local-validation'
 echo 'Image smoke passed: rejected DB fails startup; synthetic migration, HTTP, routes, scheduler and upload permissions verified.'
