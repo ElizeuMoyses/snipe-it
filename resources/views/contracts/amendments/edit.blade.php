@@ -40,6 +40,23 @@
                 <div class="box-body">
 
                     <p class="alert alert-info">{{ trans('admin/contracts/general.immediate_effects_help') }}</p>
+                    @if ($item->id)
+                        <div class="alert alert-warning" role="note">
+                            <strong>{{ trans('admin/contracts/amendment_ux.edit_title') }}</strong>
+                            {{ trans('admin/contracts/amendment_ux.edit_help') }}
+                            @if ($item->hasAppliedEffects())
+                                <a class="btn btn-default btn-sm" href="{{ route('contracts.amendments.create', ['contract' => $contract->id, 'rectifies_amendment_id' => $item->id]) }}">
+                                    <i class="fas fa-undo" aria-hidden="true"></i>
+                                    {{ trans('admin/contracts/amendment_ux.rectify_action') }}
+                                </a>
+                            @endif
+                        </div>
+                    @elseif (! empty($rectifiesAmendment))
+                        <div class="alert alert-warning" role="note">
+                            <strong>{{ trans('admin/contracts/amendment_ux.rectification_title') }}</strong>
+                            {{ trans('admin/contracts/amendment_ux.rectification_help', ['id' => $rectifiesAmendment->id]) }}
+                        </div>
+                    @endif
                     <div class="form-group">
                         <label for="rectifies_amendment_id" class="col-md-3 control-label">{{ trans('admin/contracts/general.rectification_of') }}</label>
                         <div class="col-md-7">
@@ -47,7 +64,7 @@
                                 <option value="">{{ trans('admin/contracts/general.rectification_none') }}</option>
                                 @foreach($contract->amendments()->orderByDesc('id')->get() as $previousAmendment)
                                     @if($previousAmendment->id !== $item->id)
-                                        <option value="{{ $previousAmendment->id }}" {{ (string) old('rectifies_amendment_id', $item->rectifies_amendment_id) === (string) $previousAmendment->id ? 'selected' : '' }}>#{{ $previousAmendment->id }} — {{ \Illuminate\Support\Str::limit($previousAmendment->description, 70) }}</option>
+                                        <option value="{{ $previousAmendment->id }}" {{ (string) old('rectifies_amendment_id', $item->rectifies_amendment_id ?? ($rectifiesAmendment->id ?? null)) === (string) $previousAmendment->id ? 'selected' : '' }}>#{{ $previousAmendment->id }} — {{ \Illuminate\Support\Str::limit($previousAmendment->description, 70) }}</option>
                                     @endif
                                 @endforeach
                             </select>
@@ -101,6 +118,9 @@
                             <input type="date" name="effective_date" id="effective_date" class="form-control"
                                    value="{{ old('effective_date', $item->effective_date?->format('Y-m-d')) }}"
                                    {{ $item->id ? 'readonly' : '' }}>
+                            @if ($item->id)
+                                <span class="help-block">{{ trans('admin/contracts/amendment_ux.date_immutable_help') }}</span>
+                            @endif
                             {!! $errors->first('effective_date', '<span class="alert-msg">:message</span>') !!}
                             <span id="preview-error-effective_date" class="alert-msg preview-field-error" role="alert"></span>
                         </div>

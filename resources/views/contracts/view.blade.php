@@ -186,12 +186,15 @@
                                                 @csrf
                                                 @include('partials.forms.edit.asset-select', [
                                                     'translated_name' => trans('admin/contracts/general.select_asset'),
-                                                    'fieldname' => 'asset_id',
+                                                    'fieldname' => 'asset_ids[]',
                                                     'select_id' => 'contract_asset_id',
                                                     'asset_selector_div_id' => 'contract-asset-selector',
                                                     'company_id' => $contract->company_id,
                                                     'ajax_url' => route('contracts.assets.selectlist', $contract->id),
                                                     'contract_asset_selector' => true,
+                                                    'asset_ids' => $selectedAssetIds,
+                                                    'multiple' => true,
+                                                    'unselect' => true,
                                                     'status_id' => 'contract-asset-selector-status',
                                                     'describedby' => 'contract-asset-selector-help',
                                                     'placeholder' => trans('admin/contracts/general.select_asset'),
@@ -200,11 +203,15 @@
                                                 <div class="form-group">
                                                     <div class="col-md-7 col-md-offset-3">
                                                         <span id="contract-asset-selector-help" class="help-block">
+                                                            {{ trans('admin/contracts/bulk_assets.selector.help') }}
                                                             {{ trans('admin/contracts/message.asset.selector.help') }}
                                                         </span>
-                                                        <button type="submit" class="btn btn-primary btn-sm">
+                                                        <span id="contractAssetSelectedCount" class="help-block" aria-live="polite">
+                                                            {{ trans('admin/contracts/bulk_assets.selected_count', ['count' => count($selectedAssetIds)]) }}
+                                                        </span>
+                                                        <button type="submit" class="btn btn-primary btn-sm" id="contractAssetLinkSubmit">
                                                             <i class="fas fa-link" aria-hidden="true"></i>
-                                                            {{ trans('admin/contracts/general.link_asset') }}
+                                                            {{ trans('admin/contracts/bulk_assets.attach.button') }}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -231,6 +238,32 @@
                         @endif
                     </x-tabs.pane>
                     <!-- end assets tab pane -->
+
+                    <script nonce="{{ csrf_token() }}">
+                        document.addEventListener('DOMContentLoaded', function () {
+                            var selector = $('#contract_asset_id');
+                            var form = $('#contract-asset-link-form');
+                            var submit = $('#contractAssetLinkSubmit');
+                            var countLabel = $('#contractAssetSelectedCount');
+                            var countTemplate = @json(trans('admin/contracts/bulk_assets.selected_count'));
+                            var confirmTemplate = @json(trans('admin/contracts/bulk_assets.attach.confirm'));
+                            var updateCount = function () {
+                                var selected = selector.val() || [];
+                                var count = Array.isArray(selected) ? selected.filter(Boolean).length : (selected ? 1 : 0);
+                                countLabel.text(countTemplate.replace(':count', count));
+                                submit.prop('disabled', count === 0);
+                            };
+                            selector.on('change', updateCount);
+                            form.on('submit', function (event) {
+                                var selected = selector.val() || [];
+                                var count = Array.isArray(selected) ? selected.filter(Boolean).length : (selected ? 1 : 0);
+                                if (!count || !window.confirm(confirmTemplate.replace(':count', count))) {
+                                    event.preventDefault();
+                                }
+                            });
+                            updateCount();
+                        });
+                    </script>
 
                     <!-- start history tab pane -->
                     <x-tabs.pane name="history">

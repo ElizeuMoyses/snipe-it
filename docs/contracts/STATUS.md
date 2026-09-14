@@ -1,5 +1,12 @@
 # Contratos v1 — validação para produção
 
+## Correções de usabilidade — 14/09/2026
+
+Nova etapa nas issues #22–#26, baseada em `production` após o merge do PR #7.
+Consulte [USABILITY-2026-09-14.md](USABILITY-2026-09-14.md) para comportamento,
+validação e limites. O histórico abaixo descreve a release anterior; não é o
+status das correções atuais. Esta etapa não autoriza merge nem deploy.
+
 **Decisão atual: NO-GO enquanto os critérios abaixo estiverem pendentes.**
 Atualizado em 2026-09-10. Etapa autorizada: implementação e validação local/CI,
 sem merge ou deploy.

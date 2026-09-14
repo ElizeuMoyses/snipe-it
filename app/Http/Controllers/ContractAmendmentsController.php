@@ -27,7 +27,7 @@ class ContractAmendmentsController extends Controller
     /**
      * Show form for creating a new amendment.
      */
-    public function create(Contract $contract): View|RedirectResponse
+    public function create(Request $request, Contract $contract): View|RedirectResponse
     {
         $this->authorize('update', $contract);
 
@@ -37,9 +37,32 @@ class ContractAmendmentsController extends Controller
                 ->with('error', trans('admin/contracts/message.amendment.contract_terminal'));
         }
 
+        $rectifiesAmendment = null;
+        if ($request->query->has('rectifies_amendment_id')) {
+            $rectifiesAmendmentId = $request->query('rectifies_amendment_id');
+            $validId = is_scalar($rectifiesAmendmentId)
+                && filter_var($rectifiesAmendmentId, FILTER_VALIDATE_INT) !== false
+                && (int) $rectifiesAmendmentId > 0;
+
+            if (! $validId) {
+                return redirect()->route('contracts.show', $contract->id)
+                    ->with('error', trans('admin/contracts/amendment_ux.invalid_rectification'));
+            }
+
+            $rectifiesAmendment = $contract->amendments()
+                ->whereKey((int) $rectifiesAmendmentId)
+                ->first();
+
+            if (! $rectifiesAmendment) {
+                return redirect()->route('contracts.show', $contract->id)
+                    ->with('error', trans('admin/contracts/amendment_ux.invalid_rectification'));
+            }
+        }
+
         return view('contracts/amendments/edit', [
             'contract' => $contract,
             'item'     => new ContractAmendment,
+            'rectifiesAmendment' => $rectifiesAmendment,
         ]);
     }
 
