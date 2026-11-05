@@ -157,7 +157,7 @@ class UploadedFilesController extends Controller
             return response()->json(Helper::formatStandardApiResponse('error', null, trans('general.file_upload_status.file_not_found'), 200));
         }
 
-        if (request('inline') == 'true') {
+        if (request('inline') == 'true' && ($object_type !== 'audits' || StorageHelper::allowSafeInline(self::$map_storage_path[$object_type].$log->filename))) {
             $headers = [
                 'Content-Disposition' => 'inline',
             ];
