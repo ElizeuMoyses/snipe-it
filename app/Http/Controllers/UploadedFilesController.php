@@ -100,7 +100,7 @@ class UploadedFilesController extends Controller
             return redirect()->back()->withFragment('files')->with('error', trans('general.file_upload_status.file_not_found'));
         }
 
-        if (request('inline') == 'true') {
+        if (request('inline') == 'true' && ($object_type !== 'audits' || StorageHelper::allowSafeInline(self::$map_storage_path[$object_type].$log->filename))) {
             $headers = [
                 'Content-Disposition' => 'inline',
             ];

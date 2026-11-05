@@ -822,7 +822,7 @@ Route::group(['middleware' => 'web'], function () {
             'show'
         ]
     )->name('ui.files.show')
-        ->where(['object_type' => 'assets|maintenances|hardware|models|users|locations|accessories|consumables|licenses|components|contracts|contract_installments|contract_amendments']);
+        ->where(['object_type' => 'audits|assets|maintenances|hardware|models|users|locations|accessories|consumables|licenses|components|contracts|contract_installments|contract_amendments']);
 
     // Upload files(s)
     Route::post('{object_type}/{id}/files',
