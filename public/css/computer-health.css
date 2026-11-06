@@ -1,0 +1,12 @@
+/* Integration only: controls, spacing, colors and type come from Snipe-IT. */
+#computer-health-app .info-box {
+    background: var(--box-bg);
+    color: var(--color-fg);
+}
+#computer-health-app .table-display dd,
+#computer-health-app .snipe-table td {
+    overflow-wrap: anywhere;
+}
+#ch-criteria-content {
+    padding-top: 10px;
+}

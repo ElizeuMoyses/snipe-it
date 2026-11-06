@@ -1497,6 +1497,12 @@
                             </li>
                         @endcan
                         @can('index', \App\Models\Asset::class)
+                            <li {!! (request()->is('computer-health*') ? ' class="active"' : '') !!}>
+                                <a href="{{ route('computer-health.index') }}">
+                                    <i class="fa fa-heartbeat fa-fw" aria-hidden="true"></i>
+                                    <span>Saúde dos computadores</span>
+                                </a>
+                            </li>
                             <li class="treeview{{ ((request()->is('statuslabels/*') || request()->is(['hardware*', 'maintenances*'])) ? ' active' : '') }}">
                                 <a href="#">
                                     <x-icon type="assets" class="fa-fw" />
