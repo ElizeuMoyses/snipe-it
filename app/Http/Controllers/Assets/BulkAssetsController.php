@@ -9,10 +9,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\AssetCheckoutRequest;
 use App\Models\Asset;
 use App\Models\AssetModel;
+use App\Models\CheckoutAcceptance;
 use App\Models\Company;
 use App\Models\CustomField;
 use App\Models\Setting;
 use App\Models\Statuslabel;
+use App\Services\CheckoutSignatureLinks;
 use App\View\Label;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
@@ -706,6 +708,7 @@ class BulkAssetsController extends Controller
                 $expected_checkin = $request->input('expected_checkin');
             }
 
+            $acceptanceCursor = (int) CheckoutAcceptance::withTrashed()->max('id');
             $errors = [];
             DB::transaction(function () use ($target, $admin, $checkout_at, $expected_checkin, &$errors, $assets, $request) { // NOTE: $errors is passsed by reference!
                 foreach ($assets as $asset) {
@@ -744,7 +747,13 @@ class BulkAssetsController extends Controller
                 );
 
                 // Redirect to the new asset page
-                return redirect()->to('hardware')->with('success', trans_choice('admin/hardware/message.multi-checkout.success', $asset_ids));
+                $response = redirect()->to('hardware')->with('success', trans_choice('admin/hardware/message.multi-checkout.success', $asset_ids));
+                $links = CheckoutSignatureLinks::forAssets($assets->modelKeys(), $target, $acceptanceCursor);
+                if ($links) {
+                    $response->with('checkout_signature_links', $links);
+                }
+
+                return $response;
             }
 
             // Redirect to the asset management page with error
