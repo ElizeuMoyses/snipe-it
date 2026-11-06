@@ -1,5 +1,34 @@
 # Contratos v1 — validação para produção
 
+## Link do termo após liberação — validação local, 06/11/2026
+
+Branch `codex/checkout-link-termo`, base `c2c7a7cf29` e implementação
+`245dcdd611d0bbf37ac1e0b37639ee957c0aec05`. A liberação individual ou em lote
+abre uma janela com usuário, ativo, validade, cópia do link e abertura do termo.
+O destino escolhido e o token existente são preservados; a janela aparece uma vez.
+Não há nova migration, dependência ou endpoint público.
+
+Validação em banco descartável separado da réplica: baseline de checkout 28/136;
+testes novos 12/58; regressão pertinente 75 aprovados, 350 asserções e dois testes
+de API já marcados como não implementados (`test_cannot_checkout_across_companies_when_full_company_support_enabled`
+e `test_license_seats_are_assigned_to_user_upon_checkout`). Comando PHPUnit:
+`php -d memory_limit=1G vendor/bin/phpunit --bootstrap /qa-bootstrap.php --filter
+'AssetCheckoutSignatureLinkTest|AssetCheckoutTest|BulkAssetCheckoutTest|AssetAcceptanceTest|PublicEulaSchemaTest|BulkCheckoutEmailTest|CheckoutAssetMailTest'`.
+
+Navegador isolado: 16 cenários aprovados, cobrindo seleção de usuário, liberação,
+cópia real e bloqueada, abertura, Escape, exibição única, link idêntico ao relatório,
+assinatura pública, invalidação do token, saída dos pendentes, detalhe/PDF assinado,
+mobile, tema escuro e lote. Zero exceções JavaScript. Sintaxe PHP/JS e
+`git diff --check` aprovados; regressão Node do painel 9/9.
+Revisão independente estática sem achados; a cópia bloqueada revelou depois uma
+limitação do ClipboardJS, corrigida e comprovada no navegador.
+
+Achado preexistente confirmado na réplica: a etapa de assinatura pública pode
+ser aberta com o token sem validar CPF/nome. A melhoria de usabilidade não corrige
+essa autenticação. Próximo passo para publicação: corrigir e testar a progressão
+das etapas, completar os gates de release e obter autorização de implantação.
+Esta etapa entrega a branch e o ambiente local; não inclui merge ou deploy.
+
 ## Painel de computadores — revisão local de interface, 06/11/2026
 
 Branch `codex/painel-saude-computadores`, base
