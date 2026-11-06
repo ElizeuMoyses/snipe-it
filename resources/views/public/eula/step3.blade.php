@@ -565,6 +565,11 @@ $(document).ready(function() {
                 } else {
                     try {
                         const response = JSON.parse(xhr.responseText);
+                        if (xhr.status === 403 && response.redirect_url &&
+                            ['eula_identity_required', 'eula_agreement_required'].includes(response.code)) {
+                            window.location.href = response.redirect_url;
+                            return;
+                        }
                         if (response.message) {
                             errorMessage = response.message;
                         }

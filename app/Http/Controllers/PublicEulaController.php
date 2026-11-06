@@ -12,6 +12,9 @@ use App\Models\Component;
 use App\Models\Consumable;
 use App\Models\Actionlog;
 use App\Rules\ValidCpf;
+use App\Services\PublicEulaProgress;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -19,7 +22,7 @@ use Illuminate\Support\Str;
 
 class PublicEulaController extends Controller
 {
-    public function __construct()
+    public function __construct(private readonly PublicEulaProgress $progress)
     {
         // Verificar HTTPS em produção (desabilitado temporariamente para debug)
         /*
@@ -135,6 +138,9 @@ class PublicEulaController extends Controller
      */
     public function validateStep1(Request $request, $token)
     {
+        // Every validation attempt replaces any earlier permission for this term.
+        $this->progress->forget($token);
+
         try {
             Log::info('EULA Step 1 validation attempt', [
                 'token' => substr($token, 0, 8) . '...',
@@ -172,6 +178,10 @@ class PublicEulaController extends Controller
                     'message' => "Muitas tentativas incorretas. Tente novamente em {$blockDuration} minutos."
                 ]);
             }
+
+            // The database may match case aliases; session grants always use its canonical token.
+            $token = $acceptance->token;
+            $this->progress->forget($token);
 
             $request->validate([
                 'cpf' => ['required', 'string', new ValidCpf()],
@@ -237,6 +247,8 @@ class PublicEulaController extends Controller
             // Registrar validação bem-sucedida no actionlog
             $this->logAction($acceptance, 'eula_validation_success', 'Dados pessoais validados com sucesso');
 
+            $this->progress->validateIdentity($acceptance);
+
             return redirect()->route('eula.sign.step2', $token);
             
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -289,6 +301,10 @@ class PublicEulaController extends Controller
                     'errorType' => 'invalid_token',
                     'message' => 'Link inválido ou expirado.'
                 ]);
+            }
+
+            if ($response = $this->requireProgress($acceptance)) {
+                return $response;
             }
 
             Log::info('Token validated successfully in step 2', [
@@ -376,6 +392,12 @@ class PublicEulaController extends Controller
                 ], 400);
             }
 
+            if ($response = $this->requireProgress($acceptance)) {
+                return $response;
+            }
+            $token = $acceptance->token;
+            $this->progress->clearAgreement($acceptance);
+
             Log::info('Token validated successfully in processStep2', [
                 'acceptance_id' => $acceptance->id
             ]);
@@ -405,6 +427,8 @@ class PublicEulaController extends Controller
                 $acceptance->token_expires_at = null;
                 $acceptance->save();
 
+                $this->progress->forget($token);
+
                 Log::info('EULA declined successfully', [
                     'checkout_acceptance_id' => $acceptance->id,
                     'user_id' => $acceptance->assignedTo->id
@@ -415,6 +439,12 @@ class PublicEulaController extends Controller
                     'type' => 'decline'
                 ]);
             }
+
+            if (! $request->boolean('agree')) {
+                return redirect()->route('eula.sign.step2', $token)
+                    ->withErrors(['agree' => 'Leia e concorde com o termo antes de assinar.']);
+            }
+            $this->progress->acceptAgreement($acceptance);
 
             Log::info('Processing accept - proceeding to signature', [
                 'checkout_acceptance_id' => $acceptance->id,
@@ -470,6 +500,10 @@ class PublicEulaController extends Controller
                 ]);
             }
 
+            if ($response = $this->requireProgress($acceptance, requireAgreement: true)) {
+                return $response;
+            }
+
             Log::info('EULA Step 3 access successful', [
                 'checkout_acceptance_id' => $acceptance->id,
                 'user_id' => $acceptance->assignedTo->id,
@@ -522,6 +556,11 @@ class PublicEulaController extends Controller
                     'success' => false,
                     'message' => 'Link inválido ou expirado.'
                 ], 400);
+            }
+
+            $token = $acceptance->token;
+            if ($response = $this->requireProgress($acceptance, requireAgreement: true, json: true)) {
+                return $response;
             }
 
             $request->validate([
@@ -738,6 +777,8 @@ class PublicEulaController extends Controller
                 // Continue mesmo se falhar - o importante é que a assinatura foi processada
             }
 
+            $this->progress->forget($token);
+
             Log::info('EULA signature completed successfully', [
                 'checkout_acceptance_id' => $acceptance->id,
                 'user_id' => $acceptance->assignedTo?->id,
@@ -788,6 +829,34 @@ class PublicEulaController extends Controller
         }
     }
 
+    private function requireProgress(
+        CheckoutAcceptance $acceptance,
+        bool $requireAgreement = false,
+        bool $json = false
+    ): RedirectResponse|JsonResponse|null {
+        $validated = $this->progress->identityValidated($acceptance);
+        if ($validated && (! $requireAgreement || $this->progress->agreementAccepted($acceptance))) {
+            return null;
+        }
+
+        $message = $validated
+            ? 'Leia e concorde com o termo antes de assinar.'
+            : 'Valide seu CPF e nome novamente para continuar a assinatura.';
+        $redirect = redirect()->route($validated ? 'eula.sign.step2' : 'eula.sign.step1', $acceptance->token)
+            ->withErrors([$validated ? 'agree' : 'validation' => $message]);
+
+        if ($json) {
+            return response()->json([
+                'success' => false,
+                'code' => $validated ? 'eula_agreement_required' : 'eula_identity_required',
+                'message' => $message,
+                'redirect_url' => $redirect->getTargetUrl(),
+            ], 403);
+        }
+
+        return $redirect;
+    }
+
     /**
      * Validate token and return checkout acceptance
      */
@@ -811,6 +880,7 @@ class PublicEulaController extends Controller
         $acceptance = CheckoutAcceptance::where('token', $token)->first();
         
         if (!$acceptance) {
+            $this->progress->forget($token);
             Log::warning('Token not found in database', [
                 'token' => substr($token, 0, 8) . '...',
                 'ip' => request()->ip(),
@@ -818,6 +888,8 @@ class PublicEulaController extends Controller
             ]);
             return null;
         }
+
+        $token = $acceptance->token;
 
         // Log detalhado do token encontrado
         Log::info('Token found in database', [
@@ -829,7 +901,8 @@ class PublicEulaController extends Controller
             'ip' => request()->ip()
         ]);
 
-        if (!$acceptance->isTokenValid()) {
+        if (!$acceptance->isTokenValid() || ! $acceptance->isPending()) {
+            $this->progress->forget($token);
             Log::warning('Token validation failed', [
                 'token' => substr($token, 0, 8) . '...',
                 'checkout_acceptance_id' => $acceptance->id,
