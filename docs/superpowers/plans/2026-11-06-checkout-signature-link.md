@@ -42,6 +42,6 @@
 **Files:** evidências e utilitários privados em diretório ignorado; registro sanitizado em `docs/contracts/STATUS.md`.
 
 - [x] Conferir snapshot e backup local; remover somente recursos Docker antigos do Snipe-IT.
-- [ ] Garantir que o único ambiente operacional mantido contém os arquivos da branch e persiste após recriação do app.
+- [x] Garantir que o único ambiente operacional mantido contém os arquivos da branch e persiste após recriação do app.
 - [x] Fazer revisão independente da branch, tratar achados relevantes e registrar resultados/limites.
-- [ ] Commit local com staging explícito e entregar URL, branch e relatório.
+- [x] Commit local com staging explícito e entregar URL, branch e relatório.

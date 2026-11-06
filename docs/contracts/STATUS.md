@@ -29,6 +29,14 @@ essa autenticação. Próximo passo para publicação: corrigir e testar a progr
 das etapas, completar os gates de release e obter autorização de implantação.
 Esta etapa entrega a branch e o ambiente local; não inclui merge ou deploy.
 
+Persistência conferida após recriar app/banco/gateway com imagem local construída
+sem rede: oito arquivos de produto coincidem por SHA-256; assinatura PNG, aceite,
+invalidação do token e histórico preservados; login, formulário, detalhe e PDF
+novamente aprovados no navegador. A limpeza arquivou os dados antigos antes de
+remover 28 containers e 19 volumes obsoletos; os serviços temporários de testes
+foram retirados. Permanecem apenas os três serviços operacionais desse ambiente.
+As 17 tags antigas de imagens locais do Snipe-IT também foram removidas.
+
 ## Painel de computadores — revisão local de interface, 06/11/2026
 
 Branch `codex/painel-saude-computadores`, base
