@@ -4,3 +4,7 @@ artisan text eol=lf
 docker/supervisor-exit-event-listener text eol=lf
 public/js/** binary
 public/css/** binary
+# Hand-authored dashboard sources must remain reviewable as text.
+public/js/computer-health.js -binary text eol=lf diff merge
+public/js/computer-health-domain.mjs -binary text eol=lf diff merge
+public/css/computer-health.css -binary text eol=lf diff merge

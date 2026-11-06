@@ -1,5 +1,33 @@
 # Contratos v1 — validação para produção
 
+## Painel de computadores — revisão local de interface, 06/11/2026
+
+Branch `codex/painel-saude-computadores`, base
+`955bc28628ecf3c95edfe6f73c1ce5d5539e9fcb`.
+Elizeu aprovou o resultado visual/funcional e autorizou a publicação em produção
+em 06/11/2026. A implantação segue os gates de regressão, backup recuperável,
+restauração isolada e rollout controlado; o resultado final é registrado na entrega.
+Três análises independentes mapearam design, componentes e navegação existentes.
+O painel reutiliza os componentes de ativos/relatórios, Select2, Bootstrap Table,
+modal/abas, formatters e nomenclaturas nativos. Os cadastros usam a mesma aba;
+coordenadas válidas oferecem link externo ao Google Maps. Referências e adaptações
+em [UX-PATTERNS.md](../computer-health/UX-PATTERNS.md).
+
+Validação executada: `node --test tests/JavaScript/computer-health.test.mjs`
+(9 aprovados), `php vendor/bin/phpunit --bootstrap /qa-bootstrap.php --filter
+'ComputerHealthTest|AuditAttachmentTest'` exclusivamente no banco descartável
+(20 aprovados, 104 asserções), `git diff --check`, build Docker local com
+`--network=none --pull=false --target app` e conferência dos hashes em execução.
+Reconciliação integral com a fonte privada e CSV do recorte aprovados; navegação,
+filtros, paginação, modal/teclado, Maps e viewport móvel conferidos no navegador.
+Evidências da réplica permanecem na área privada ignorada pelo Git.
+
+Etapa sem alteração de schema. A suíte completa e os demais critérios de liberação
+continuam no acompanhamento da release; estes resultados cobrem o painel e a
+regressão indicada. Aceite funcional recebido. Próximo passo: completar os gates
+operacionais e publicar o pacote aprovado, registrando commit, imagem e validação
+da implantação. O histórico abaixo mantém as decisões das releases anteriores.
+
 ## Correções de usabilidade — 14/09/2026
 
 Etapa nas issues #22–#26 e #28, baseada em `production` após o merge do PR #7.

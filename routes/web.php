@@ -40,6 +40,11 @@ use Illuminate\Support\Facades\Route;
 use Tabuna\Breadcrumbs\Trail;
 
 Route::group(['middleware' => 'auth'], function () {
+    // Inventory evidence dashboard (read-only, existing asset permissions).
+    Route::get('computer-health', [\App\Http\Controllers\ComputerHealthController::class, 'index'])->name('computer-health.index');
+    Route::get('computer-health/data', [\App\Http\Controllers\ComputerHealthController::class, 'data'])->name('computer-health.data');
+    Route::get('computer-health/{assetId}/history', [\App\Http\Controllers\ComputerHealthController::class, 'history'])->whereNumber('assetId')->name('computer-health.history');
+
     /*
     * Companies
     */
