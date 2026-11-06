@@ -22,7 +22,7 @@ class ComputerHealthTest extends TestCase
         parent::setUp();
         config(['app.timezone' => 'America/Sao_Paulo']);
         foreach (['IP' => '_snipeit_test_ip_91', 'Ult. User Log' => '_snipeit_test_user_92', 'Coordenadas' => '_snipeit_test_coords_93'] as $name => $column) {
-            DB::table('custom_fields')->insert(['name' => $name, 'element' => 'text', 'db_column' => $column, 'field_encrypted' => 0]);
+            DB::table('custom_fields')->insert(['name' => $name, 'format' => '', 'element' => 'text', 'db_column' => $column, 'field_encrypted' => 0]);
         }
     }
 
