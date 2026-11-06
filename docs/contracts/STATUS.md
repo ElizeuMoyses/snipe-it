@@ -1,5 +1,79 @@
 # Contratos v1 — validação para produção
 
+## CPF/nome obrigatórios na assinatura pública — 06/11/2026
+
+Correção local na mesma branch `codex/checkout-link-termo`, commit de produto
+`2f1388f213597111348de6bb824ed903cb7781cc`. O servidor exige CPF/nome válidos na
+sessão daquele visitante e termo para ler/responder ao EULA; assinar exige também
+consentimento explícito. GETs retornam à etapa necessária; POST direto de assinatura
+responde 403 sem gravar aceite, recusa ou assinatura. A interface retoma a etapa
+de validação quando a autorização é revogada ou expira.
+
+A autorização é vinculada ao token canônico do banco, aceite, destinatário e
+impressão HMAC dos campos de identidade, com prazo absoluto padrão de 30 minutos
+(`EULA_VALIDATION_SESSION_MINUTES`). Outro termo/navegador, rotação de token,
+mudança de identidade/destinatário e revalidação inválida não reaproveitam a prova.
+Conclusão/recusa limpam o progresso; termos concluídos, expirados ou bloqueados
+não avançam. Sem migration ou dependência nova. A confirmação de recusa agora
+mostra recusa, em vez de afirmar assinatura.
+
+TDD em MariaDB descartável: RED inicial 20 falhas em 25 cenários; caso adicional
+de alias de caixa reproduzido na revisão e corrigido com teste; RED de mensagem de
+recusa antes da correção. Resultado final: 26 cenários novos e regressão pertinente
+com 101 aprovados, 612 asserções e dois incompletos preexistentes de API. Comando:
+`php -d memory_limit=1G vendor/bin/phpunit --bootstrap /qa-bootstrap.php --filter
+'PublicEulaProgressTest|AssetCheckoutSignatureLinkTest|AssetCheckoutTest|BulkAssetCheckoutTest|AssetAcceptanceTest|PublicEulaSchemaTest|BulkCheckoutEmailTest|CheckoutAssetMailTest'`.
+
+Navegador isolado: 21 cenários aprovados, incluindo cookies de sessões independentes,
+CSRF válido em POSTs diretos, flags forjadas, CPF/nome incorretos, consentimento,
+isolamento entre termos, retomada após 403, assinatura, recusa, relatórios/PDF e
+viewport móvel. Zero exceções JavaScript ou chamadas externas. Regressão Node 9/9,
+sintaxe PHP e diff check aprovados. Revisão independente encontrou um P2 de token
+canônico, reproduzido e corrigido; nenhum achado novo ficou pendente.
+
+Imagem local construída sem rede e app recriado: 13 hashes conferem com o código,
+assinatura PNG/histórico e recusa preservados; login, formulário, bloqueios de GET/POST,
+validação/consentimento e PDF novamente aprovados em sessões novas. Recursos
+temporários de testes retirados; permanecem app, banco e gateway da réplica.
+Estes resultados cobrem a correção e as regressões listadas; os gates gerais de
+release e o aceite funcional continuam no acompanhamento. Sem merge ou deploy.
+
+## Link do termo após liberação — validação local, 06/11/2026
+
+Branch `codex/checkout-link-termo`, base `c2c7a7cf29` e implementação
+`245dcdd611d0bbf37ac1e0b37639ee957c0aec05`. A liberação individual ou em lote
+abre uma janela com usuário, ativo, validade, cópia do link e abertura do termo.
+O destino escolhido e o token existente são preservados; a janela aparece uma vez.
+Não há nova migration, dependência ou endpoint público.
+
+Validação em banco descartável separado da réplica: baseline de checkout 28/136;
+testes novos 12/58; regressão pertinente 75 aprovados, 350 asserções e dois testes
+de API já marcados como não implementados (`test_cannot_checkout_across_companies_when_full_company_support_enabled`
+e `test_license_seats_are_assigned_to_user_upon_checkout`). Comando PHPUnit:
+`php -d memory_limit=1G vendor/bin/phpunit --bootstrap /qa-bootstrap.php --filter
+'AssetCheckoutSignatureLinkTest|AssetCheckoutTest|BulkAssetCheckoutTest|AssetAcceptanceTest|PublicEulaSchemaTest|BulkCheckoutEmailTest|CheckoutAssetMailTest'`.
+
+Navegador isolado: 16 cenários aprovados, cobrindo seleção de usuário, liberação,
+cópia real e bloqueada, abertura, Escape, exibição única, link idêntico ao relatório,
+assinatura pública, invalidação do token, saída dos pendentes, detalhe/PDF assinado,
+mobile, tema escuro e lote. Zero exceções JavaScript. Sintaxe PHP/JS e
+`git diff --check` aprovados; regressão Node do painel 9/9.
+Revisão independente estática sem achados; a cópia bloqueada revelou depois uma
+limitação do ClipboardJS, corrigida e comprovada no navegador.
+
+O achado preexistente de salto de CPF/nome, confirmado nesta primeira etapa,
+foi corrigido e retestado na etapa de validação obrigatória registrada acima.
+Para publicação, completar os gates de release e obter autorização de implantação.
+Esta etapa entrega a branch e o ambiente local; não inclui merge ou deploy.
+
+Persistência conferida após recriar app/banco/gateway com imagem local construída
+sem rede: oito arquivos de produto coincidem por SHA-256; assinatura PNG, aceite,
+invalidação do token e histórico preservados; login, formulário, detalhe e PDF
+novamente aprovados no navegador. A limpeza arquivou os dados antigos antes de
+remover 28 containers e 19 volumes obsoletos; os serviços temporários de testes
+foram retirados. Permanecem apenas os três serviços operacionais desse ambiente.
+As 17 tags antigas de imagens locais do Snipe-IT também foram removidas.
+
 ## Painel de computadores — revisão local de interface, 06/11/2026
 
 Branch `codex/painel-saude-computadores`, base

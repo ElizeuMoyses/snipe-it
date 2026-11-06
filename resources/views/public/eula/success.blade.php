@@ -1,6 +1,8 @@
 @extends('layouts.public')
 
-@section('title', 'Assinatura Concluída')
+@php($declined = ($type ?? null) === 'decline')
+
+@section('title', $declined ? 'Termo Recusado' : 'Assinatura Concluída')
 
 @section('content')
 {{-- Success indicator --}}
@@ -11,40 +13,45 @@
         </div>
     </div>
     <div class="text-center">
-        <small class="text-muted">Validação de Dados &rarr; Visualização do Termo &rarr; Assinatura Digital &rarr; <strong>Concluído</strong></small>
+        <small class="text-muted">Validação de Dados &rarr; Visualização do Termo &rarr; {{ $declined ? 'Recusa do Termo' : 'Assinatura Digital' }} &rarr; <strong>Concluído</strong></small>
     </div>
 </div>
 
 {{-- Success content --}}
-<div class="panel panel-success">
+<div class="panel {{ $declined ? 'panel-warning' : 'panel-success' }}">
     <div class="panel-heading">
         <h3 class="panel-title text-center">
-            <i class="fa fa-check-circle"></i>
-            Assinatura Realizada com Sucesso!
+            <i class="fa {{ $declined ? 'fa-ban' : 'fa-check-circle' }}"></i>
+            {{ $declined ? 'Termo Recusado' : 'Assinatura Realizada com Sucesso!' }}
         </h3>
     </div>
     <div class="panel-body text-center">
         <div class="success-icon">
-            <i class="fa fa-check-circle fa-5x text-success"></i>
+            <i class="fa {{ $declined ? 'fa-ban text-warning' : 'fa-check-circle text-success' }} fa-5x"></i>
         </div>
         
-        <h4 class="text-success" style="margin-top: 20px;">
-            Termo de Aceite Assinado Digitalmente
+        <h4 class="{{ $declined ? 'text-warning' : 'text-success' }}" style="margin-top: 20px;">
+            {{ $declined ? 'Termo de Aceite Recusado' : 'Termo de Aceite Assinado Digitalmente' }}
         </h4>
         
         <p class="lead">
-            Seu termo de aceite foi assinado digitalmente e processado com sucesso.
+            {{ $declined ? 'Termo recusado com sucesso.' : 'Seu termo de aceite foi assinado digitalmente e processado com sucesso.' }}
         </p>
         
         <div class="alert alert-info">
             <i class="fa fa-info-circle"></i>
             <strong>Próximos passos:</strong><br>
+            @if ($declined)
+            &bull; Entre em contato com o responsável pela entrega para esclarecer os termos<br>
+            &bull; A recusa foi registrada no sistema para auditoria
+            @else
             &bull; O equipamento será liberado para uso conforme os termos aceitos<br>
             &bull; Você receberá uma confirmação por email em breve<br>
             &bull; O registro foi salvo no sistema para auditoria
+            @endif
         </div>
         
-        @if(isset($pdfUrl) && !empty($pdfUrl))
+        @if(!$declined && isset($pdfUrl) && !empty($pdfUrl))
         <div class="download-section" style="margin-top: 30px;">
             <h5><i class="fa fa-file-pdf-o"></i> Comprovante de Assinatura</h5>
             <p>Baixe uma cópia do termo assinado para seus registros:</p>
@@ -58,7 +65,7 @@
         <div class="completion-info" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
             <small class="text-muted">
                 <i class="fa fa-clock-o"></i>
-                Assinatura processada em <?php echo date('d/m/Y H:i:s'); ?>
+                {{ $declined ? 'Recusa registrada' : 'Assinatura processada' }} em <?php echo date('d/m/Y H:i:s'); ?>
             </small>
         </div>
         

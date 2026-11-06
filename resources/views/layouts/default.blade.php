@@ -2184,6 +2184,8 @@
         <script src="{{ url(mix('js/dist/all.js')) }}" nonce="{{ csrf_token() }}"></script>
         <script src="{{ url('js/select2/i18n/'.Helper::mapBackToLegacyLocale(app()->getLocale()).'.js') }}"></script>
 
+        @include('partials.checkout-signature-links')
+
         {{-- Page level javascript --}}
         @stack('js')
 

@@ -8,7 +8,9 @@ use App\Http\Controllers\CheckInOutRequest;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AssetCheckoutRequest;
 use App\Models\Asset;
+use App\Models\CheckoutAcceptance;
 use App\Models\Setting;
+use App\Services\CheckoutSignatureLinks;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\RedirectResponse;
@@ -124,9 +126,18 @@ class AssetCheckoutController extends Controller
 
             session()->put(['redirect_option' => $request->input('redirect_option'), 'checkout_to_type' => $request->input('checkout_to_type')]);
 
+            $acceptanceCursor = (int) CheckoutAcceptance::withTrashed()->max('id');
+
             if ($asset->checkOut($target, $admin, $checkout_at, $expected_checkin, $request->input('note'), $request->input('name'))) {
-                return Helper::getRedirectOption($request, $asset->id, 'Assets')
+                $response = Helper::getRedirectOption($request, $asset->id, 'Assets')
                     ->with('success', trans('admin/hardware/message.checkout.success'));
+
+                $links = CheckoutSignatureLinks::forAssets([$asset->id], $target, $acceptanceCursor);
+                if ($links) {
+                    $response->with('checkout_signature_links', $links);
+                }
+
+                return $response;
             }
 
             // Redirect to the asset management page with error

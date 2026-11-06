@@ -13,6 +13,9 @@ return [
     // Token expiry time in days
     'token_expiry_days' => env('EULA_TOKEN_EXPIRY_DAYS', 30),
 
+    // Maximum age of identity validation in the visitor's session.
+    'validation_session_minutes' => env('EULA_VALIDATION_SESSION_MINUTES', 30),
+
     // Maximum failed validation attempts before blocking
     'max_failed_attempts' => env('EULA_MAX_FAILED_ATTEMPTS', 5),
 
