@@ -1,5 +1,43 @@
 # Contratos v1 — validação para produção
 
+## CPF/nome obrigatórios na assinatura pública — 06/11/2026
+
+Correção local na mesma branch `codex/checkout-link-termo`, commit de produto
+`2f1388f213597111348de6bb824ed903cb7781cc`. O servidor exige CPF/nome válidos na
+sessão daquele visitante e termo para ler/responder ao EULA; assinar exige também
+consentimento explícito. GETs retornam à etapa necessária; POST direto de assinatura
+responde 403 sem gravar aceite, recusa ou assinatura. A interface retoma a etapa
+de validação quando a autorização é revogada ou expira.
+
+A autorização é vinculada ao token canônico do banco, aceite, destinatário e
+impressão HMAC dos campos de identidade, com prazo absoluto padrão de 30 minutos
+(`EULA_VALIDATION_SESSION_MINUTES`). Outro termo/navegador, rotação de token,
+mudança de identidade/destinatário e revalidação inválida não reaproveitam a prova.
+Conclusão/recusa limpam o progresso; termos concluídos, expirados ou bloqueados
+não avançam. Sem migration ou dependência nova. A confirmação de recusa agora
+mostra recusa, em vez de afirmar assinatura.
+
+TDD em MariaDB descartável: RED inicial 20 falhas em 25 cenários; caso adicional
+de alias de caixa reproduzido na revisão e corrigido com teste; RED de mensagem de
+recusa antes da correção. Resultado final: 26 cenários novos e regressão pertinente
+com 101 aprovados, 612 asserções e dois incompletos preexistentes de API. Comando:
+`php -d memory_limit=1G vendor/bin/phpunit --bootstrap /qa-bootstrap.php --filter
+'PublicEulaProgressTest|AssetCheckoutSignatureLinkTest|AssetCheckoutTest|BulkAssetCheckoutTest|AssetAcceptanceTest|PublicEulaSchemaTest|BulkCheckoutEmailTest|CheckoutAssetMailTest'`.
+
+Navegador isolado: 21 cenários aprovados, incluindo cookies de sessões independentes,
+CSRF válido em POSTs diretos, flags forjadas, CPF/nome incorretos, consentimento,
+isolamento entre termos, retomada após 403, assinatura, recusa, relatórios/PDF e
+viewport móvel. Zero exceções JavaScript ou chamadas externas. Regressão Node 9/9,
+sintaxe PHP e diff check aprovados. Revisão independente encontrou um P2 de token
+canônico, reproduzido e corrigido; nenhum achado novo ficou pendente.
+
+Imagem local construída sem rede e app recriado: 13 hashes conferem com o código,
+assinatura PNG/histórico e recusa preservados; login, formulário, bloqueios de GET/POST,
+validação/consentimento e PDF novamente aprovados em sessões novas. Recursos
+temporários de testes retirados; permanecem app, banco e gateway da réplica.
+Estes resultados cobrem a correção e as regressões listadas; os gates gerais de
+release e o aceite funcional continuam no acompanhamento. Sem merge ou deploy.
+
 ## Link do termo após liberação — validação local, 06/11/2026
 
 Branch `codex/checkout-link-termo`, base `c2c7a7cf29` e implementação
@@ -23,10 +61,9 @@ mobile, tema escuro e lote. Zero exceções JavaScript. Sintaxe PHP/JS e
 Revisão independente estática sem achados; a cópia bloqueada revelou depois uma
 limitação do ClipboardJS, corrigida e comprovada no navegador.
 
-Achado preexistente confirmado na réplica: a etapa de assinatura pública pode
-ser aberta com o token sem validar CPF/nome. A melhoria de usabilidade não corrige
-essa autenticação. Próximo passo para publicação: corrigir e testar a progressão
-das etapas, completar os gates de release e obter autorização de implantação.
+O achado preexistente de salto de CPF/nome, confirmado nesta primeira etapa,
+foi corrigido e retestado na etapa de validação obrigatória registrada acima.
+Para publicação, completar os gates de release e obter autorização de implantação.
 Esta etapa entrega a branch e o ambiente local; não inclui merge ou deploy.
 
 Persistência conferida após recriar app/banco/gateway com imagem local construída

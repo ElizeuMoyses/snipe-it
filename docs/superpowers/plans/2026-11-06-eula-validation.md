@@ -19,5 +19,5 @@
   configuração e retomada da validação expirada na interface de assinatura.
 - [x] Executar testes e regressões de checkout/assinatura; testar no navegador
   liberação, pop-up, etapas, ataques diretos, assinatura, relatório e PDF.
-- [ ] Revisão independente; atualizar status e commit local; imagem persistente,
+- [x] Revisão independente; atualizar status e commit local; imagem persistente,
   prova após recriação e retirada dos recursos temporários de testes.
